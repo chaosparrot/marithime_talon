@@ -14,6 +14,5 @@ class Actions:
     def cancelable_tasks_cancel():
         """Cancel running tasks that have been added to the task callbacks"""
         global possible_canceled_actions
-        actions.user.cancel_current_phrase()
         for callback in possible_canceled_actions:
             callback()

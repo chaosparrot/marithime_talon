@@ -1,6 +1,6 @@
 # to disable command cancellation, comment out this entire file.
 # you may also wish to adjust the commands in misc/cancel.talon.
-from talon import Module, actions, speech_system
+from talon import Module, actions, speech_system, app
 import time
 
 # To change the phrase used to cancel commands, you must also adjust misc/cancel.talon
@@ -23,13 +23,22 @@ def pre_phrase(d):
         if after != cancel_phrase:
             actions.user.hud_add_log("warning", "Canceled '" + " ".join(d["text"]) + "'")
 
+def cancel_current_phrase():
+    global canceled_time
+    canceled_time = time.perf_counter()
+
 mod = Module()
 @mod.action_class
 class Actions:
 
     def cancel_current_phrase():
         """Cancel the current phrase initiated using a noise"""
-        global canceled_time
-        canceled_time = time.perf_counter()
+        cancel_current_phrase()
 
 speech_system.register("pre:phrase", pre_phrase)
+
+# Add cancel phrase to cancelable tasks
+def register_cancel_phrase():
+    actions.user.cancelable_tasks_append(lambda : cancel_current_phrase())
+
+app.register("ready", register_cancel_phrase)

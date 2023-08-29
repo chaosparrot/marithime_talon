@@ -11,13 +11,13 @@ block comment line:
     key(space)
     user.code_comment_block_suffix()
 #adds comment to the start of the line
-block comment line <user.text> over:
+block comment line <user.text> quilt:
     #todo: this should probably be a single function once
     #.talon supports implementing actions with parameters?
     edit.line_start()
     user.code_comment_block()
     insert(user.text)
-block comment <user.text> over:
+block comment <user.text> quilt:
     #todo: this should probably be a single function once
     #.talon supports implementing actions with parameters?
     user.code_comment_block()
@@ -27,7 +27,7 @@ block comment <user.text>$:
     #.talon supports implementing actions with parameters?
     user.code_comment_block()
     insert(user.text)
-(line | inline) block comment <user.text> over:
+(line | inline) block comment <user.text> quilt:
     #todo: this should probably be a single function once
     #.talon supports implementing actions with parameters?
     edit.line_end()

@@ -5,7 +5,7 @@ tag: user.debugger
 
 ## instruction level
 step into: user.debugger_step_into()
-step over: user.debugger_step_over()
+step quilt: user.debugger_step_over()
 
 ## line level
 step line: user.debugger_step_line()

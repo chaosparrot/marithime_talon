@@ -27,6 +27,6 @@ settings():
 state try: "try {\n"
 state catch: "catch (\\Throwable $exception) {\n"
 
-var <phrase> [over]:
+var <phrase> [quilt]:
     insert("$")
     insert(user.formatted_text(phrase, "PRIVATE_CAMEL_CASE"))

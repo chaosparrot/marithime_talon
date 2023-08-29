@@ -43,9 +43,9 @@ require <user.code_libraries>:
     user.code_insert_library("", code_libraries)
     key(end enter)
 
-state (variable | var) [<user.text>] [over]: user.code_public_variable_formatter(text)
+state (variable | var) [<user.text>] [quilt]: user.code_public_variable_formatter(text)
 
-state local (variable | var) [<user.text>] [over]:
+state local (variable | var) [<user.text>] [quilt]:
     insert("local ")
     user.code_private_variable_formatter(text)
 

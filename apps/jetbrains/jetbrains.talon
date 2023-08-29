@@ -46,7 +46,7 @@ go back: user.idea("action Back")
 go forward: user.idea("action Forward")
 # Search
 find (everywhere | all): user.idea("action SearchEverywhere")
-find (everywhere | all) <user.text> [over]:
+find (everywhere | all) <user.text> [quilt]:
     user.idea("action SearchEverywhere")
     sleep(500ms)
     insert(text)
@@ -60,16 +60,16 @@ find (everywhere | all) <user.text> [over]:
     key("enter")
 recent: user.idea("action RecentFiles")
 
-surround [this] with <user.text> [over]:
+surround [this] with <user.text> [quilt]:
     idea("action SurroundWith")
     sleep(500ms)
     insert(text)
 # Making these longer to reduce collisions with real code dictation.
-insert generated <user.text> [over]:
+insert generated <user.text> [quilt]:
     user.idea("action Generate")
     sleep(500ms)
     insert(text)
-insert template <user.text> [over]:
+insert template <user.text> [quilt]:
     idea("action InsertLiveTemplate")
     sleep(500ms)
     insert(text)
@@ -78,7 +78,7 @@ create (template | snippet): user.idea("action SaveAsTemplate")
 toggle recording: user.idea("action StartStopMacroRecording")
 change (recording | recordings): user.idea("action EditMacros")
 play recording: user.idea("action PlaybackLastMacro")
-play recording <user.text> [over]:
+play recording <user.text> [quilt]:
     idea("action PlaySavedMacrosAction")
     insert(text)
     sleep(500ms)
@@ -106,12 +106,12 @@ copy reference: user.idea("action CopyReference")
 copy pretty: user.idea("action CopyAsRichText")
 # File Creation
 create sibling: user.idea("action NewElementSamePlace")
-create sibling <user.text> [over]:
+create sibling <user.text> [quilt]:
     user.idea("action NewElementSamePlace")
     sleep(500ms)
     insert(text)
 create file: user.idea("action NewElement")
-create file <user.text> [over]:
+create file <user.text> [quilt]:
     user.idea("action NewElement")
     sleep(500ms)
     insert(text)
@@ -191,7 +191,7 @@ run menu: user.idea("action ChooseRunConfiguration")
 run test: user.idea("action RunClass")
 run test again: user.idea("action Rerun")
 debug test: user.idea("action DebugClass")
-step over: user.idea("action StepOver")
+step quilt: user.idea("action StepOver")
 step into: user.idea("action StepInto")
 step smart: user.idea("action SmartStepInto")
 step to line: user.idea("action RunToCursor")
@@ -229,26 +229,26 @@ refactor <number> until <number>:
 clone <number>: user.line_clone(number)
 
 #find/replace
-clear last <user.text> [over]: user.idea("find prev {text}, action EditorBackSpace")
-clear next <user.text> [over]: user.idea("find next {text}, action EditorBackSpace")
-comment last <user.text> [over]:
+clear last <user.text> [quilt]: user.idea("find prev {text}, action EditorBackSpace")
+clear next <user.text> [quilt]: user.idea("find next {text}, action EditorBackSpace")
+comment last <user.text> [quilt]:
     user.idea("find prev {text}, action CommentByLineComment")
-comment next <user.text> [over]:
+comment next <user.text> [quilt]:
     user.idea("find next {text}, action CommentByLineComment")
-go last <user.text> [over]: user.idea("find prev {text}, action EditorRight")
-go next <user.text> [over]: user.idea("find next {text}, action EditorRight")
-paste last <user.text> [over]:
+go last <user.text> [quilt]: user.idea("find prev {text}, action EditorRight")
+go next <user.text> [quilt]: user.idea("find next {text}, action EditorRight")
+paste last <user.text> [quilt]:
     user.idea("find prev {text}, action EditorRight, action EditorPaste")
-paste next <user.text> [over]:
+paste next <user.text> [quilt]:
     user.idea("find next {text}, action EditorRight, action EditorPaste")
-refactor last <user.text> [over]:
+refactor last <user.text> [quilt]:
     user.idea("find prev {text}, action Refactorings.QuickListPopupAction")
-refactor next <user.text> [over]:
+refactor next <user.text> [quilt]:
     user.idea("find next {text}, action Refactorings.QuickListPopupAction")
-replace last <user.text> [over]: user.idea("find prev {text}, action EditorPaste")
-replace next <user.text> [over]: user.idea("find next {text}, action EditorPaste")
-select last <user.text> [over]: user.idea("find prev {text}")
-select next <user.text> [over]: user.idea("find next {text}")
+replace last <user.text> [quilt]: user.idea("find prev {text}, action EditorPaste")
+replace next <user.text> [quilt]: user.idea("find next {text}, action EditorPaste")
+select last <user.text> [quilt]: user.idea("find prev {text}")
+select next <user.text> [quilt]: user.idea("find next {text}")
 
 select camel left: user.extend_camel_left()
 select camel right: user.extend_camel_right()

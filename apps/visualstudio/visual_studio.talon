@@ -4,7 +4,6 @@ app: visual_studio
 tag(): user.tabs
 tag(): user.line_commands
 tag(): user.find_and_replace
-tag(): user.snippets
 tag(): user.multiple_cursors
 #multiple_cursor.py support end
 
@@ -21,7 +20,6 @@ panel breakpoints: key(ctrl-alt-b)
 # Settings
 show settings: key(alt-t o)
 #show shortcuts:
-#show snippets:
 
 # Display
 fullscreen switch: key(shift-alt-enter)
@@ -87,7 +85,7 @@ fold definitions: key(ctrl-m ctrl-o)
 
 #Debugging
 break point: key(f9)
-step over: key(f10)
+step quilt: key(f10)
 debug step into: key(f11)
 debug step out [of]: key(f10)
 debug start: key(f5)

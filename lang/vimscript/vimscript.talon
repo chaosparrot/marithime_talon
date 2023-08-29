@@ -17,12 +17,12 @@ settings():
 ###
 # VIM Script Specific
 ###
-assign [<user.vimscript_scope>] (variable | var) [<user.text>] [over]:
+assign [<user.vimscript_scope>] (variable | var) [<user.text>] [quilt]:
     insert("let ")
     insert(vimscript_scope or "")
     user.code_private_variable_formatter(text)
 
-[<user.vimscript_scope>] (variable | var) [<user.text>] [over]:
+[<user.vimscript_scope>] (variable | var) [<user.text>] [quilt]:
     insert(vimscript_scope or "")
     user.code_private_variable_formatter(text)
 

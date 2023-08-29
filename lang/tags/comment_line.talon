@@ -7,14 +7,14 @@ comment line:
     edit.line_start()
     user.code_comment_line_prefix()
 #adds comment to the start of the line
-comment line <user.text> over:
+comment line <user.text> quilt:
     #todo: this should probably be a single function once
     #.talon supports implementing actions with parameters?
     edit.line_start()
     user.code_comment_line_prefix()
     insert(user.text)
     insert(" ")
-comment <user.text> over:
+comment <user.text> quilt:
     #todo: this should probably be a single function once
     #.talon supports implementing actions with parameters?
     user.code_comment_line_prefix()
@@ -24,7 +24,7 @@ comment <user.text>$:
     #.talon supports implementing actions with parameters?
     user.code_comment_line_prefix()
     insert(user.text)
-(line | inline) comment <user.text> over:
+(line | inline) comment <user.text> quilt:
     #todo: this should probably be a single function once
     #.talon supports implementing actions with parameters?
     edit.line_end()

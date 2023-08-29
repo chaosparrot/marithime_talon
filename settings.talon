@@ -33,13 +33,6 @@ settings():
     # Mouse grid and friends put the number one on the bottom left (vs on the top left)
     user.grids_put_one_bottom_left = 1
 
-    # The number of lines of command history to display by default
-    user.command_history_display = 10
-
-    # The number of lines of command history to keep in total;
-    # "command history more" to display all of them, "command history less" to restore
-    user.command_history_size = 50
-
     # Uncomment the below to insert text longer than 10 characters (customizable) by
     # pasting from the clipboard. This is often faster than typing.
     user.paste_to_insert_threshold = 10

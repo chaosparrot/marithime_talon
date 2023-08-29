@@ -123,7 +123,7 @@ go last mark: key(alt-pageup)
 
 #Debugging
 break point: key(ctrl-shift-b)
-step over: key(f6)
+step quilt: key(f6)
 debug step into: key(f5)
 debug step out [of]: key(f7)
 #debug start: user.vscode("workbench.action.debug.start")

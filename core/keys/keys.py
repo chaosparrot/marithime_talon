@@ -119,6 +119,10 @@ def letters(m) -> str:
     "Multiple letter keys"
     return "".join(m.letter_list)
 
+@mod.capture(rule="spell {self.letter}+")
+def spell(m) -> str:
+    """Spell word phoneticly"""
+    return "".join(m.letter_list)
 
 ctx = Context()
 modifier_keys = {
@@ -278,3 +282,4 @@ class Actions:
         """Press the keys one by one"""
         for key in keys:
             actions.insert(key)
+

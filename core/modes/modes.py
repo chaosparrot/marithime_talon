@@ -28,18 +28,15 @@ class Actions:
                 actions.user.engine_wake()
                 # note: this may not do anything for all versions of Dragon. Requires Pro.
                 actions.user.engine_mimic("switch to command mode")
+    
+    def enable_single_mode(mode: str):
+        """Enable a single mode and disable all other modes that are known"""
+        default_modes = ["sleep", "command", "dictation"]
 
-    def dragon_mode():
-        """For windows and Mac with Dragon, disables Talon commands and exits Dragon's command mode"""
-        engine = speech_system.engine.name
-        # app.notify(engine)
-
-        if "dragon" in engine:
-            # app.notify("dragon mode")
-            actions.speech.disable()
-            if app.platform == "mac":
-                actions.user.engine_wake()
-            elif app.platform == "windows":
-                actions.user.engine_wake()
-                # note: this may not do anything for all versions of Dragon. Requires Pro.
-                actions.user.engine_mimic("start normal mode")
+        if mode not in default_modes and not mode.startswith("user."):
+            mode = "user." + mode
+        
+        for default_mode in default_modes:
+            if default_mode != mode:
+                actions.mode.disable(default_mode)
+        actions.mode.enable(mode)

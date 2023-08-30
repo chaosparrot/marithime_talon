@@ -1,6 +1,6 @@
 <user.arrow_keys>: user.move_cursor(arrow_keys)
 spell <user.letters>: user.insert_keys(letters)
-(ship | uppercase) <user.letters> [over]:
+(ship | uppercase) <user.letters> [quilt]:
     user.insert_formatted(letters, "ALL_CAPS")
 <user.symbol_key>: user.insert_keys(symbol_key)
 <user.function_key>: key(function_key)

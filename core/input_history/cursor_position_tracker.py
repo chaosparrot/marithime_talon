@@ -3,6 +3,7 @@ from talon import actions, clip
 # CURSOR MARKERS
 _CURSOR_MARKER = "$CURSOR" # TODO APPEND RANDOM NUMBER FOR LESS COLLISIONS?
 _COARSE_MARKER = "$COARSE_CURSOR" # TODO APPEND RANDOM NUMBER FOR LESS COLLISIONS?
+_INCONSISTENT_WHITESPACE_MARKER = "\u00A0"
 
 # SHOULD SUPPORT:
 # MULTI LINE TEXT
@@ -68,13 +69,13 @@ class CursorPositionTracker:
             self.selecting_text = False
 
     def disable_cursor_tracking(self):
-        self.enable_cursor_tracking = False
+        self.cursor_tracking_enabled = False
 
     def enable_cursor_tracking(self):
-        self.enable_cursor_tracking = len(self.text_history) > 0
+        self.cursor_tracking_enabled = len(self.text_history) > 0
 
     def track_cursor_position(self, key: str):
-        if not self.enable_cursor_tracking:
+        if not self.cursor_tracking_enabled:
             return
 
         keys = key.lower().split(" ")
@@ -107,7 +108,7 @@ class CursorPositionTracker:
                 self.mark_below_line_as_coarse()
 
     def index_all(self):
-        self.enable_cursor_tracking = False
+        self.cursor_tracking_enabled = False
         with clip.revert():
             actions.edit.select_all()
             text = actions.edit.selected_text()
@@ -117,7 +118,7 @@ class CursorPositionTracker:
 
     # Select a line and index it to find where we are in the current text history
     def search_line(self):
-        self.enable_cursor_tracking = False
+        self.cursor_tracking_enabled = False
         
         found_line_index = -1
         if self.text_history:
@@ -161,7 +162,7 @@ class CursorPositionTracker:
             self.set_history("")
 
     def mark_cursor_to_end_of_line(self):
-        lines = self.text_history.splitlines("\n")
+        lines = self.text_history.splitlines()
         before_cursor = []
         after_cursor = []
         before_cursor_marker = True
@@ -309,3 +310,24 @@ class CursorPositionTracker:
         else:
             self.text_history = ""
         self.enable_cursor_tracking()
+
+    def append_before_cursor(self, before_cursor_text: str):
+        items = self.text_history.split(_CURSOR_MARKER)
+        items[0] += before_cursor_text
+        after_cursor = ""
+        if len(items) > 1:
+            after_cursor = items[1]
+        self.set_history(items[0], after_cursor)
+
+    def get_cursor_index(self) -> (int, int):
+        line_index = -1
+        character_index = -1
+        lines = self.text_history.splitlines()
+        if _CURSOR_MARKER in self.text_history:
+            for index, line in enumerate(lines):
+                if _CURSOR_MARKER in line:
+                    line_index = index
+                    character_index = len(line.split(_CURSOR_MARKER)[1])
+                    break
+
+        return line_index, character_index

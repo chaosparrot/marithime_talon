@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 @dataclass
 class InputHistoryEvent:
-    phrase: str
     text: str
+    phrase: str
     format: str
-    start_index: int
-    end_index: int
+    line_index: int = 0
+    index_from_line_end: int = 0

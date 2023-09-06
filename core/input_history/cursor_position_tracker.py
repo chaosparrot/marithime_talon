@@ -319,6 +319,14 @@ class CursorPositionTracker:
             after_cursor = items[1]
         self.set_history(items[0], after_cursor)
 
+    def remove_before_cursor(self, remove_character_count: int):
+        items = self.text_history.split(_CURSOR_MARKER)
+        after_cursor = ""
+        if len(items) > 1:
+            after_cursor = items[1]
+        before_cursor = "" if len(items[0]) <= remove_character_count else items[0][:-remove_character_count]
+        self.set_history(before_cursor, after_cursor)
+
     def get_cursor_index(self) -> (int, int):
         line_index = -1
         character_index = -1

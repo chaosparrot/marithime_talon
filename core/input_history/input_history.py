@@ -170,21 +170,26 @@ class InputHistoryManager:
         if line_index > -1 and character_index > -1:
             input_index, input_character_index = self.determine_input_index()
             remove_from_previous_input_events = abs(min(0, input_character_index - backspace_count ))
-            remove_from_input_event = backspace_count - remove_from_previous_input_events            
+            remove_from_input_event = backspace_count - remove_from_previous_input_events
             text = self.input_history[input_index].text
+
             should_detect_merge = input_character_index == 0 or input_character_index == len(text.replace("\n", ""))
 
+            # If we are removing a full event in the middle, make sure to just remove the event
             text = text[:input_character_index - remove_from_input_event] + text[input_character_index:]
-            self.input_history[input_index].text = text
-            self.input_history[input_index].phrase = text_to_phrase(text)
+            if text == "" and input_index + 1 < len(self.input_history) - 1:
+                del self.input_history[input_index]
+            else:
+                self.input_history[input_index].text = text
+                self.input_history[input_index].phrase = text_to_phrase(text)
             
             previous_input_index = input_index - 1
             if remove_from_previous_input_events > 0:
                 while previous_input_index >= 0 and remove_from_previous_input_events > 0:
                     if len(self.input_history[previous_input_index].text) <= remove_from_previous_input_events:
-                        #print( "REMOVE WHOLE ITEM!" )
                         remove_from_previous_input_events -= len(self.input_history[previous_input_index].text)
                         del self.input_history[previous_input_index]
+                        previous_input_index -= 1
                     else:
                         previous_text = self.input_history[previous_input_index].text
                         previous_text = previous_text[:len(previous_text) - remove_from_previous_input_events]
@@ -192,23 +197,19 @@ class InputHistoryManager:
                         self.input_history[previous_input_index].phrase = text_to_phrase(previous_text)
 
                         remove_from_previous_input_events = 0
-                        #print( "REMOVING SLIGHTLY :)")
                         self.reformat_events()
-                        
 
             # Detect if we should merge the input events if the text combines
             if should_detect_merge:
+                input_index = previous_input_index + 1
                 if input_index == 0 and len(self.input_history) > 1:
                     previous_input_index = 0
 
                 if previous_input_index + 1 < len(self.input_history):
                     previous_text = "" if previous_input_index < 0 else self.input_history[previous_input_index].text
                     text = self.input_history[previous_input_index + 1].text
-                    
-                    #print( self.input_history )
-                    #print( "MERGE >:( " + previous_text, "a", text, self.input_history[previous_input_index + 1] )
 
-                    if should_detect_merge and not re.sub(r"[^\w\s]", ' ', text).startswith(" ") and not re.sub(r"[^\w\s]", ' ', previous_text).endswith(" "):
+                    if should_detect_merge and (text == "\n" or not re.sub(r"[^\w\s]", ' ', text).startswith(" ") ) and not re.sub(r"[^\w\s]", ' ', previous_text).endswith(" "):
                         text = previous_text + text
                         self.input_history[previous_input_index].text = text
                         self.input_history[previous_input_index].phrase = text_to_phrase(text)

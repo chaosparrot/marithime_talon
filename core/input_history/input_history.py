@@ -40,7 +40,8 @@ class InputHistoryManager:
             for input_index, input_event in enumerate(self.input_history):
                 if input_event.line_index == line_index and \
                     input_event.index_from_line_end <= character_index and input_event.index_from_line_end + len(input_event.text) >= character_index:
-                    return input_index, len(input_event.text) - (input_event.index_from_line_end + character_index)
+                    input_character_index = (len(input_event.text.replace("\n", "")) + input_event.index_from_line_end) - character_index
+                    return input_index, input_character_index
             
             # Detect new lines properly
             if "\n" in self.input_history[-1].text:
@@ -67,13 +68,19 @@ class InputHistoryManager:
                     self.input_history.append(event)
                     self.cursor_position_tracker.append_before_cursor(event.text)
                     appended = True
+            # If empty events are inserted in the middle, just ignore them
+            elif input_index < len(self.input_history) - 1 and event.text == "":
+                return
             
             if appended == False:
                 self.cursor_position_tracker.append_before_cursor(event.text)
                 if input_character_index == len(self.input_history[input_index].text) and self.input_history[input_index].text != "":
                     self.append_event_after(input_index, event)
-
-                    # Merge input events somehow ( still need to fix phrasing somehow
+                
+                # Just insert a event if we are at the exact start of an event
+                elif input_character_index == 0 and self.input_history[input_index].text != "":
+                    self.append_event_after(input_index - 1, event)
+                # Merge input events if the appending happens in the middle of an event
                 else:
                     self.merge_input_events(input_index, input_character_index, event)
         else:
@@ -83,41 +90,64 @@ class InputHistoryManager:
 
     def append_event_after(self, input_index: int, appended_event: InputHistoryEvent):
         appended_event.line_index = self.input_history[input_index].line_index
+        if self.input_history[input_index].text.endswith("\n"):
+            appended_event.line_index += 1
+        reindex_text_lines = not appended_event.text.endswith("\n")
+
         self.input_history.insert(input_index + 1, appended_event)
-        for input_event in self.input_history:
-            if input_event.line_index == appended_event.line_index:
-                input_event.index_from_line_end += len(appended_event.text.replace("\n", ""))        
-        
+
+        if reindex_text_lines:
+            previous_length = 0
+            for index, input_event in enumerate(reversed(self.input_history)):
+                if input_event.line_index == appended_event.line_index:
+                    true_index = len(self.input_history) - 1 - index
+                    self.input_history[true_index].index_from_line_end = previous_length
+                    previous_length += len(self.input_history[true_index].text.replace("\n", ""))
+
         # Fix the line index for the input events after this event
         if appended_event.text.endswith("\n"):
             for current_input_index, current_event in enumerate(self.input_history):
                 if current_input_index > input_index + 1:
                     self.input_history[current_input_index].line_index += 1
 
-    def merge_input_events(self, input_index: int,  input_character_index: int, event: InputHistoryEvent):
+    def merge_input_events(self, input_index: int, input_character_index: int, event: InputHistoryEvent):
         previous_input_event = self.input_history[input_index]
 
         # Line endings need to be counted separately as they aren't part of the input character index
-        if previous_input_event.text.endswith("\n"):
-            input_character_index -= 2
+        #if previous_input_event.text.endswith("\n"):
+        #    input_character_index -= 2
+
+        if "\n" in event.text:
+            text_lines = event.text.splitlines()
+            if event.text.endswith("\n"):
+                text_lines.append("")
+        else:
+            text_lines = [event.text]
         
-        text = previous_input_event.text[:input_character_index] + event.text + previous_input_event.text[input_character_index:]
-        after_new_phrase = previous_input_event.text[input_character_index - 1:]
-        after_phrase_space = " " if after_new_phrase.startswith(" ") else ""
-        before_new_phrase = previous_input_event.text[:input_character_index]
-        before_phrase_space = " " if before_new_phrase.endswith(" ") else ""
+        total_text_lines = len(text_lines)
+        events = []
+        for line_index, text_line in enumerate(text_lines):
+            text = ""
+            if line_index == 0:
+                text = previous_input_event.text[:input_character_index]
+            text += text_line
+            if total_text_lines > 1 and line_index != total_text_lines - 1:
+                text += "\n"
+            if line_index == total_text_lines - 1:
+                text += previous_input_event.text[input_character_index:]
+            
+            new_event = InputHistoryEvent(text, text_to_phrase(text), "")
+            new_event.line_index = previous_input_event.line_index + line_index
+            events.append(new_event)
 
-        after_new_phrase = after_phrase_space + text_to_phrase(after_new_phrase)
-        before_new_phrase = text_to_phrase(before_new_phrase) + before_phrase_space
-
-        if after_new_phrase != "" and previous_input_event.phrase.endswith(after_new_phrase):
-            self.input_history[input_index].phrase = before_new_phrase + event.phrase + after_new_phrase
-        elif after_new_phrase == "":
-            self.input_history[input_index].phrase += " " + event.phrase
-
-        phrase = previous_input_event.phrase + event.phrase
-        self.input_history[input_index].text = text
-
+        for index, new_event in enumerate(events):
+            if index == 0:
+                self.input_history[input_index].text = new_event.text
+                self.input_history[input_index].phrase = new_event.phrase
+                if new_event.text.endswith("\n"):
+                    self.input_history[input_index].index_from_line_end = 0
+            else:
+                self.append_event_after(input_index + index - 1, new_event)
 
     def text_to_input_history_events(self, text: str, phrase: str = None, format: str = None) -> InputHistoryEvent:
         lines = text.splitlines()

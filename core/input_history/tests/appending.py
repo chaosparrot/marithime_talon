@@ -55,6 +55,6 @@ print( "        Expect history length is 5", len(input_history.input_history) ==
 cursor_index = input_history.cursor_position_tracker.get_cursor_index()
 print( "        Expect cursor line index to be 1", cursor_index[0] == 1)
 print( "        Expect cursor character index to be 0", cursor_index[1] == 0)
-input_index = input_history.determine_input_index()
+input_index = input_history.determine_input_index() 
 print( "        Expect input index to be 4", input_index[0] == 4, input_index )
-print( "        Expect input character index to be equal to the last input events length (28)", input_index[1] == 28 )
+print( "        Expect input character index to be equal to the last input events length (28)", input_index[1] == 28 )     

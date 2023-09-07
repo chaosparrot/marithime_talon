@@ -248,3 +248,6 @@ class InputHistoryManager:
             previous_line_end_count += len(event.text.replace("\n", ""))
 
         self.input_history = new_events
+
+    def apply_key(self, key: str):
+        key_used = self.cursor_position_tracker.apply_key(key)

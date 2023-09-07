@@ -74,10 +74,11 @@ class CursorPositionTracker:
     def enable_cursor_tracking(self):
         self.cursor_tracking_enabled = len(self.text_history) > 0
 
-    def track_cursor_position(self, key: str):
+    def apply_key(self, key: str) -> bool:
         if not self.cursor_tracking_enabled:
-            return
+            return False
 
+        key_used = False
         keys = key.lower().split(" ")
         for key in keys:
             key_modifier = key.split(":")
@@ -86,26 +87,34 @@ class CursorPositionTracker:
 
             if "ctrl" in key or "alt" in key:
                 self.set_history("")
+                key_used = True
             elif "left" in key:
                 self.selecting_text = "shift" in key
                 left_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     left_movements = int(key_modifier[-1])
                 self.track_cursor_left(left_movements)
+                key_used = True
             elif "right" in key:
                 self.selecting_text = "shift" in key
                 right_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     right_movements = int(key_modifier[-1])
                 self.track_cursor_right(right_movements)
+                key_used = True
             elif "end" in key:
                 self.mark_cursor_to_end_of_line()
+                key_used = True
             elif "home" in key:
                 self.mark_line_as_coarse()
+                key_used = True
             elif "up" in key:
                 self.mark_above_line_as_coarse()
+                key_used = True
             elif "down" in key:
                 self.mark_below_line_as_coarse()
+                key_used = True
+        return key_used
 
     def index_all(self):
         self.cursor_tracking_enabled = False
@@ -238,27 +247,28 @@ class CursorPositionTracker:
             if right_amount < 0:
                 # Single line amount to the left
                 if len(items[0]) >= abs(right_amount):
-                    before_string = items[0][right_amount:]
-                    after_string = items[0][:right_amount] + items[1]
+                    before_string = items[0][:len(items[0]) + right_amount]
+                    after_string = items[0][right_amount:] + items[1]
                 # Multi-line amount to the left
                 else:
                     amount = abs(right_amount)
                     while amount > 0:
-                        amount -= len(items[0])
-                        line_with_cursor -= 1
-                        amount -= 1
+                        if amount > len(items[0]):
+                            amount -= len(items[0]) + 1
+                            line_with_cursor -= 1
 
                         # Early return with empty history if we move left past our selection
                         if line_with_cursor < 0:
                             self.set_history("")
                             return
 
-                        items = [line_with_cursor, ""]
+                        items = [lines[line_with_cursor], ""]
                         if len(items[0]) >= amount:
                             before_string = items[0][-amount:]
                             after_string = items[0][:-amount] + items[1]
-            elif right_amount > 1:
+            elif right_amount > 0:
                 # Single line amount to the right
+
                 if len(items[1]) >= right_amount:
                     before_string = items[0] + items[1][:right_amount]
                     after_string = items[1][right_amount:]
@@ -266,19 +276,26 @@ class CursorPositionTracker:
                 else:
                     amount = abs(right_amount)
                     while amount > 0:
-                        amount -= len(items[1])
-                        line_with_cursor += 1
-                        amount -= 1
+                        if amount >= len(items[1]):
+                            amount -= len(items[1])
+                            if amount > 0:
+                                amount -= 1
+                                line_with_cursor += 1
 
                         # Early return with empty history if we move left past our selection
-                        if line_with_cursor >= len(lines):
+                        if line_with_cursor > len(lines) - 1:
                             self.set_history("")
                             return
 
-                        items = ["", line_with_cursor]
-                        if len(items[1]) >= amount:
+                        items = ["", lines[line_with_cursor]]
+
+                        if amount == 0:
+                            before_string = items[0]
+                            after_string = items[1]
+                        elif len(items[1]) >= amount:
                             before_string = items[0] + items[1][:amount]
                             after_string = items[1][amount:]
+                            amount = 0
             
             # Determine new state
             before_cursor = []

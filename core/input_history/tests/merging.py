@@ -37,7 +37,6 @@ print( "        Expect the appended event to have a larger character index becau
 print( "        Expect follow up events on the same line to have the same character index", input_history.input_history[3].index_from_line_end == 0)
 print( "    Inserting another word after the new word in the filled input history...")   
 input_history.insert_input_events(input_history.text_to_input_history_events("red ", "red"))
-print( input_history.input_history )
 print( "        Expect history length to increase by one (6)", len(input_history.input_history) == 6)
 print( "        Expect line indexes to be the same", input_history.input_history[3].line_index == 2)
 print( "        Expect the appended event to have a larger character index because it was added before words", input_history.input_history[3].index_from_line_end == 10)

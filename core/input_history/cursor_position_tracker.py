@@ -1,4 +1,5 @@
 from talon import actions, clip
+from typing import List
 
 # CURSOR MARKERS
 _CURSOR_MARKER = "$CURSOR" # TODO APPEND RANDOM NUMBER FOR LESS COLLISIONS?
@@ -82,7 +83,7 @@ class CursorPositionTracker:
         keys = key.lower().split(" ")
         for key in keys:
             key_modifier = key.split(":")
-            if len(key_modifier) >= 1 and key_modifier[-1] == "up":
+            if len(key_modifier) > 1 and key_modifier[-1] == "up":
                 continue
 
             if "ctrl" in key or "alt" in key:
@@ -109,10 +110,18 @@ class CursorPositionTracker:
                 self.mark_line_as_coarse()
                 key_used = True
             elif "up" in key:
-                self.mark_above_line_as_coarse()
+                up_movements = 1
+                if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
+                    up_movements = int(key_modifier[-1])
+                for _ in range(up_movements):
+                    self.mark_above_line_as_coarse()
                 key_used = True
             elif "down" in key:
-                self.mark_below_line_as_coarse()
+                down_movements = 1
+                if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
+                    down_movements = int(key_modifier[-1])
+                for _ in range(down_movements):
+                    self.mark_below_line_as_coarse()
                 key_used = True
         return key_used
 
@@ -204,14 +213,14 @@ class CursorPositionTracker:
 
         # If the line falls outside of the known line count, we have lost the cursor position entirely
         # And must clear the input entirely
-        line_out_of_known_bounds = line_with_cursor + difference_from_line < 0 or line_with_cursor + difference_from_line >= len(lines)
+        line_out_of_known_bounds = line_with_cursor + difference_from_line < 0 or line_with_cursor + difference_from_line > len(lines)
         if line_out_of_known_bounds:
             before_cursor = []
             after_cursor = []
         else:
             for line_index, line in enumerate(lines):
                 replaced_line = line.replace(_CURSOR_MARKER, "").replace(_COARSE_MARKER, "")
-                if line_index < (line_with_cursor + difference_from_line):
+                if line_index <= (line_with_cursor + difference_from_line):
                     before_cursor.append(replaced_line)
                 else:
                     after_cursor.append(replaced_line)
@@ -356,3 +365,36 @@ class CursorPositionTracker:
                     break
 
         return line_index, character_index
+    
+    def navigate_to_position(self, line_index, character_from_end ) -> List[str]:
+        current = self.get_cursor_index()
+
+        keys = []
+        if not line_index == current[0] and line_index != -1:
+            difference = current[0] - line_index
+
+            # Reset any auto correct items before making large character changes
+            # For example in VSCODE
+            keys.append( "left right" )
+
+            # Move up or down multiple times depending on how many lines we need to cross
+            if abs(difference) == 1:
+                keys.append("down" if difference < 0 else "up")
+            else:
+                keys.append( ("down:" if difference < 0 else "up:" ) + str(abs(difference)) )
+            current = (line_index, -1)
+
+        # Move to line end to have a consistent line ending, as that seems to be consistent
+        if current[1] == -1:
+            keys.append( "end" )
+            current = (current[0], 0)            
+
+        # Move to the right character position
+        if not character_from_end == current[1] and current[1] != -1:
+            char_diff = current[1] - character_from_end
+            keys.append(("left:" if char_diff < 0 else "right:") + str(abs(char_diff)))
+
+        if current[0] == -1 or current[1] == -1:
+            keys = []
+        
+        return keys

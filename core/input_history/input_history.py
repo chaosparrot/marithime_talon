@@ -251,3 +251,27 @@ class InputHistoryManager:
 
     def apply_key(self, key: str):
         key_used = self.cursor_position_tracker.apply_key(key)
+
+    def go_phrase(self, phrase: str, position: str = 'end') -> List[str]:
+        event = self.find_event_by_phrase(phrase)
+        if event:
+            return self.navigate_to_event(event, -1 if position == 'end' else 0)
+        else:
+            return None
+
+    def find_event_by_phrase(self, phrase: str) -> InputHistoryEvent:
+        for event in self.input_history:
+            if event.phrase == phrase:
+                return event
+        
+        return None
+
+    def navigate_to_event(self, event: InputHistoryEvent, char_position: int = -1) -> List[str]:
+        index_from_end = event.index_from_line_end + len(event.text)
+        if char_position == -1:
+            char_position = -len(event.text)
+
+        key_events = self.cursor_position_tracker.navigate_to_position(event.line_index, index_from_end + char_position )
+        for key in key_events:
+            self.apply_key(key)
+        return key_events

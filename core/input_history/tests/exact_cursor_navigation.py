@@ -82,5 +82,5 @@ print( "        Expect cursor character index to be the end of the third word", 
 print( "    Navigating to a non-existing event...") 
 keys = input_history.go_phrase("bee", "end")
 print( "        Expect no keys to be pressed", keys is None)
-cursor_index = input_history.cursor_position_tracker.get_cursor_index() 
+cursor_index = input_history.cursor_position_tracker.get_cursor_index()  
 print( "        Expect cursor index to be the same", cursor_index == (2, 5))

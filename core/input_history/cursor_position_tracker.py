@@ -86,8 +86,25 @@ class CursorPositionTracker:
             if len(key_modifier) > 1 and key_modifier[-1] == "up":
                 continue
 
-            if "ctrl" in key or "alt" in key:
+            if "alt" in key:
                 self.set_history("")
+                key_used = True
+
+            # Control keys are slightly inconsistent across programs, but generally they skip a word
+            elif "ctrl" in key:
+                self.selecting_text = "shift" in key
+                if "left" in key:
+                    left_movements = 1
+                    if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
+                        left_movements = int(key_modifier[-1])
+                    self.track_coarse_cursor_left(left_movements)
+                elif "right" in key:
+                    right_movements = 1
+                    if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
+                        right_movements = int(key_modifier[-1])
+                    self.track_coarse_cursor_right(right_movements)
+                else:
+                    self.set_history("")
                 key_used = True
             elif "left" in key:
                 self.selecting_text = "shift" in key
@@ -220,7 +237,9 @@ class CursorPositionTracker:
         else:
             for line_index, line in enumerate(lines):
                 replaced_line = line.replace(_CURSOR_MARKER, "").replace(_COARSE_MARKER, "")
-                if line_index <= (line_with_cursor + difference_from_line):
+                if difference_from_line == 0 and line_index < line_with_cursor:
+                    before_cursor.append(replaced_line)
+                elif difference_from_line != 0 and line_index <= (line_with_cursor + difference_from_line):
                     before_cursor.append(replaced_line)
                 else:
                     after_cursor.append(replaced_line)
@@ -228,8 +247,11 @@ class CursorPositionTracker:
         before_cursor_text = "\n".join(before_cursor)
         after_cursor_text = "\n".join(after_cursor)
         if len(after_cursor) > 0:
-            after_cursor_text = "\n" + after_cursor_text
-        self.set_history(before_cursor_text, after_cursor_text)
+            if difference_from_line == 0:
+                before_cursor_text += "\n"
+            else:
+                after_cursor_text = "\n" + after_cursor_text
+        self.set_history(before_cursor_text, after_cursor_text, _COARSE_MARKER)
 
     def mark_above_line_as_coarse(self):
         self.mark_line_as_coarse(-1)
@@ -329,6 +351,42 @@ class CursorPositionTracker:
     def track_cursor_right(self, amount = 1):
         self.track_cursor_position(amount)
 
+    def track_coarse_cursor_left(self, amount = 1):
+        self.track_coarse_cursor_right(-amount)
+
+    # Very naive coarse tracking - only considers whitespace
+    def track_coarse_cursor_right(self, amount = 1):
+        items = []
+        if _CURSOR_MARKER in self.text_history:
+            items = self.text_history.split(_CURSOR_MARKER)
+        if _COARSE_MARKER in self.text_history:
+            items = self.text_history.split(_COARSE_MARKER)
+
+        if amount < 0:
+            whitespace_items = items[0].split()
+            if len(whitespace_items) < abs(amount):
+                self.set_history("") # Clear history because we are going past our bounds
+            else:
+                previous_item = whitespace_items[amount]
+                index = items[0].rfind(previous_item)
+                if index != -1:
+                    self.set_history(items[0][:index], items[0][index:] + items[1], _COARSE_MARKER)
+                else:
+                    self.set_history("")
+
+        elif amount > 0:
+            whitespace_items = items[1].split()
+            if len(whitespace_items) < amount:
+                self.set_history("") # Clear history because we are going past our bounds
+            else:
+                next_item = whitespace_items[amount - 1]
+                index = items[1].find(next_item)
+                if index != -1:
+                    index += len(next_item)
+                    self.set_history(items[0] + items[1][:index], items[1][index:], _COARSE_MARKER)
+                else:
+                    self.set_history("")            
+
     # Synchronize the cursor position
     def set_history(self, before_cursor: str, after_cursor: str = "", marker: str = _CURSOR_MARKER):
         if before_cursor + after_cursor:
@@ -353,7 +411,7 @@ class CursorPositionTracker:
         before_cursor = "" if len(items[0]) <= remove_character_count else items[0][:-remove_character_count]
         self.set_history(before_cursor, after_cursor)
 
-    def get_cursor_index(self) -> (int, int):
+    def get_cursor_index(self, check_coarse = False) -> (int, int):
         line_index = -1
         character_index = -1
         lines = self.text_history.splitlines()
@@ -362,6 +420,13 @@ class CursorPositionTracker:
                 if _CURSOR_MARKER in line:
                     line_index = index
                     character_index = len(line.split(_CURSOR_MARKER)[1])
+                    break
+        
+        if _COARSE_MARKER in self.text_history:
+            for index, line in enumerate(lines):
+                if _COARSE_MARKER in line:
+                    line_index = index
+                    character_index = len(line.split(_COARSE_MARKER)[1]) if check_coarse else -1
                     break
 
         return line_index, character_index
@@ -387,7 +452,7 @@ class CursorPositionTracker:
         # Move to line end to have a consistent line ending, as that seems to be consistent
         if current[1] == -1:
             keys.append( "end" )
-            current = (current[0], 0)            
+            current = (current[0], 0)
 
         # Move to the right character position
         if not character_from_end == current[1] and current[1] != -1:

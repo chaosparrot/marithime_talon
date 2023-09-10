@@ -24,14 +24,10 @@ class InputHistoryManager:
     
     def determine_input_index(self) -> (int, int):
         line_index, character_index = self.cursor_position_tracker.get_cursor_index()
-        #print( "DETERMINING!", line_index, character_index )
         if line_index > -1 and character_index > -1: 
             for input_index, input_event in enumerate(self.input_history):
-                #if input_event.line_index == line_index:
-                    #print( input_event.index_from_line_end, len(input_event.text), character_index, input_event.index_from_line_end <= character_index, input_event.index_from_line_end + len(input_event.text) >= character_index)
                 if input_event.line_index == line_index and \
                     input_event.index_from_line_end <= character_index and input_event.index_from_line_end + len(input_event.text) >= character_index:
-                    #print("FOUND", input_event, line_index, character_index)
                     input_character_index = (len(input_event.text.replace("\n", "")) + input_event.index_from_line_end) - character_index
                     return input_index, input_character_index
             
@@ -186,7 +182,7 @@ class InputHistoryManager:
                 if next_input_index < len(self.input_history):
                     previous_text = "" if input_index < 0 else self.input_history[input_index].text
                     text = self.input_history[next_input_index].text
-                    if should_detect_merge and (text == "\n" or not re.sub(r"[^\w\s]", ' ', text).startswith(" ") ) and not re.sub(r"[^\w\s]", ' ', previous_text).endswith(" "):
+                    if should_detect_merge and (text == "\n" or not re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").startswith(" ") ) and not re.sub(r"[^\w\s]", ' ', previous_text).replace("\n", " ").endswith(" "):
                         text = previous_text + text
                         self.input_history[input_index].text = text
                         self.input_history[input_index].phrase = text_to_phrase(text)
@@ -240,7 +236,7 @@ class InputHistoryManager:
                     previous_text = "" if previous_input_index < 0 else self.input_history[previous_input_index].text
                     text = self.input_history[previous_input_index + 1].text
 
-                    if should_detect_merge and (text == "\n" or not re.sub(r"[^\w\s]", ' ', text).startswith(" ") ) and not re.sub(r"[^\w\s]", ' ', previous_text).endswith(" "):
+                    if should_detect_merge and (text == "\n" or not re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").startswith(" ") ) and not re.sub(r"[^\w\s]", ' ', previous_text).replace("\n", " ").endswith(" "):
                         text = previous_text + text
                         self.input_history[previous_input_index].text = text
                         self.input_history[previous_input_index].phrase = text_to_phrase(text)

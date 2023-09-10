@@ -99,7 +99,7 @@ input_history.insert_input_events(input_history.text_to_input_history_events(" t
 input_history.insert_input_events(input_history.text_to_input_history_events(" two ", "two"))
 input_history.insert_input_events(input_history.text_to_input_history_events(" three ", "three"))
 input_history.insert_input_events(input_history.text_to_input_history_events("\n", ""))
-input_history.apply_key("left:8 left:5 left:6")        
+input_history.apply_key("left:8 left:5 left:6")
 print( "    Pressing delete until a whole event is removed...")
 input_history.apply_key("delete:6") 
 cursor_index = input_history.cursor_position_tracker.get_cursor_index()
@@ -107,29 +107,25 @@ print( "        Expect history length be one less (6)", len(input_history.input_
 print( "        Expect cursor line index to be 2", cursor_index[0] == 2)   
 print( "        Expect cursor character index to be before the second final word of the sentence", cursor_index[1] == 12)
 input_index = input_history.determine_input_index()
-print( "        Expect input index to be 2", input_index == 2)
-print( "    Pressing delete until more than one event is removed...")
-input_history.apply_key("delete:8") 
+print( "        Expect input index to be 2", input_index[0] == 2)
+print( "    Pressing delete until more than three event are removed...")
+input_history.apply_key("delete:15")
 cursor_index = input_history.cursor_position_tracker.get_cursor_index()
-print( "        Expect history length be one less (5)", len(input_history.input_history) == 5)
+print( "        Expect history length be three less (3)", len(input_history.input_history) == 3)
 print( "        Expect cursor line index to be 2", cursor_index[0] == 2)
-print( "        Expect cursor character index to be before the second final word of the sentence", cursor_index[1] == 12)
-print( input_history.cursor_position_tracker.text_history ) 
-input_index = input_history.determine_input_index()
-print( "        Expect input index to be 2", input_index == 2)
+print( "        Expect cursor character index to be at the start of the second line", cursor_index[1] == 22)
+# TODO TEST MERGING ON DELETE
 
-
-
-#input_history = InputHistoryManager()
-#input_history.insert_input_events(input_history.text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
-#input_history.insert_input_events(input_history.text_to_input_history_events("Insert a second sentence", "insert a second sentence"))
-#input_history.insert_input_events(input_history.text_to_input_history_events(". \n", ""))
-#input_history.insert_input_events(input_history.text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
-#input_history.cursor_position_tracker.text_history = """Insert a new sentence. 
-#Insert a second sentence. """ + _CURSOR_MARKER + """
-#Insert a third sentence."""
-#print( "    Removing an input event with only a line ending remaining...")
-#input_history.apply_backspace(2)
-#print( "        Expect history length to be one less (3)", len(input_history.input_history) == 3)
-#print( "        Expect input event text to be merged", input_history.input_history[1].text == "Insert a second sentence\n" )
-#print( "        Expect input event phrase to be merged", input_history.input_history[1].phrase == "insert a second sentence" )
+input_history = InputHistoryManager()
+input_history.insert_input_events(input_history.text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
+input_history.insert_input_events(input_history.text_to_input_history_events("Insert a second sentence", "insert a second sentence"))
+input_history.insert_input_events(input_history.text_to_input_history_events(". \n", ""))
+input_history.insert_input_events(input_history.text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
+input_history.cursor_position_tracker.text_history = """Insert a new sentence. 
+Insert a second sentence. """ + _CURSOR_MARKER + """
+Insert a third sentence."""
+print( "    Removing an input event with only a line ending remaining...")
+input_history.apply_backspace(2)
+print( "        Expect history length to be one less (3)", len(input_history.input_history) == 3)
+print( "        Expect input event text to be merged", input_history.input_history[1].text == "Insert a second sentence\n" )
+print( "        Expect input event phrase to be merged", input_history.input_history[1].phrase == "insert a second sentence" )

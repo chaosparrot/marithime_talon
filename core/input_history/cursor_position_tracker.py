@@ -308,8 +308,9 @@ class CursorPositionTracker:
 
                         items = [lines[line_with_cursor], ""]
                         if len(items[0]) >= amount:
-                            before_string = items[0][-amount:]
-                            after_string = items[0][:-amount] + items[1]
+                            before_string = items[0][:len(items[0]) - abs(amount)]
+                            after_string = items[0][len(items[0]) - abs(amount):] + items[1]
+                            amount = 0
             elif right_amount > 0:
                 # Single line amount to the right
                 if len(items[1]) >= right_amount:

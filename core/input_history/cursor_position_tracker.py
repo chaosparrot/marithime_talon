@@ -95,7 +95,7 @@ class CursorPositionTracker:
             # Control keys are slightly inconsistent across programs, but generally they skip a word
             elif "ctrl" in key:
                 self.selecting_text = "shift" in key
-                if "left" in key:
+                if "left" in key: 
                     left_movements = 1
                     if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                         left_movements = int(key_modifier[-1])
@@ -431,6 +431,15 @@ class CursorPositionTracker:
         if len(items) > 1:
             after_cursor = items[1]
         before_cursor = "" if len(items[0]) <= remove_character_count else items[0][:-remove_character_count]
+        self.set_history(before_cursor, after_cursor)
+
+    def remove_after_cursor(self, remove_character_count: int):
+        items = self.text_history.split(_CURSOR_MARKER)
+        before_cursor = items[0]
+        after_cursor = ""
+        if len(items) > 1:
+            after_cursor = items[1]
+        after_cursor = "" if len(items[1]) <= remove_character_count else items[1][remove_character_count:]
         self.set_history(before_cursor, after_cursor)
 
     def get_cursor_index(self, check_coarse = False) -> (int, int):

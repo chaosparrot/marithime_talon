@@ -6,11 +6,6 @@ import re
 mod = Module()
 ctx = Context()
 
-input_history: List[InputHistoryEvent] = []
-
-mod.list("input_history_words", desc="A list of words that correspond to inserted text and their cursor positions for quick navigation in text")
-ctx.lists["user.input_history_words"] = []
-
 def text_to_phrase(text: str) -> str:
     return " ".join(re.sub(r"[^\w\s]", ' ', text).lower().split()).strip()
 
@@ -26,14 +21,7 @@ class InputHistoryManager:
     def clear_input_history(self):
         self.cursor_position_tracker.clear()        
         self.input_history = []
-        self.index_input_history()
     
-    def index_input_history(self):
-        items = []
-        for event in input_history:
-            items[event.phrase] = str(event.start_index) + ":" + str(event.end_index) + ":" + event.text
-        ctx.lists["user.input_history_words"] = items
-
     def determine_input_index(self) -> (int, int):
         line_index, character_index = self.cursor_position_tracker.get_cursor_index()
         if line_index > -1 and character_index > -1:
@@ -164,6 +152,42 @@ class InputHistoryManager:
                 event.phrase = text_to_phrase(line)
                 events.append(event)
             return events
+    
+    def apply_delete(self, delete_count = 0):
+        line_index, character_index = self.cursor_position_tracker.get_cursor_index()
+        if line_index > -1 and character_index > -1:
+            input_index, input_character_index = self.determine_input_index()
+            text = self.input_history[input_index].text
+            remove_from_input_event = min(len(text) - input_index, delete_count)
+            remove_from_next_input_events = delete_count - (len(text) - input_index)
+
+            should_detect_merge = input_character_index == 0 or input_character_index == len(text.replace("\n", ""))
+
+            # If we are removing a full event in the middle, make sure to just remove the event
+            text = text[:input_character_index] + text[input_character_index + remove_from_input_event:]
+            if text == "" and input_index + 1 < len(self.input_history) - 1:
+                del self.input_history[input_index]
+            else:
+                self.input_history[input_index].text = text
+                self.input_history[input_index].phrase = text_to_phrase(text)
+
+            # Detect if we should merge the input events if the text combines
+            #if should_detect_merge:
+            #    input_index = previous_input_index + 1
+                #if input_index == 0 and len(self.input_history) > 1:
+                #    previous_input_index = 0
+                #if previous_input_index + 1 < len(self.input_history):
+                #    previous_text = "" if previous_input_index < 0 else self.input_history[previous_input_index].text
+                #    text = self.input_history[previous_input_index + 1].text
+                #    if should_detect_merge and (text == "\n" or not re.sub(r"[^\w\s]", ' ', text).startswith(" ") ) and not re.sub(r"[^\w\s]", ' ', previous_text).endswith(" "):
+                #        text = previous_text + text
+                #        self.input_history[previous_input_index].text = text
+                #        self.input_history[previous_input_index].phrase = text_to_phrase(text)
+                #        del self.input_history[previous_input_index + 1]
+                #        self.reformat_events()            
+
+            self.cursor_position_tracker.remove_after_cursor(delete_count)
+
         
     def apply_backspace(self, backspace_count = 0):
         line_index, character_index = self.cursor_position_tracker.get_cursor_index()
@@ -249,8 +273,26 @@ class InputHistoryManager:
 
         self.input_history = new_events
 
-    def apply_key(self, key: str):
-        key_used = self.cursor_position_tracker.apply_key(key)
+    def apply_key(self, keystring: str):
+        keys = keystring.lower().split(" ")
+        for key in keys:
+            key_used = self.cursor_position_tracker.apply_key(key)
+            if not key_used and "backspace" in key or "delete" in key:
+                key_modifier = key.split(":")
+                if len(key_modifier) > 1 and key_modifier[-1] == "up":
+                    continue
+                if "ctrl" in key_modifier[0]:
+                    self.clear_input_history()
+                else:
+                    key_presses = 1
+                    if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
+                        key_presses = int(key_modifier[-1])
+
+                    if "delete" in key:
+                        self.apply_delete(key_presses)
+                    else:
+                        self.apply_backspace(key_presses)
+
         if not self.cursor_position_tracker.text_history:
             self.clear_input_history()
 
@@ -265,7 +307,6 @@ class InputHistoryManager:
         for event in self.input_history:
             if event.phrase == phrase:
                 return event
-        
         return None
 
     def navigate_to_event(self, event: InputHistoryEvent, char_position: int = -1) -> List[str]:

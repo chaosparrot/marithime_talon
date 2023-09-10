@@ -251,6 +251,8 @@ class InputHistoryManager:
 
     def apply_key(self, key: str):
         key_used = self.cursor_position_tracker.apply_key(key)
+        if not self.cursor_position_tracker.text_history:
+            self.clear_input_history()
 
     def go_phrase(self, phrase: str, position: str = 'end') -> List[str]:
         event = self.find_event_by_phrase(phrase)

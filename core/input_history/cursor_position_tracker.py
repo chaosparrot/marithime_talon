@@ -1,9 +1,11 @@
 from talon import actions, clip
 from typing import List
+import re
 
 # CURSOR MARKERS
-_CURSOR_MARKER = "$CURSOR" # TODO APPEND RANDOM NUMBER FOR LESS COLLISIONS?
-_COARSE_MARKER = "$COARSE_CURSOR" # TODO APPEND RANDOM NUMBER FOR LESS COLLISIONS?
+ # TODO APPEND RANDOM NUMBER FOR LESS COLLISIONS?
+_CURSOR_MARKER = "$CURSOR" # Keeps track of the exact cursor position
+_COARSE_MARKER = "$COARSE_CURSOR" # Keeps track of the line number if we arent sure what character we are on
 _INCONSISTENT_WHITESPACE_MARKER = "\u00A0"
 
 # SHOULD SUPPORT:
@@ -222,9 +224,13 @@ class CursorPositionTracker:
         after_cursor = []
         lines = self.text_history.splitlines()
 
+        char_index = 0
         line_with_cursor = -1
         for line_index, line in enumerate(lines):
             if ( _COARSE_MARKER in line or _CURSOR_MARKER in line ):
+                split_line = line.replace(_COARSE_MARKER, _CURSOR_MARKER).split(_CURSOR_MARKER)
+                if len(split_line) > 1:
+                    char_index = len(split_line[0])
                 line_with_cursor = line_index
                 break
 
@@ -240,7 +246,15 @@ class CursorPositionTracker:
                 if difference_from_line == 0 and line_index < line_with_cursor:
                     before_cursor.append(replaced_line)
                 elif difference_from_line != 0 and line_index <= (line_with_cursor + difference_from_line):
-                    before_cursor.append(replaced_line)
+
+                    # Maintain a rough idea of the place of the coarse cursor
+                    if line_index == line_with_cursor + difference_from_line:
+                        if char_index >= len(replaced_line):
+                            char_index = len(replaced_line)
+                        before_cursor.append(replaced_line[:char_index])
+                        after_cursor.append(replaced_line[char_index:])
+                    else:
+                        before_cursor.append(replaced_line)
                 else:
                     after_cursor.append(replaced_line)
         
@@ -249,7 +263,7 @@ class CursorPositionTracker:
         if len(after_cursor) > 0:
             if difference_from_line == 0:
                 before_cursor_text += "\n"
-            else:
+            elif char_index == 0:
                 after_cursor_text = "\n" + after_cursor_text
         self.set_history(before_cursor_text, after_cursor_text, _COARSE_MARKER)
 
@@ -260,17 +274,16 @@ class CursorPositionTracker:
         self.mark_line_as_coarse(1)
 
     def track_cursor_position(self, right_amount = 0):
-        if _COARSE_MARKER in self.text_history:
-            self.set_history("")
-        elif _CURSOR_MARKER in self.text_history:
+        is_coarse = _COARSE_MARKER in self.text_history
+        if is_coarse or _CURSOR_MARKER in self.text_history:
             line_with_cursor = -1
             lines = self.text_history.splitlines()
             for line_index, line in enumerate(lines):
-                if _CURSOR_MARKER in line:
+                if _CURSOR_MARKER in line or _COARSE_MARKER in line:
                     line_with_cursor = line_index
                     break
 
-            items = lines[line_with_cursor].split(_CURSOR_MARKER)
+            items = lines[line_with_cursor].replace(_COARSE_MARKER, _CURSOR_MARKER).split(_CURSOR_MARKER)
 
             before_string = ""
             after_string = ""
@@ -299,7 +312,6 @@ class CursorPositionTracker:
                             after_string = items[0][:-amount] + items[1]
             elif right_amount > 0:
                 # Single line amount to the right
-
                 if len(items[1]) >= right_amount:
                     before_string = items[0] + items[1][:right_amount]
                     after_string = items[1][right_amount:]
@@ -327,6 +339,11 @@ class CursorPositionTracker:
                             before_string = items[0] + items[1][:amount]
                             after_string = items[1][amount:]
                             amount = 0
+            
+            # Clear the history if the coarse cursor has traveled beyond a line
+            # Because we do not know the line position for sure.
+            if is_coarse and line_with_cursor != line_index:
+                self.set_history("")
             
             # Determine new state
             before_cursor = []
@@ -362,15 +379,20 @@ class CursorPositionTracker:
         if _COARSE_MARKER in self.text_history:
             items = self.text_history.split(_COARSE_MARKER)
 
+        line_index = 0
+        if len(items) > 1:
+            line_index = len(items[0].splitlines()) - 1
+
         if amount < 0:
-            whitespace_items = items[0].split()
+            whitespace_items = self.split_string_with_punctuation(items[0])
             if len(whitespace_items) < abs(amount):
                 self.set_history("") # Clear history because we are going past our bounds
             else:
                 previous_item = whitespace_items[amount]
                 index = items[0].rfind(previous_item)
-                if index != -1:
+                if index != -1 and line_index == len(items[0][:index].split("\n")) - 1:
                     self.set_history(items[0][:index], items[0][index:] + items[1], _COARSE_MARKER)
+                    # Clear history because we are going past a line boundary and we do not know the line position
                 else:
                     self.set_history("")
 
@@ -381,7 +403,7 @@ class CursorPositionTracker:
             else:
                 next_item = whitespace_items[amount - 1]
                 index = items[1].find(next_item)
-                if index != -1:
+                if index != -1 and line_index == len((items[0] + items[1][:index]).split("\n")) - 1:
                     index += len(next_item)
                     self.set_history(items[0] + items[1][:index], items[1][index:], _COARSE_MARKER)
                 else:
@@ -431,6 +453,9 @@ class CursorPositionTracker:
 
         return line_index, character_index
     
+    def split_string_with_punctuation(self, text: str) -> List[str]:
+        return re.sub(r"[" + re.escape("!\"#$%&'()*+, -./:;<=>?@[\\]^`{|}~") + "]+", " ", text).split()
+
     def navigate_to_position(self, line_index, character_from_end ) -> List[str]:
         current = self.get_cursor_index()
 

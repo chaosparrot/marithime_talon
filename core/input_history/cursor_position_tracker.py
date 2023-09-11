@@ -51,6 +51,7 @@ class CursorPositionTracker:
     text_history: str = ""
     enable_cursor_tracking: bool = True
     selecting_text: bool = False
+    shift_down: bool = False
 
     def __init__(self):
         self.clear()
@@ -113,15 +114,18 @@ class CursorPositionTracker:
                     "x" in key_combinations or "v" in key_combinations):
                     self.set_history("")
                 key_used = True
+            elif "shift" in key:
+                self.shift_down = key_modifier[-1] == "down"
+                key_used = True
             elif "left" in key:
-                self.selecting_text = "shift" in key
+                self.selecting_text = "shift" in key or self.shift_down
                 left_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     left_movements = int(key_modifier[-1])
                 self.track_cursor_left(left_movements)
                 key_used = True
             elif "right" in key:
-                self.selecting_text = "shift" in key
+                self.selecting_text = "shift" in key or self.shift_down
                 right_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     right_movements = int(key_modifier[-1])

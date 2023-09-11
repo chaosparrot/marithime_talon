@@ -8,6 +8,7 @@ mod.setting("context_remove_word", type=str, default="ctrl-backspace", desc="The
 mod.setting("context_remove_letter", type=str, default="backspace", desc="The key combination to clear a single letter to the left of the cursor")
 mod.setting("context_remove_forward_word", type=str, default="ctrl-delete", desc="The key combination to clear a word to the right of the cursor")
 mod.setting("context_remove_forward_letter", type=str, default="delete", desc="The key combination to clear a single letter to the right of the cursor")
+mod.setting("context_clear_selection", type=str, default="home end", desc="The key combination to clear the cursor selection and place the cursor on a known place")
 
 mod.tag("flow_numbers", desc="Ensure that the user can freely insert numbers")
 mod.tag("flow_letters", desc="Ensure that the user can freely insert letters")
@@ -39,8 +40,9 @@ class InputMutator:
 
     def track_key(self, key_string: str):
         if self.tracking:
+            keys = key_string.replace(":up", "").replace(":down", "").replace(":", "").split(" ")            
             if self.insert_application_id != self.current_application_pid:
-                actions.user.hud_add_log("error", "Clear because application id is off")                
+                actions.user.hud_add_log("error", "Clear because application id is off", self.insert_application_id)
                 self.insert_application_id = self.current_application_pid
                 self.formatters = []
                 self.manager.clear_input_history()
@@ -70,6 +72,9 @@ class InputMutator:
             self.manager.insert_input_events(input_events)
             self.index()
 
+    def is_selecting(self) -> bool:
+        return self.manager.cursor_position_tracker.selecting_text != ""
+
     def has_phrase(self, phrase: str) -> bool:
         for event in self.manager.input_history:
             if event.phrase.lower() == phrase.lower():
@@ -82,6 +87,12 @@ class InputMutator:
 
     def transform_insert(self, insert: str) -> str:
         return insert
+    
+    def clear_selection(self) -> List[str]:
+        if self.is_selecting():
+            return settings.get("user.context_clear_selection").split(" ")
+        else:
+            return []
     
     def clear_keys(self, backwards = True) -> List[str]:
         context = self.manager.determine_context()
@@ -119,6 +130,13 @@ class InputMutator:
 
 mutator = InputMutator()
 ui.register("win_focus", mutator.focus_changed)
+
+def deselect():
+    global mutator
+    if mutator.is_selecting():
+        keys = mutator.clear_selection()
+        for key in keys:
+            actions.key(key)    
 
 @mod.action_class
 class Actions:
@@ -166,10 +184,11 @@ class Actions:
         global mutator
         if mutator.has_phrase(phrase):
             keys = mutator.move_to_phrase(phrase, cursor_position)
-            mutator.disable_tracking()
-            for key in keys:
-                actions.key(key)
-            mutator.enable_tracking()
+            if keys:
+                mutator.disable_tracking()
+                for key in keys:
+                    actions.key(key)
+                mutator.enable_tracking()
         else:
             actions.user.hud_add_log("warning", phrase + " could not be found in context")
             raise RuntimeError("Input phrase '" + phrase + "' could not be found in the history")
@@ -179,25 +198,31 @@ class Actions:
         global mutator
 
         if mutator.has_phrase(phrase):
-            keys = mutator.move_to_phrase(phrase, 0)
-            mutator.disable_tracking()
-            for key in keys:
-                actions.key(key)
+            #deselect()
 
-            actions.key("shift:down")            
-            keys = mutator.move_to_phrase(phrase, -1)
-            for key in keys:
-                actions.key(key)
-            actions.key("shift:up")
+            before_keys = mutator.move_to_phrase(phrase, 0)
+            mutator.disable_tracking()
+            if before_keys:
+                for key in before_keys:
+                    actions.key(key)
             mutator.enable_tracking()
+
+            actions.key("shift:down")
+            mutator.disable_tracking()
+            after_keys = mutator.move_to_phrase(phrase, -1)
+            if after_keys:
+                for key in after_keys:
+                    actions.key(key)
+            mutator.enable_tracking()
+            actions.key("shift:up")            
         else:
             actions.user.hud_add_log("warning", phrase + " could not be found in context")
             raise RuntimeError("Input phrase '" + phrase + "' could not be found in the history")
-    
 
     def input_core_clear_phrase(phrase: str):
         """Move the cursor behind the given phrase and remove it"""
         global mutator
+        deselect()
         mutator.move_to_phrase(phrase, -1)
         keys = mutator.clear_keys()
         for key in keys:
@@ -207,6 +232,7 @@ class Actions:
         """Move the cursor to the end of the current input history"""
         global mutator
         keys = mutator.move_cursor_back()
+
         mutator.disable_tracking()
         for key in keys:
             actions.key(key)
@@ -219,3 +245,7 @@ class Actions:
         print( "----------" )
         print( mutator.manager.cursor_position_tracker.text_history )
         print( "----------" )
+    
+    def input_core_deselect():
+        """Unselect the current selection without clearing the cursor history"""
+        deselect()

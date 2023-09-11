@@ -15,3 +15,4 @@ select <user.word>:
     user.input_core_select(word)
 ^line index:
     user.input_core_index_line()
+

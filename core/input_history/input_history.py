@@ -149,10 +149,10 @@ class InputHistoryManager:
             remove_from_input_event = min(len(text) - input_character_index, delete_count)
             remove_from_next_input_events = delete_count - (len(text) - input_character_index)
 
-            should_detect_merge = input_character_index == 0 or input_character_index == len(text.replace("\n", ""))
-
             # If we are removing a full event in the middle, make sure to just remove the event
             text = text[:input_character_index] + text[input_character_index + remove_from_input_event:]
+            should_detect_merge = input_character_index == 0 or input_character_index >= len(text.replace("\n", ""))
+
             if text == "":
                 del self.input_history[input_index]
                 input_index -= 1
@@ -182,6 +182,7 @@ class InputHistoryManager:
                 if next_input_index < len(self.input_history):
                     previous_text = "" if input_index < 0 else self.input_history[input_index].text
                     text = self.input_history[next_input_index].text
+
                     if should_detect_merge and (text == "\n" or not re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").startswith(" ") ) and not re.sub(r"[^\w\s]", ' ', previous_text).replace("\n", " ").endswith(" "):
                         text = previous_text + text
                         self.input_history[input_index].text = text
@@ -200,10 +201,9 @@ class InputHistoryManager:
             remove_from_input_event = backspace_count - remove_from_previous_input_events
             text = self.input_history[input_index].text
 
-            should_detect_merge = input_character_index == 0 or input_character_index == len(text.replace("\n", ""))
-
             # If we are removing a full event in the middle, make sure to just remove the event
             text = text[:input_character_index - remove_from_input_event] + text[input_character_index:]
+            should_detect_merge = input_character_index - backspace_count <= 0 or input_character_index >= len(text.replace("\n", ""))            
             if text == "" and input_index + 1 < len(self.input_history) - 1:
                 del self.input_history[input_index]
             else:

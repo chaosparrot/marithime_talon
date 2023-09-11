@@ -11,7 +11,7 @@ Insert a second """ + _CURSOR_MARKER + """sentence.
 Insert a third sentence."""
 
 print( "Cursor tracking coarse splitting" )
-cpt = input_history.cursor_position_tracker
+cpt = input_history.cursor_position_tracker 
 items = cpt.split_string_with_punctuation("Testing")
 print( "    Expect single word length to be 1", len(items) == 1 )
 items = cpt.split_string_with_punctuation("Testing items")

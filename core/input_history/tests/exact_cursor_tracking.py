@@ -11,7 +11,7 @@ Insert a second """ + _CURSOR_MARKER + """sentence.
 Insert a third sentence."""
 
 print( "With a filled input history")
-print( "    Moving one key to the left...")
+print( "    Moving one key to the left...") 
 input_history.apply_key("left")
 cursor_index = input_history.cursor_position_tracker.get_cursor_index()
 print( "        Expect cursor line index to be 1", cursor_index[0] == 1)

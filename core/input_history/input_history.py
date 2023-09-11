@@ -1,5 +1,5 @@
 from talon import Module, Context, actions, settings, clip
-from .input_history_typing import InputHistoryEvent
+from .input_history_typing import InputHistoryEvent, InputContext
 from typing import List
 from .cursor_position_tracker import CursorPositionTracker
 import re
@@ -35,6 +35,17 @@ class InputHistoryManager:
             if "\n" in self.input_history[-1].text:
                 return len(self.input_history) - 1, len(self.input_history[-1].text)
         return -1, -1
+    
+    def determine_context(self) -> InputContext:
+        index, character_index = self.determine_input_index()
+        if index > -1 and character_index > -1:
+            current = self.input_history[index]
+            previous = None if index == 0 else self.input_history[index - 1]
+            next = None if index >= len(self.input_history) - 1 else self.input_history[index + 1]
+            return InputContext(character_index, previous, current, next)
+
+        else:
+            return InputContext(0)
     
     def insert_input_events(self, events: List[InputHistoryEvent]):
         for event in events:

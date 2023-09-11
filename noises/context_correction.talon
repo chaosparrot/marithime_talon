@@ -1,3 +1,3 @@
 mode: noise
 -
-parrot(pop): user.contextual_clear()
+parrot(pop): user.input_core_clear()

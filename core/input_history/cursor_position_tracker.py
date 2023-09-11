@@ -95,6 +95,7 @@ class CursorPositionTracker:
             # Control keys are slightly inconsistent across programs, but generally they skip a word
             elif "ctrl" in key:
                 self.selecting_text = "shift" in key
+                key_combinations = key_modifier[0].lower().split("-")                
                 if "left" in key: 
                     left_movements = 1
                     if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
@@ -105,7 +106,11 @@ class CursorPositionTracker:
                     if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                         right_movements = int(key_modifier[-1])
                     self.track_coarse_cursor_right(right_movements)
-                else:
+                
+                # Only a few items do not change the focus or cursor position for the cursor
+                # But for other hotkeys the history needs to be cleared
+                elif not("s" in key_combinations or "c" in key_combinations or \
+                    "x" in key_combinations or "v" in key_combinations):
                     self.set_history("")
                 key_used = True
             elif "left" in key:

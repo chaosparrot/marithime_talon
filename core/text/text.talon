@@ -22,6 +22,5 @@ recent repeat <number_small>:
     insert(recent_phrase)
 recent copy <number_small>: clip.set_text(user.get_recent_phrase(number_small))
 select that: user.select_last_phrase()
-before that: user.before_last_phrase()
 nope that | scratch that: user.clear_last_phrase()
 nope that was <user.formatters>: user.formatters_reformat_last(formatters)

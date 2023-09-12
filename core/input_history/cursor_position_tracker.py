@@ -284,6 +284,12 @@ class CursorPositionTracker:
         self.set_history(before_cursor_text, after_cursor_text, _COARSE_MARKER)
 
     def is_selecting(self):
+        if self.selecting_text:
+            cursor_index = self.get_cursor_index()
+            selection = cursor_index[0] * 1000 + cursor_index[1] != self.selection_cursor_marker[0] * 1000 + self.selection_cursor_marker[1]
+            if not selection:
+                self.selecting_text = False
+
         return self.selecting_text
 
     def mark_above_line_as_coarse(self):
@@ -433,23 +439,24 @@ class CursorPositionTracker:
                 before_cursor_string = ""
                 after_cursor_string = ""
                 lines = self.text_history.splitlines()
-                for line_index, line in lines:
+                for line_index, line in enumerate(lines):
                     replaced_line = line.replace(_CURSOR_MARKER, "").replace(_COARSE_MARKER, "")
                     if line_index < self.selection_cursor_marker[0]:
                         before_cursor.append(replaced_line)
                     elif line_index > self.selection_cursor_marker[0]:
                         after_cursor.append(replaced_line)
                     elif line_index == self.selection_cursor_marker[0]:
-                        before_cursor_string = replaced_line[:self.selection_cursor_marker[1]]
-                        after_cursor_string = replaced_line[self.selection_cursor_marker[1]:]
+                        before_cursor_string = replaced_line[:len(replaced_line) - self.selection_cursor_marker[1]]
+                        after_cursor_string = replaced_line[len(replaced_line) - self.selection_cursor_marker[1]:]
+
                         if line_index > 0:
                             before_cursor_string = "\n" + before_cursor_string
-                        elif line_index < len(lines) - 1:
+                        if line_index < len(lines) - 1:
                             after_cursor_string += "\n"
 
                 self.set_history("\n".join(before_cursor) + before_cursor_string, after_cursor_string + "\n".join(after_cursor))
-                self.selecting_text = False
-
+                
+            self.selecting_text = False
             self.selection_cursor_marker = (-1, -1)
 
         return right_amount

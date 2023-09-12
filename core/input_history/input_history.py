@@ -18,6 +18,9 @@ class InputHistoryManager:
         self.cursor_position_tracker = CursorPositionTracker()
         self.clear_input_history()
 
+    def is_selecting(self) -> bool:
+        return self.cursor_position_tracker.is_selecting()
+
     def clear_input_history(self):
         self.cursor_position_tracker.clear()        
         self.input_history = []

@@ -26,32 +26,36 @@ _INCONSISTENT_WHITESPACE_MARKER = "\u00A0"
 # 4 - Going left and going right might skip over to another line, it isn't bounded
 # 5 - Going up moves to an inconsistent place inside the above line
 # 6 - Going down moves to an inconsistent place inside the below line
-# 7 - Pressing (shift-)enter will insert a new line with an unknown amount of whitespace
-# 8 - Pressing tab will insert an unknown amount of whitespace ( either a tab, or N amount of space characters )
-# 9 - If we select text and press right, the cursor will always appear on the right of the selection and end the selection
-# 10 - If we select text and press left, the cursor will appear on an inconsistent place depending on the program
-# 11 - If we select a whole line and read its contents, we can determine the position of the cursor within the text history
-# 12 - Pressing backspace behaves inconsistently
-# 13 - Pressing backspace before whitespace behaves inconsistently in some programs ( IDEs )
-# 14 - Pressing backspace with a selection behaves consistently ( removes the selection and keeps the cursor in that position )
-# 15 - Pressing control + an arrow key behaves in an inconsistent manner
-# 16 - Inserting text places the cursor at the end of the inserted text
-# 17 - Pressing end behaves consistently cursor wise
-# 18 - Home, page up, page down, alt and hotkeys behave inconsistently cursor wise
-# 19 - When a mouse click is done, we cannot be sure of the cursor position
-# 20 - When a switch is made to a different program, we cannot be certain of the cursor position or that the right focus is maintained
-# 21 - After a certain amount of time, we cannot be certain that we still have a consistent cursor position
-# 22 - Spreadsheet programs have inconsistent cursor movement due to arrow keys moving between cells
-# 23 - Screen reader software behaves consistently only when an input field is selected
-# 24 - When a DESYNC is detected, we need to either search in advance to normalize our cursor position, or do nothing at all
-# 25 - Autocompleting will make the history inconsistent as well as the cursor position
-# 26 - Pasting will give a consistent whitespace
-# 27 - From a coarse position, we can always move back to the end of the current line to have a consistent position
+# 7 - When we are dealing with word wrapping, which happens in non-terminal and IDE environments, going up and down might not even go on the next line
+# 8 - Pressing (shift-)enter will insert a new line with an unknown amount of whitespace
+# 9 - Pressing tab will insert an unknown amount of whitespace ( either a tab, or N amount of space characters )
+# 10 - If we select text and press right, the cursor will always appear on the right of the selection and end the selection
+# 11 - If we select text and press left, the cursor will appear on an inconsistent place depending on the program
+# 12 - If we select a whole line and read its contents, we can determine the position of the cursor within the text history
+# 13 - Pressing backspace behaves inconsistently
+# 14 - Pressing backspace before whitespace behaves inconsistently in some programs ( IDEs )
+# 15 - Pressing backspace with a selection behaves consistently ( removes the selection and keeps the cursor in that position )
+# 16 - Pressing control + an arrow key behaves in an inconsistent manner
+# 17 - Inserting text places the cursor at the end of the inserted text
+# 18 - Pressing end behaves consistently cursor wise
+# 19 - Home, page up, page down, alt and hotkeys behave inconsistently cursor wise
+# 20 - When a mouse click is done, we cannot be sure of the cursor position
+# 21 - When a switch is made to a different program, we cannot be certain of the cursor position or that the right focus is maintained
+# 22 - After a certain amount of time, we cannot be certain that we still have a consistent cursor position
+# 23 - Spreadsheet programs have inconsistent cursor movement due to arrow keys moving between cells
+# 24 - Screen reader software behaves consistently only when an input field is selected
+# 25 - When a DESYNC is detected, we need to either search in advance to normalize our cursor position, or do nothing at all
+# 26 - Autocompleting will make the history inconsistent as well as the cursor position
+# 27 - Pasting will give a consistent whitespace
+# 28 - From a coarse position, we can always move back to the end of the current line to have a consistent position
+# 29 - By default, when a selection is made, going to the left places the cursor on the left end of the selection, and going to the right places it on the right
+# 30 - Certain programs do not allow selection, like terminals
 class CursorPositionTracker:
     text_history: str = ""
     enable_cursor_tracking: bool = True
     selecting_text: bool = False
     shift_down: bool = False
+    selection_cursor_marker = (-1, -1)
 
     def __init__(self):
         self.clear()
@@ -87,6 +91,8 @@ class CursorPositionTracker:
         for key in keys:
             key_modifier = key.split(":")
             if len(key_modifier) > 1 and key_modifier[-1] == "up":
+                if "shift" in key:
+                    self.shift_down = False
                 continue
 
             if "alt" in key:
@@ -118,18 +124,28 @@ class CursorPositionTracker:
                 self.shift_down = key_modifier[-1] == "down"
                 key_used = True
             elif "left" in key:
-                self.selecting_text = "shift" in key or self.shift_down
+                selecting_text = "shift" in key or self.shift_down
                 left_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     left_movements = int(key_modifier[-1])
-                self.track_cursor_left(left_movements)
+
+                if selecting_text != self.selecting_text:
+                    left_movements = abs(self.track_selection(selecting_text, -left_movements))
+
+                if left_movements > 0:
+                    self.track_cursor_left(left_movements)
                 key_used = True
             elif "right" in key:
-                self.selecting_text = "shift" in key or self.shift_down
+                selecting_text = "shift" in key or self.shift_down
                 right_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     right_movements = int(key_modifier[-1])
-                self.track_cursor_right(right_movements)
+                
+                if selecting_text != self.selecting_text:
+                    right_movements = self.track_selection(selecting_text, right_movements)
+                    
+                if right_movements > 0:
+                    self.track_cursor_right(right_movements)
                 key_used = True
             elif "end" in key:
                 self.mark_cursor_to_end_of_line()
@@ -152,15 +168,6 @@ class CursorPositionTracker:
                     self.mark_below_line_as_coarse()
                 key_used = True
         return key_used
-
-    def index_all(self):
-        self.cursor_tracking_enabled = False
-        with clip.revert():
-            actions.edit.select_all()
-            text = actions.edit.selected_text()
-            self.clear_selection()
-        
-        self.set_history(text)
 
     # Select a line and index it to find where we are in the current text history
     def search_line(self):
@@ -276,6 +283,9 @@ class CursorPositionTracker:
                 after_cursor_text = "\n" + after_cursor_text
         self.set_history(before_cursor_text, after_cursor_text, _COARSE_MARKER)
 
+    def is_selecting(self):
+        return self.selecting_text
+
     def mark_above_line_as_coarse(self):
         self.mark_line_as_coarse(-1)
 
@@ -371,12 +381,78 @@ class CursorPositionTracker:
             before_cursor_text = "\n".join(before_cursor)
             after_cursor_text = "\n".join(after_cursor)
             self.set_history(before_cursor_text, after_cursor_text)
+        
+        # Detect if we are still selecting items
+        if self.selection_cursor_marker[0] > -1 and self.selection_cursor_marker[1] > -1:
+            cursor_index = self.get_cursor_index()
+            if cursor_index[0] > -1 and cursor_index[1] > -1:
+                self.selecting_text = cursor_index[0] * 1000 + cursor_index[1] != self.selection_cursor_marker[0] * 1000 + self.selection_cursor_marker[1]
+            else:
+                self.selecting_text = False
+        else:
+            self.selecting_text = False
 
     def track_cursor_left(self, amount = 1):
         self.track_cursor_position(-amount)
 
     def track_cursor_right(self, amount = 1):
         self.track_cursor_position(amount)
+
+    def track_selection(self, selecting: bool, right_amount: int = 1) -> int:
+        current_index = self.get_cursor_index()
+
+        # Remember the cursor position of the start of the selection
+        if selecting:
+            self.selection_cursor_marker = current_index
+
+        # Set the cursor to the a side of the selection
+        if not selecting:
+
+            # Determine which cursor is further, applying a large multiplier to the line to make comparisons easier
+            cursor = current_index[0] * 1000 - current_index[1]
+            selection = self.selection_cursor_marker[0] * 1000 - self.selection_cursor_marker[1]
+
+            cursor_at_selection = False
+            if right_amount > 0:
+                if cursor > selection and cursor > 0:
+                    right_amount -= 1
+                elif selection > cursor and selection > 0:
+                    cursor_at_selection = True
+                    right_amount -= 1
+            elif right_amount < 0:
+                if cursor < selection and cursor > 0:
+                    right_amount += 1
+                elif selection < cursor and selection > 0:
+                    right_amount += 1
+                    cursor_at_selection = True
+
+            # Set the cursor at the selection
+            if cursor_at_selection:
+                before_cursor = []
+                after_cursor = []
+                before_cursor_string = ""
+                after_cursor_string = ""
+                lines = self.text_history.splitlines()
+                for line_index, line in lines:
+                    replaced_line = line.replace(_CURSOR_MARKER, "").replace(_COARSE_MARKER, "")
+                    if line_index < self.selection_cursor_marker[0]:
+                        before_cursor.append(replaced_line)
+                    elif line_index > self.selection_cursor_marker[0]:
+                        after_cursor.append(replaced_line)
+                    elif line_index == self.selection_cursor_marker[0]:
+                        before_cursor_string = replaced_line[:self.selection_cursor_marker[1]]
+                        after_cursor_string = replaced_line[self.selection_cursor_marker[1]:]
+                        if line_index > 0:
+                            before_cursor_string = "\n" + before_cursor_string
+                        elif line_index < len(lines) - 1:
+                            after_cursor_string += "\n"
+
+                self.set_history("\n".join(before_cursor) + before_cursor_string, after_cursor_string + "\n".join(after_cursor))
+                self.selecting_text = False
+
+            self.selection_cursor_marker = (-1, -1)
+
+        return right_amount
 
     def track_coarse_cursor_left(self, amount = 1):
         self.track_coarse_cursor_right(-amount)

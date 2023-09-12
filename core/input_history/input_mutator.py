@@ -15,6 +15,10 @@ mod.tag("flow_letters", desc="Ensure that the user can freely insert letters")
 mod.tag("flow_symbols", desc="Ensure that the user can freely insert symbols")
 mod.tag("flow_words", desc="Ensure that the user can freely insert words")
 
+mod.tag("context_disable_shift_selection", desc="Disables shift selection for the current context")
+mod.tag("context_disable_word_wrap", desc="Disables word wrap detection for the current context")
+mod.tag("context_disable_word_wrap", desc="Disables word wrap detection for the current context")
+
 mod.list("input_history_words", desc="A list of words that correspond to inserted text and their cursor positions for quick navigation in text")
 ctx = Context()
 ctx.lists["user.input_history_words"] = []
@@ -73,7 +77,7 @@ class InputMutator:
             self.index()
 
     def is_selecting(self) -> bool:
-        return self.manager.cursor_position_tracker.selecting_text != ""
+        return self.manager.is_selecting()
 
     def has_phrase(self, phrase: str) -> bool:
         for event in self.manager.input_history:

@@ -460,6 +460,47 @@ class CursorPositionTracker:
             self.selection_cursor_marker = (-1, -1)
 
         return right_amount
+    
+    def remove_selection(self) -> ((int, int), (int, int)):
+        cursor_index = self.get_cursor_index()
+        selection_index = self.selection_cursor_marker
+
+        first_index = cursor_index
+        second_index = selection_index
+        if self.is_selecting():
+            if cursor_index[0] * 1000 + cursor_index[1] < selection_index[0] * 1000 + selection_index[1]:
+                second_index = cursor_index
+                first_index = selection_index
+
+            before_cursor = []
+            after_cursor = []
+            before_cursor_string = ""
+            after_cursor_string = ""
+            lines = self.text_history.splitlines()
+            for line_index, line in enumerate(lines):
+                replaced_line = line.replace(_CURSOR_MARKER, "").replace(_COARSE_MARKER, "")
+                if line_index < first_index[0]:
+                    before_cursor.append(replaced_line)
+                elif line_index > second_index[0]:
+                    after_cursor.append(replaced_line)
+                else:
+                    if line_index == first_index[0]:
+                        before_cursor_string = replaced_line[:len(replaced_line) - first_index[1]]
+                        if line_index > 0:
+                            before_cursor_string = "\n" + before_cursor_string                        
+
+                    if line_index == second_index[0]:
+                        after_cursor_string = replaced_line[len(replaced_line) - second_index[1]:]
+                        if line_index < len(lines) - 1:
+                            after_cursor_string += "\n"
+
+            self.set_history("\n".join(before_cursor) + before_cursor_string, after_cursor_string + "\n".join(after_cursor))
+            self.selecting_text = False
+            self.selection_cursor_marker = (-1, -1)
+        else:
+            second_index = cursor_index
+
+        return (first_index, second_index)
 
     def track_coarse_cursor_left(self, amount = 1):
         self.track_coarse_cursor_right(-amount)

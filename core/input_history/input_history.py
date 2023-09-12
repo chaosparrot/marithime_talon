@@ -22,11 +22,14 @@ class InputHistoryManager:
         return self.cursor_position_tracker.is_selecting()
 
     def clear_input_history(self):
-        self.cursor_position_tracker.clear()        
+        self.cursor_position_tracker.clear()
         self.input_history = []
-    
-    def determine_input_index(self) -> (int, int):
-        line_index, character_index = self.cursor_position_tracker.get_cursor_index()
+
+    def determine_input_index(self, cursor_index: (int, int) = None) -> (int, int):
+        if cursor_index is None:
+            cursor_index = self.cursor_position_tracker.get_cursor_index()
+
+        line_index, character_index = cursor_index
         if line_index > -1 and character_index > -1: 
             for input_index, input_event in enumerate(self.input_history):
                 if input_event.line_index == line_index and \
@@ -55,6 +58,9 @@ class InputHistoryManager:
             self.insert_input_event(event)
 
     def insert_input_event(self, event: InputHistoryEvent):
+        if self.is_selecting() and event.text != "":
+            self.remove_selection()
+
         line_index, character_index = self.cursor_position_tracker.get_cursor_index()
         if line_index > -1 and character_index > -1:
             input_index, input_character_index = self.determine_input_index()
@@ -154,8 +160,48 @@ class InputHistoryManager:
                 event.phrase = text_to_phrase(line)
                 events.append(event)
             return events
+        
+    def remove_selection(self) -> bool:
+        selection_indexes = self.cursor_position_tracker.remove_selection()
+        if selection_indexes[0][0] != selection_indexes[1][0] or \
+            selection_indexes[0][1] != selection_indexes[1][1]:
+
+            start_index = self.determine_input_index(selection_indexes[0])
+            end_index = self.determine_input_index(selection_indexes[1])
+
+            merge_event_one = None
+
+            events = []
+            for event_index, event in enumerate(self.input_history):
+                if event_index < start_index[0] or event_index > end_index[0]:
+                    events.append(event)
+                else:
+                    should_detect_merge = False
+
+                    # Same event - No overlap between events
+                    if event_index == start_index[0] and event_index == end_index[0]:
+                        text = event.text
+
+                        text = text[:start_index[1]] + text[end_index[1]:]
+                        events.append(InputHistoryEvent(text, text_to_phrase(text), "", event.line_index))
+                        should_detect_merge = start_index[1] == 0 or end_index[1] >= len(text.replace("\n", ""))
+
+            self.input_history = events
+            self.reformat_events()
+
+            return True
+        else:
+            return False
+
     
     def apply_delete(self, delete_count = 0):
+        if self.is_selecting() and delete_count > 0:
+            if self.remove_selection():
+                delete_count -= 1
+
+        if delete_count <= 0:
+            return
+
         line_index, character_index = self.cursor_position_tracker.get_cursor_index()
         if line_index > -1 and character_index > -1:
             input_index, input_character_index = self.determine_input_index()
@@ -205,9 +251,15 @@ class InputHistoryManager:
                         self.reformat_events()            
 
             self.cursor_position_tracker.remove_after_cursor(delete_count)
-
         
     def apply_backspace(self, backspace_count = 0):
+        if self.is_selecting() and backspace_count > 0:
+            if self.remove_selection():
+                backspace_count -= 1
+
+        if backspace_count <= 0:
+            return
+
         line_index, character_index = self.cursor_position_tracker.get_cursor_index()
         if line_index > -1 and character_index > -1:
             input_index, input_character_index = self.determine_input_index()

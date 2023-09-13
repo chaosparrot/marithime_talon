@@ -56,7 +56,7 @@ input_history.insert_input_events(input_history.text_to_input_history_events(" i
 input_history.cursor_position_tracker.text_history = "Suggest create delete insert" + _CURSOR_MARKER + "ion"
 
 print( "With a filled input history")
-print( "    Selecting characters until the left side of the event is reached...")
+print( "    Selecting characters until the left side of the event is reached and removing it...")
 input_history.apply_key("shift:down left:7 shift:up backspace")
 print( "        Expect history length to be one less (3)", len(input_history.input_history) == 3)
 cursor_index = input_history.cursor_position_tracker.get_cursor_index() 
@@ -65,9 +65,8 @@ print( "        Expect cursor character index to be the same as before (3)", cur
 print( "        Expect no selection detected", input_history.is_selecting() == False)
 print( "        Expect text to be merged", input_history.input_history[-1].text == " deleteion")
 print( "        Expect phrase to be merged", input_history.input_history[-1].phrase == "deleteion")
-print( "    Selecting characters until multiple events have been skipped over...")
+print( "    Selecting characters until multiple events have been skipped over and removing it...")
 input_history.apply_key("shift:down left:14 shift:up backspace")
-print( input_history.cursor_position_tracker.text_history )
 print( "        Expect history length to be two less (1)", len(input_history.input_history) == 1)
 cursor_index = input_history.cursor_position_tracker.get_cursor_index()
 print( "        Expect cursor line index to be 0", cursor_index[0] == 0)
@@ -76,7 +75,6 @@ print( "        Expect no selection detected", input_history.is_selecting() == F
 print( "        Expect text to be merged", input_history.input_history[-1].text == "Suggestion")
 print( "        Expect phrase to be merged", input_history.input_history[-1].phrase == "suggestion")
 
-
 input_history = InputHistoryManager()
 input_history.insert_input_events(input_history.text_to_input_history_events("Suggest ", "suggest"))
 input_history.insert_input_events(input_history.text_to_input_history_events("create ", "create"))
@@ -84,7 +82,7 @@ input_history.insert_input_events(input_history.text_to_input_history_events("de
 input_history.insert_input_events(input_history.text_to_input_history_events("insertion", "insertion"))
 input_history.cursor_position_tracker.text_history = "Suggest" + _CURSOR_MARKER + " create delete insertion"
 print( "With a filled input history")
-print( "    Selecting characters until the right side of the event is reached...")
+print( "    Selecting characters until the right side of the event is reached and removing it...")
 input_history.apply_key("shift:down right shift:up backspace")
 print( "        Expect history length to be one less (3)", len(input_history.input_history) == 3)
 cursor_index = input_history.cursor_position_tracker.get_cursor_index() 
@@ -93,7 +91,7 @@ print( "        Expect cursor character index to be one less than before same as
 print( "        Expect no selection detected", input_history.is_selecting() == False)
 print( "        Expect text to be merged", input_history.input_history[0].text == "Suggestcreate ")
 print( "        Expect phrase to be merged", input_history.input_history[0].phrase == "suggestcreate")
-print( "    Selecting characters until multiple events have been skipped over...")
+print( "    Selecting characters until multiple events have been skipped over and removing it...")
 input_history.apply_key("shift:down right:20 shift:up backspace")
 print( "        Expect history length to be two less (1)", len(input_history.input_history) == 1)
 cursor_index = input_history.cursor_position_tracker.get_cursor_index()

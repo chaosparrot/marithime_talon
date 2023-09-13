@@ -165,26 +165,59 @@ class InputHistoryManager:
         selection_indexes = self.cursor_position_tracker.remove_selection()
         if selection_indexes[0][0] != selection_indexes[1][0] or \
             selection_indexes[0][1] != selection_indexes[1][1]:
-
+            
             start_index = self.determine_input_index(selection_indexes[0])
             end_index = self.determine_input_index(selection_indexes[1])
 
-            merge_event_one = None
+            merge_event = None
+            should_detect_merge = False
 
             events = []
             for event_index, event in enumerate(self.input_history):
                 if event_index < start_index[0] or event_index > end_index[0]:
-                    events.append(event)
+
+                    # Attempt merge if the events can be combined
+                    if should_detect_merge and not re.sub(r"[^\w\s]", ' ', event.text).replace("\n", " ").startswith(" ") and \
+                            not re.sub(r"[^\w\s]", ' ', events[-1].text).replace("\n", " ").endswith(" "):
+
+                        merge_event = events[-1]
+                        text = merge_event.text + event.text
+                        events[-1].text = text
+                        events[-1].phrase = text_to_phrase(text)
+                        merge_event = None
+                        should_detect_merge = False
+
+                    # Otherwise just add the event
+                    else:
+                        events.append(event)                        
                 else:
-                    should_detect_merge = False
+                    text = event.text
 
                     # Same event - No overlap between events
                     if event_index == start_index[0] and event_index == end_index[0]:
-                        text = event.text
-
                         text = text[:start_index[1]] + text[end_index[1]:]
                         events.append(InputHistoryEvent(text, text_to_phrase(text), "", event.line_index))
                         should_detect_merge = start_index[1] == 0 or end_index[1] >= len(text.replace("\n", ""))
+                    # Split event, remember the first event from the selection
+                    elif event_index == start_index[0]:
+                        text = text[:start_index[1]]
+                        merge_event = InputHistoryEvent(text, text_to_phrase(text), "", event.line_index)
+                        should_detect_merge = not re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").endswith(" ")
+                    # Split event, attempt to merge the first event with the current event
+                    elif event_index == end_index[0]:
+                        text = text[end_index[1]:]
+
+                        if should_detect_merge and not re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").startswith(" "):
+                            text = merge_event.text + text
+                        elif merge_event is not None:
+                            events.append(merge_event)
+                        merge_event = None
+                        should_detect_merge = False
+                        events.append(InputHistoryEvent(text, text_to_phrase(text), "", event.line_index))
+            
+            # If we are left with a merge event, add it anyway
+            if merge_event is not None:
+                events.append(merge_event)
 
             self.input_history = events
             self.reformat_events()

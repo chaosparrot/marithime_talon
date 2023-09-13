@@ -465,12 +465,12 @@ class CursorPositionTracker:
         cursor_index = self.get_cursor_index()
         selection_index = self.selection_cursor_marker
 
-        first_index = cursor_index
-        second_index = selection_index
+        first_index = selection_index
+        second_index = cursor_index
         if self.is_selecting():
-            if cursor_index[0] * 1000 + cursor_index[1] < selection_index[0] * 1000 + selection_index[1]:
-                second_index = cursor_index
-                first_index = selection_index
+            if (cursor_index[0] == selection_index[0] and cursor_index[1] > selection_index[1]) or cursor_index[0] < selection_index[0]:
+                first_index = cursor_index
+                second_index = selection_index
 
             before_cursor = []
             after_cursor = []
@@ -498,7 +498,7 @@ class CursorPositionTracker:
             self.selecting_text = False
             self.selection_cursor_marker = (-1, -1)
         else:
-            second_index = cursor_index
+            first_index = cursor_index
 
         return (first_index, second_index)
 

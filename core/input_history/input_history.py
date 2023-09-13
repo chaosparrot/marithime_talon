@@ -9,6 +9,16 @@ ctx = Context()
 def text_to_phrase(text: str) -> str:
     return " ".join(re.sub(r"[^\w\s]", ' ', text).lower().split()).strip()
 
+def normalize_text(text: str) -> str:
+    return re.sub(r"[^\w\s]", ' ', text).replace("\n", " ")
+
+MERGE_STRATEGY_IGNORE = -1
+MERGE_STRATEGY_APPEND_AFTER = 0
+MERGE_STRATEGY_JOIN = 1
+MERGE_STRATEGY_SPLIT_LEFT_JOIN_RIGHT = 2
+MERGE_STRATEGY_JOIN_LEFT_SPLIT_RIGHT = 3
+MERGE_STRATEGY_SPLIT = 4
+
 # Class to manage the cursor position within inserted text
 class InputHistoryManager:
     input_history: List[InputHistoryEvent]
@@ -62,13 +72,17 @@ class InputHistoryManager:
             self.remove_selection()
 
         normalized_text = re.sub(r"[^\w\s]", ' ', event.text).replace("\n", " ")
-        can_merge = not normalized_text.startswith(" ") and not normalized_text.endswith(" ")
+        event_can_merge_left = not normalized_text.startswith(" ")
+        event_can_merge_right = not normalized_text.endswith(" ")
 
         line_index, character_index = self.cursor_position_tracker.get_cursor_index()
         if line_index > -1 and character_index > -1:
             input_index, input_character_index = self.determine_input_index()
+
+            print( "MERGE STRATEGY!", self.detect_merge_strategy(input_index, input_character_index, event) )
+            
             appended = False
-            if input_index == len(self.input_history) - 1:
+            if input_index == len(self.input_history) - 1 and not event_can_merge_left:
                 if self.input_history[input_index].text != "" and input_character_index == len(self.input_history[input_index].text):
 
                     # Update the previous input events on this line to have accurate character count
@@ -84,19 +98,34 @@ class InputHistoryManager:
                 return
             
             if appended == False:
+
+                normalized_previous_text = " " if input_index > 0 else re.sub(r"[^\w\s]", ' ', self.input_history[input_index - 1].text).replace("\n", " ")
+                previous_can_merge = event_can_merge_left and not normalized_previous_text.endswith(" ")
+
+                normalized_next_text = " "
+                if input_index + 1 < len(self.input_history) - 1:
+                    normalized_next_text = re.sub(r"[^\w\s]", ' ', self.input_history[input_index + 1].text).replace("\n", " ")
+                next_can_merge = event_can_merge_right and not normalized_next_text.startswith(" ")
+
                 self.cursor_position_tracker.append_before_cursor(event.text)
-                if input_character_index == len(self.input_history[input_index].text) and self.input_history[input_index].text != "":
+                print( "MERGING",  previous_can_merge, next_can_merge )
+
+                # Insert an event after the event if we cannot merge the previous or the next item
+                if input_character_index == len(self.input_history[input_index].text) and self.input_history[input_index].text != "" and not next_can_merge:
+                    print( "APPENDING AFTER!" )
                     self.append_event_after(input_index, event)
                 
                 # Just insert a event if we are at the exact start of an event
                 elif input_character_index == 0 and self.input_history[input_index].text != "" and event.text != "":
+                    print( "APPENDING BEFORE!" )
                     self.append_event_after(input_index - 1, event)
                 # Merge input events if the appending happens in the middle of an event
-                elif can_merge:
+                elif previous_can_merge and next_can_merge:
                     self.merge_input_events(input_index, input_character_index, event)
                     self.reformat_events()
                 # Split input events up
                 else:
+                    print( "SPLIT!" )
                     self.split_input_events(input_index, input_character_index, event)
                     self.reformat_events()
 
@@ -114,6 +143,61 @@ class InputHistoryManager:
         self.input_history.insert(input_index + 1, appended_event)
         if reindex:
             self.reformat_events()
+
+    def detect_merge_strategy(self, input_index: int, input_character_index: int, event: InputHistoryEvent) -> (int, int, int):
+        event_text = normalize_text(event.text)
+        previous_event_text = " " if input_index - 1 < 0 else normalize_text(self.input_history[input_index - 1].text)
+        current_event_text = " " if input_index < 0 else normalize_text(self.input_history[input_index].text)
+        next_event_text = " " if input_index + 1 > len(self.input_history) - 1 else normalize_text(self.input_history[input_index + 1].text)
+
+        current_strategy = MERGE_STRATEGY_IGNORE
+        previous_strategy = MERGE_STRATEGY_IGNORE
+        next_strategy = MERGE_STRATEGY_IGNORE
+
+        if len(self.input_history) == 0 or input_index > len(self.input_history) - 1:
+            current_strategy = MERGE_STRATEGY_APPEND_AFTER
+
+        # When we are at the start of an event, we can possibly join the previous event with the current input
+        elif input_character_index == 0:
+            if not event_text.endswith(" ") and not current_event_text.startswith(" "):
+                current_strategy = MERGE_STRATEGY_JOIN
+            
+            if not event_text.startswith(" ") and not previous_event_text.endswith(" "):
+                previous_strategy = MERGE_STRATEGY_JOIN
+            elif current_strategy != MERGE_STRATEGY_JOIN:
+                previous_strategy = MERGE_STRATEGY_APPEND_AFTER
+        
+        # When we are at the end of an event, we can possibly join the next event with the current input
+        elif input_character_index == len(self.input_history[input_index].text):
+            if not event_text.startswith(" ") and not current_event_text.endswith(" "):
+                current_strategy = MERGE_STRATEGY_JOIN
+            
+            if not event_text.endswith(" ") and not next_event_text.startswith(" "):
+                next_strategy = MERGE_STRATEGY_JOIN
+            elif current_strategy != MERGE_STRATEGY_JOIN:
+                current_strategy = MERGE_STRATEGY_APPEND_AFTER
+
+        # Determine how to divide and join the current event
+        else:
+            current_text = self.input_history[input_index].text
+            previous_character = " " if input_character_index - 1 < 0 else current_text[input_character_index - 1]
+            next_character = " " if input_character_index < 0 and input_character_index != len(current_text) else current_text[input_character_index]
+
+            can_join_left = not event_text.startswith(" ") and previous_character != " "
+            can_join_right = not event_text.endswith(" ") and next_character != " "            
+
+            if can_join_left and can_join_right:
+                current_strategy = MERGE_STRATEGY_JOIN
+            elif can_join_left:
+                current_strategy = MERGE_STRATEGY_JOIN_LEFT_SPLIT_RIGHT
+            elif can_join_right:
+                current_strategy = MERGE_STRATEGY_SPLIT_LEFT_JOIN_RIGHT
+            else:
+                current_strategy = MERGE_STRATEGY_SPLIT
+
+        return (previous_strategy, current_strategy, next_strategy)
+
+
 
     def split_input_events(self, input_index: int, input_character_index: int, event: InputHistoryEvent):
         # TODO PROPER EVENT SPLITTING
@@ -241,7 +325,6 @@ class InputHistoryManager:
             return True
         else:
             return False
-
     
     def apply_delete(self, delete_count = 0):
         if self.is_selecting() and delete_count > 0:

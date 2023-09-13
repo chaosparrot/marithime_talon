@@ -94,9 +94,12 @@ class InputHistoryManager:
                 # Merge input events if the appending happens in the middle of an event
                 elif can_merge:
                     self.merge_input_events(input_index, input_character_index, event)
+                    self.reformat_events()
                 # Split input events up
                 else:
                     self.split_input_events(input_index, input_character_index, event)
+                    self.reformat_events()
+
         else:
             self.clear_input_history()
             self.input_history.append(event)
@@ -200,7 +203,7 @@ class InputHistoryManager:
 
                     # Otherwise just add the event
                     else:
-                        events.append(event)                        
+                        events.append(event)
                 else:
                     text = event.text
 

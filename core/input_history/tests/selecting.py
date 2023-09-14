@@ -60,5 +60,4 @@ print( "        Expect history length to stay the same (3)", len(input_history.i
 cursor_index = input_history.cursor_position_tracker.get_cursor_index()
 print( "        Expect cursor line index to be 1", cursor_index[0] == 1)
 print( "        Expect cursor character index to stay the same as the start of the selection (10)", cursor_index[1] == 10)
-print( "        Expect no selection detected", input_history.is_selecting() == False)
-  
+print( "        Expect no selection detected", input_history.is_selecting() == False)  

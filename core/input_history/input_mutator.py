@@ -86,8 +86,8 @@ class InputMutator:
             
         return False
     
-    def move_to_phrase(self, phrase: str, character_index: int = -1) -> List[str]:
-        return self.manager.go_phrase(phrase, "end" if character_index == -1 else "start" )
+    def move_to_phrase(self, phrase: str, character_index: int = -1, keep_selection: bool = False) -> List[str]:
+        return self.manager.go_phrase(phrase, "end" if character_index == -1 else "start", keep_selection )
 
     def transform_insert(self, insert: str) -> str:
         return insert
@@ -202,8 +202,6 @@ class Actions:
         global mutator
 
         if mutator.has_phrase(phrase):
-            #deselect()
-
             before_keys = mutator.move_to_phrase(phrase, 0)
             mutator.disable_tracking()
             if before_keys:
@@ -213,7 +211,7 @@ class Actions:
 
             actions.key("shift:down")
             mutator.disable_tracking()
-            after_keys = mutator.move_to_phrase(phrase, -1)
+            after_keys = mutator.move_to_phrase(phrase, -1, True)
             if after_keys:
                 for key in after_keys:
                     actions.key(key)

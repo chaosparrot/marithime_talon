@@ -76,7 +76,7 @@ class InputHistoryManager:
             input_index, input_character_index = self.determine_input_index()
 
             merge_strategies = self.detect_merge_strategy(input_index, input_character_index, event)
-            
+
             appended = False
             if merge_strategies[0] == MERGE_STRATEGY_APPEND_AFTER or merge_strategies[1] == MERGE_STRATEGY_APPEND_AFTER:
                 # Update the previous input events on this line to have accurate character count
@@ -86,7 +86,10 @@ class InputHistoryManager:
                 event.line_index += line_index
                 
                 if merge_strategies[1] == MERGE_STRATEGY_APPEND_AFTER:
-                    self.input_history.append(event)
+                    if input_index < len(self.input_history) - 1:
+                        self.append_event_after(input_index, event)
+                    else:
+                        self.input_history.append(event)
                 else:
                     self.append_event_after(input_index - 1, event)
 
@@ -168,7 +171,7 @@ class InputHistoryManager:
             current_text = self.input_history[input_index].text
             previous_character = " " if input_character_index - 1 < 0 else current_text[input_character_index - 1]
             next_character = " " if input_character_index < 0 and input_character_index != len(current_text) else current_text[input_character_index]
-            can_join_left = not event_text.startswith(" ") and normalize_text(previous_character) != " "
+            can_join_left = ( not event_text.startswith(" ") and normalize_text(previous_character) != " " ) or event.text == "\n"
             can_join_right = not event_text.endswith(" ") and normalize_text(next_character) != " "
 
             #print( "PREV" + previous_character + "A", "NEXT" + next_character + "A", can_join_left, can_join_right ) 

@@ -174,7 +174,6 @@ class InputHistoryManager:
             can_join_left = ( not event_text.startswith(" ") and normalize_text(previous_character) != " " ) or event.text == "\n"
             can_join_right = not event_text.endswith(" ") and normalize_text(next_character) != " "
 
-            #print( "PREV" + previous_character + "A", "NEXT" + next_character + "A", can_join_left, can_join_right ) 
             if can_join_left and can_join_right:
                 current_strategy = MERGE_STRATEGY_JOIN
             elif can_join_left:
@@ -501,10 +500,10 @@ class InputHistoryManager:
         if not self.cursor_position_tracker.text_history:
             self.clear_input_history()
 
-    def go_phrase(self, phrase: str, position: str = 'end') -> List[str]:
+    def go_phrase(self, phrase: str, position: str = 'end', keep_selection: bool = False) -> List[str]:
         event = self.find_event_by_phrase(phrase)
         if event:
-            return self.navigate_to_event(event, -1 if position == 'end' else 0)
+            return self.navigate_to_event(event, -1 if position == 'end' else 0, keep_selection)
         else:
             return None
 
@@ -514,12 +513,15 @@ class InputHistoryManager:
                 return event
         return None
 
-    def navigate_to_event(self, event: InputHistoryEvent, char_position: int = -1) -> List[str]:
-        index_from_end = event.index_from_line_end + len(event.text)
-        if char_position == -1:
-            char_position = -len(event.text)
+    def navigate_to_event(self, event: InputHistoryEvent, char_position: int = -1, keep_selection: bool = False) -> List[str]:
+        if event != None:
+            index_from_end = event.index_from_line_end + len(event.text)
+            if char_position == -1:
+                char_position = -len(event.text)
 
-        key_events = self.cursor_position_tracker.navigate_to_position(event.line_index, index_from_end + char_position )
-        for key in key_events:
-            self.apply_key(key)
+            key_events = self.cursor_position_tracker.navigate_to_position(event.line_index, index_from_end + char_position, not keep_selection)
+            for key in key_events:
+                self.apply_key(key)
+        else:
+            key_events = []
         return key_events

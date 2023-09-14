@@ -63,19 +63,6 @@ class CursorPositionTracker:
     def clear(self):
         self.set_history("")
 
-    def clear_selection(self):
-        if self.selecting_text:
-            selecting_text = ""
-            with clip.revert():
-                selecting_text = actions.edit.selected_text()
-            
-            if selecting_text:
-                self.disable_cursor_tracking()
-                actions.edit.right()
-                self.enable_cursor_tracking()
-            
-            self.selecting_text = False
-
     def disable_cursor_tracking(self):
         self.cursor_tracking_enabled = False
 
@@ -369,7 +356,7 @@ class CursorPositionTracker:
             # Clear the history if the coarse cursor has traveled beyond a line
             # Because we do not know the line position for sure.
             if is_coarse and line_with_cursor != line_index:
-                self.set_history("")
+                self.clear()
             
             # Determine new state
             before_cursor = []
@@ -413,24 +400,19 @@ class CursorPositionTracker:
 
         # Set the cursor to the a side of the selection
         if not selecting:
-
             # Determine which cursor is further, applying a large multiplier to the line to make comparisons easier
-            cursor = current_index[0] * 1000 - current_index[1]
-            selection = self.selection_cursor_marker[0] * 1000 - self.selection_cursor_marker[1]
+
+            cursor = current_index
+            selection = self.selection_cursor_marker
+            cursor_is_left_side = cursor[0] < selection[0] or ( cursor[0] == selection[0] and cursor[1] > selection[1] )
 
             cursor_at_selection = False
             if right_amount > 0:
-                if cursor > selection and cursor > 0:
-                    right_amount -= 1
-                elif selection > cursor and selection > 0:
-                    cursor_at_selection = True
-                    right_amount -= 1
+                cursor_at_selection = cursor_is_left_side
+                right_amount -= 1
             elif right_amount < 0:
-                if cursor < selection and cursor > 0:
-                    right_amount += 1
-                elif selection < cursor and selection > 0:
-                    right_amount += 1
-                    cursor_at_selection = True
+                cursor_at_selection = not cursor_is_left_side                    
+                right_amount += 1
 
             # Set the cursor at the selection
             if cursor_at_selection:
@@ -455,11 +437,19 @@ class CursorPositionTracker:
                             after_cursor_string += "\n"
 
                 self.set_history("\n".join(before_cursor) + before_cursor_string, after_cursor_string + "\n".join(after_cursor))
-                
+
             self.selecting_text = False
             self.selection_cursor_marker = (-1, -1)
 
         return right_amount
+    
+    def track_cursor_on_selection_exit(self, right_amount:int = 0) -> int:
+        if right_amount == 0:
+            return right_amount
+
+        
+
+        return right_amount + (1 if right_amount < 0 else 1)
     
     def remove_selection(self) -> ((int, int), (int, int)):
         cursor_index = self.get_cursor_index()
@@ -520,7 +510,7 @@ class CursorPositionTracker:
         if amount < 0:
             whitespace_items = self.split_string_with_punctuation(items[0])
             if len(whitespace_items) < abs(amount):
-                self.set_history("") # Clear history because we are going past our bounds
+                self.clear() # Clear history because we are going past our bounds
             else:
                 previous_item = whitespace_items[amount]
                 index = items[0].rfind(previous_item)
@@ -528,12 +518,12 @@ class CursorPositionTracker:
                     self.set_history(items[0][:index], items[0][index:] + items[1], _COARSE_MARKER)
                     # Clear history because we are going past a line boundary and we do not know the line position
                 else:
-                    self.set_history("")
+                    self.clear()
 
         elif amount > 0:
             whitespace_items = items[1].split()
             if len(whitespace_items) < amount:
-                self.set_history("") # Clear history because we are going past our bounds
+                self.clear() # Clear history because we are going past our bounds
             else:
                 next_item = whitespace_items[amount - 1]
                 index = items[1].find(next_item)
@@ -541,7 +531,7 @@ class CursorPositionTracker:
                     index += len(next_item)
                     self.set_history(items[0] + items[1][:index], items[1][index:], _COARSE_MARKER)
                 else:
-                    self.set_history("")            
+                    self.clear()       
 
     # Synchronize the cursor position
     def set_history(self, before_cursor: str, after_cursor: str = "", marker: str = _CURSOR_MARKER):
@@ -599,10 +589,46 @@ class CursorPositionTracker:
     def split_string_with_punctuation(self, text: str) -> List[str]:
         return re.sub(r"[" + re.escape("!\"#$%&'()*+, -./:;<=>?@[\\]^`{|}~") + "]+", " ", text).split()
 
-    def navigate_to_position(self, line_index, character_from_end ) -> List[str]:
+    def navigate_to_position(self, line_index: int, character_from_end: int, deselection: bool = True) -> List[str]:
         current = self.get_cursor_index()
 
         keys = []
+        if deselection:
+            if self.shift_down:
+                keys.append("shift:up")
+            
+            if self.is_selecting():
+                selection = self.selection_cursor_marker
+
+                # If we are dealing with a coarse cursor, navigate from the selection start point instead to have a known starting point
+                favour_selection = False
+                if current[1] == -1 and selection[1] != -1:
+                    favour_selection = True
+                # Favor the closest end to the desired character
+                else:
+                    if current[0] == selection[0] and line_index == current[0]:
+                        favour_selection = abs(selection[1] - character_from_end) < abs(current[1] - character_from_end)
+                    elif current[0] == line_index:
+                        favour_selection = False
+                    elif selection[0] == line_index:
+                        favour_selection = True
+                    else:
+                        favour_selection = abs(selection[0] - line_index) < abs(current[0] - line_index)
+
+                if favour_selection:
+                    current = selection
+
+                coarse_cursor = self.get_cursor_index(True)
+                if coarse_cursor[0] < selection[0]:
+                    keys.append("right" if favour_selection else "left")
+                elif coarse_cursor[0] > selection[0]:
+                    keys.append("left" if favour_selection else "right")
+                else:
+                    if favour_selection:
+                        keys.append("left" if selection[1] > coarse_cursor[1] else "right")
+                    else:
+                        keys.append("left" if selection[1] < coarse_cursor[1] else "right")
+
         if not line_index == current[0] and line_index != -1:
             difference = current[0] - line_index
 
@@ -629,5 +655,5 @@ class CursorPositionTracker:
 
         if current[0] == -1 or current[1] == -1:
             keys = []
-        
+
         return keys

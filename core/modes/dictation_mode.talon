@@ -29,36 +29,6 @@ go right <number_small> (word | words):
 go line start: edit.line_start()
 go line end: edit.line_end()
 
-# Selection
-select left <number_small> (word | words):
-    edit.extend_word_left()
-    repeat(number_small - 1)
-select right <number_small> (word | words):
-    edit.extend_word_right()
-    repeat(number_small - 1)
-select left <number_small> (character | characters):
-    edit.extend_left()
-    repeat(number_small - 1)
-select right <number_small> (character | characters):
-    edit.extend_right()
-    repeat(number_small - 1)
-clear left <number_small> (word | words):
-    edit.extend_word_left()
-    repeat(number_small - 1)
-    edit.delete()
-clear right <number_small> (word | words):
-    edit.extend_word_right()
-    repeat(number_small - 1)
-    edit.delete()
-clear left <number_small> (character | characters):
-    edit.extend_left()
-    repeat(number_small - 1)
-    edit.delete()
-clear right <number_small> (character | characters):
-    edit.extend_right()
-    repeat(number_small - 1)
-    edit.delete()
-
 # Formatting
 formatted <user.format_text>: user.dictation_insert_raw(format_text)
 ^format selection <user.formatters>$: user.formatters_reformat_selection(formatters)

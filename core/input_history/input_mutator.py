@@ -8,7 +8,6 @@ mod.setting("context_remove_word", type=str, default="ctrl-backspace", desc="The
 mod.setting("context_remove_letter", type=str, default="backspace", desc="The key combination to clear a single letter to the left of the cursor")
 mod.setting("context_remove_forward_word", type=str, default="ctrl-delete", desc="The key combination to clear a word to the right of the cursor")
 mod.setting("context_remove_forward_letter", type=str, default="delete", desc="The key combination to clear a single letter to the right of the cursor")
-mod.setting("context_clear_selection", type=str, default="home end", desc="The key combination to clear the cursor selection and place the cursor on a known place")
 
 mod.tag("flow_numbers", desc="Ensure that the user can freely insert numbers")
 mod.tag("flow_letters", desc="Ensure that the user can freely insert letters")
@@ -86,33 +85,40 @@ class InputMutator:
             
         return False
     
-    def move_to_phrase(self, phrase: str, character_index: int = -1, keep_selection: bool = False) -> List[str]:
-        return self.manager.go_phrase(phrase, "end" if character_index == -1 else "start", keep_selection )
+    def move_cursor_back(self) -> List[str]:
+        if len(self.manager.input_history) > 0:
+            last_event = self.manager.input_history[-1]
+            return self.manager.navigate_to_event(last_event, -1, False)
+        else:
+            return ["end"]
+
+    def move_to_phrase(self, phrase: str, character_index: int = -1, keep_selection: bool = False, next_occurrence: bool = True) -> List[str]:
+        return self.manager.go_phrase(phrase, "end" if character_index == -1 else "start", keep_selection, next_occurrence )
 
     def transform_insert(self, insert: str) -> str:
         return insert
-    
-    def clear_selection(self) -> List[str]:
-        if self.is_selecting():
-            return settings.get("user.context_clear_selection").split(" ")
-        else:
-            return []
-    
+
     def clear_keys(self, backwards = True) -> List[str]:
         context = self.manager.determine_context()
 
+        if self.is_selecting():
+            return [settings.get("user.context_remove_letter")]
+        
         if context.current is not None:
             if context.character_index == 0 and backwards and context.previous is not None:
                 return [settings.get("user.context_remove_letter") + ":" + str(len(context.previous.text))]
 
-            elif context.character_index == len(context.current.text) - 1 and not backwards and context.next is not None:
-                return [settings.get("user.context_remove_forward_letter") + ":" + str(len(context.next.text))]
+            elif context.character_index == len(context.current.text):
+                if not backwards and context.next is not None:
+                    return [settings.get("user.context_remove_forward_letter") + ":" + str(len(context.next.text))]
+                elif backwards:
+                    return [settings.get("user.context_remove_letter") + ":" + str(len(context.current.text))]
 
             if context.character_index > 0 and context.character_index < len(context.current.text) - 1:
                 if backwards:
                     return [settings.get("user.context_remove_letter") + ":" + str(context.character_index)]
                 else:
-                    return [settings.get("user.context_remove_forward_letter") + ":" + str(len(context.current.text) - context.character_index)]                    
+                    return [settings.get("user.context_remove_forward_letter") + ":" + str(len(context.current.text) - context.character_index)]
 
         return [settings.get("user.context_remove_word") if backwards else settings.get("user.context_remove_forward_word")]
 
@@ -135,12 +141,6 @@ class InputMutator:
 mutator = InputMutator()
 ui.register("win_focus", mutator.focus_changed)
 
-def deselect():
-    global mutator
-    if mutator.is_selecting():
-        keys = mutator.clear_selection()
-        for key in keys:
-            actions.key(key)    
 
 @mod.action_class
 class Actions:
@@ -194,7 +194,7 @@ class Actions:
                     actions.key(key)
                 mutator.enable_tracking()
         else:
-            actions.user.hud_add_log("warning", phrase + " could not be found in context")
+            actions.user.hud_add_log("command", phrase + " could not be found in context")
             raise RuntimeError("Input phrase '" + phrase + "' could not be found in the history")
 
     def input_core_select(phrase: str):
@@ -202,7 +202,7 @@ class Actions:
         global mutator
 
         if mutator.has_phrase(phrase):
-            before_keys = mutator.move_to_phrase(phrase, 0)
+            before_keys = mutator.move_to_phrase(phrase, 0, False, True)
             mutator.disable_tracking()
             if before_keys:
                 for key in before_keys:
@@ -211,7 +211,7 @@ class Actions:
 
             actions.key("shift:down")
             mutator.disable_tracking()
-            after_keys = mutator.move_to_phrase(phrase, -1, True)
+            after_keys = mutator.move_to_phrase(phrase, -1, True, False)
             if after_keys:
                 for key in after_keys:
                     actions.key(key)
@@ -224,9 +224,15 @@ class Actions:
     def input_core_clear_phrase(phrase: str):
         """Move the cursor behind the given phrase and remove it"""
         global mutator
-        deselect()
-        mutator.move_to_phrase(phrase, -1)
+        before_keys = mutator.move_to_phrase(phrase, -1, False, False)
+        mutator.disable_tracking()
+        if before_keys:
+            for key in before_keys:
+                actions.key(key)
+        mutator.enable_tracking()
+
         keys = mutator.clear_keys()
+        actions.user.hud_add_log("warning", "CLEAR! " + " ".join(keys))
         for key in keys:
             actions.key(key)
 
@@ -247,7 +253,3 @@ class Actions:
         print( "----------" )
         print( mutator.manager.cursor_position_tracker.text_history )
         print( "----------" )
-    
-    def input_core_deselect():
-        """Unselect the current selection without clearing the cursor history"""
-        deselect()

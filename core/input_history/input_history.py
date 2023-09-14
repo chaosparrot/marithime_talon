@@ -500,18 +500,65 @@ class InputHistoryManager:
         if not self.cursor_position_tracker.text_history:
             self.clear_input_history()
 
-    def go_phrase(self, phrase: str, position: str = 'end', keep_selection: bool = False) -> List[str]:
-        event = self.find_event_by_phrase(phrase)
+    def go_phrase(self, phrase: str, position: str = 'end', keep_selection: bool = False, next_occurrence: bool = True) -> List[str]:
+        event = self.find_event_by_phrase(phrase, next_occurrence)
         if event:
             return self.navigate_to_event(event, -1 if position == 'end' else 0, keep_selection)
         else:
             return None
 
-    def find_event_by_phrase(self, phrase: str) -> InputHistoryEvent:
-        for event in self.input_history:
+    def find_event_by_phrase(self, phrase: str, next_occurrence: bool = True) -> InputHistoryEvent:
+        matching_events: List[(int, InputHistoryEvent)] = []
+        for index, event in enumerate(self.input_history):
             if event.phrase == phrase:
-                return event
-        return None
+                matching_events.append((index, event))
+
+        # If we have no valid matches or valid cursors, we cannot find the phrase
+        cursor_index = self.cursor_position_tracker.get_cursor_index()
+        if len(matching_events) == 0 or cursor_index[0] < 0:
+            return None
+        
+        if len(matching_events) == 1:
+            return matching_events[0][1]
+        else:
+            input_index = self.determine_input_index()
+
+            # Loop through the occurrences one by one, starting back at the end if we have reached the first event
+            if next_occurrence:
+                matched_event = None
+                for event in matching_events:
+                    if event[0] < input_index[0]:
+                        matched_event = event[1]
+                
+                if matched_event is None:
+                    matched_event = matching_events[-1][1]
+
+            # Just get the nearest matching event to the cursor as this is most likely the one we were after
+            # Not all cases have been properly tested for this
+            else:
+                distance_to_event = 1000000
+                current_event = self.input_history[input_index[0]]
+
+                matched_event = None
+                for event_index, event in matching_events:
+                    line_distance = abs(event.line_index - current_event.line_index) * 10000
+                    distance_from_event_end = abs(event.index_from_line_end) + line_distance
+                    distance_from_event_start = abs(event.index_from_line_end + len(event.text.replace("\n", ""))) + line_distance
+                    
+                    if distance_from_event_end - current_event.index_from_line_end < distance_to_event:
+                        matched_event = event
+                        distance_to_event = distance_from_event_end
+                    
+                    elif distance_from_event_start - current_event.index_from_line_end < distance_to_event:
+                        matched_event = event
+                        distance_to_event = distance_from_event_start
+                
+                if matched_event is None:
+                    matched_event = matching_events[-1]
+
+                return matching_events
+            
+            return matched_event
 
     def navigate_to_event(self, event: InputHistoryEvent, char_position: int = -1, keep_selection: bool = False) -> List[str]:
         if event != None:

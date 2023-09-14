@@ -11,6 +11,13 @@ after <user.word>:
 
 select {user.input_history_words}:
     user.input_core_select(input_history_words)
+
+remove {user.input_history_words}:
+    user.input_core_clear_phrase(input_history_words)
+remove <user.word>:
+    user.input_core_clear_phrase(word)
+    
+
 select <user.word>:
     user.input_core_select(word)
 ^line index:

@@ -24,6 +24,8 @@ class InputHistoryManager:
     input_history: List[InputHistoryEvent]
     cursor_position_tracker: CursorPositionTracker = None
 
+    last_action_type = "insert"
+
     def __init__(self):
         self.cursor_position_tracker = CursorPositionTracker()
         self.clear_input_history()
@@ -119,6 +121,8 @@ class InputHistoryManager:
             self.clear_input_history()
             self.input_history.append(event)
             self.cursor_position_tracker.append_before_cursor(event.text)
+        
+        self.last_action_type = "insert"
 
     def append_event_after(self, input_index: int, appended_event: InputHistoryEvent):
         appended_event.line_index = self.input_history[input_index].line_index
@@ -386,6 +390,7 @@ class InputHistoryManager:
                         self.reformat_events()            
 
             self.cursor_position_tracker.remove_after_cursor(delete_count)
+        self.last_action_type = "remove"
         
     def apply_backspace(self, backspace_count = 0):
         if self.is_selecting() and backspace_count > 0:
@@ -446,7 +451,8 @@ class InputHistoryManager:
                         self.reformat_events()            
 
             self.cursor_position_tracker.remove_before_cursor(backspace_count)
-    
+        self.last_action_type = "remove"
+
     def reformat_events(self):
         length = len(self.input_history)
         if length == 0:
@@ -481,6 +487,8 @@ class InputHistoryManager:
         keys = keystring.lower().split(" ")
         for key in keys:
             key_used = self.cursor_position_tracker.apply_key(key)
+            if key_used:
+                self.last_action_type = self.cursor_position_tracker.last_cursor_movement
             if not key_used and "backspace" in key or "delete" in key:
                 key_modifier = key.split(":")
                 if len(key_modifier) > 1 and key_modifier[-1] == "up":
@@ -529,6 +537,8 @@ class InputHistoryManager:
                 for event in matching_events:
                     if event[0] < input_index[0]:
                         matched_event = event[1]
+                    elif (self.last_action_type == "insert" or self.last_action_type == "remove") and event[0] == input_index[0]:
+                        matched_event = event[1]
                 
                 if matched_event is None:
                     matched_event = matching_events[-1][1]
@@ -547,11 +557,13 @@ class InputHistoryManager:
                     
                     if distance_from_event_end - current_event.index_from_line_end < distance_to_event:
                         matched_event = event
-                        distance_to_event = distance_from_event_end
+                        distance_to_event = distance_from_event_end - current_event.index_from_line_end
                     
                     elif distance_from_event_start - current_event.index_from_line_end < distance_to_event:
                         matched_event = event
-                        distance_to_event = distance_from_event_start
+                        distance_to_event = distance_from_event_start - current_event.index_from_line_end
+                    
+                    print( distance_to_event, matched_event )
                 
                 if matched_event is None:
                     matched_event = matching_events[-1]
@@ -569,6 +581,10 @@ class InputHistoryManager:
             key_events = self.cursor_position_tracker.navigate_to_position(event.line_index, index_from_end + char_position, not keep_selection)
             for key in key_events:
                 self.apply_key(key)
+
+            # If we do not move, still keep a memory that a cursor movement was done rather than an insertion or removal
+            if len(key_events) == 0:
+                self.last_action_type = self.cursor_position_tracker.last_cursor_movement
         else:
             key_events = []
         return key_events

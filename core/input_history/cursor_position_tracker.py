@@ -56,6 +56,7 @@ class CursorPositionTracker:
     selecting_text: bool = False
     shift_down: bool = False
     selection_cursor_marker = (-1, -1)
+    last_cursor_movement: str = ""
 
     def __init__(self):
         self.clear()
@@ -94,11 +95,14 @@ class CursorPositionTracker:
                     left_movements = 1
                     if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                         left_movements = int(key_modifier[-1])
+                    self.last_cursor_movement = "left"
                     self.track_coarse_cursor_left(left_movements)
                 elif "right" in key:
                     right_movements = 1
                     if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                         right_movements = int(key_modifier[-1])
+
+                    self.last_cursor_movement = "right"
                     self.track_coarse_cursor_right(right_movements)
                 
                 # Only a few items do not change the focus or cursor position for the cursor
@@ -122,6 +126,7 @@ class CursorPositionTracker:
                 if left_movements > 0:
                     self.track_cursor_left(left_movements)
                 key_used = True
+                self.last_cursor_movement = "left"
             elif "right" in key:
                 selecting_text = "shift" in key or self.shift_down
                 right_movements = 1
@@ -134,12 +139,15 @@ class CursorPositionTracker:
                 if right_movements > 0:
                     self.track_cursor_right(right_movements)
                 key_used = True
+                self.last_cursor_movement = "right"
             elif "end" in key:
                 self.mark_cursor_to_end_of_line()
                 key_used = True
+                self.last_cursor_movement = "right"                
             elif "home" in key:
                 self.mark_line_as_coarse()
                 key_used = True
+                self.last_cursor_movement = "left"
             elif "up" in key:
                 up_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
@@ -442,14 +450,6 @@ class CursorPositionTracker:
             self.selection_cursor_marker = (-1, -1)
 
         return right_amount
-    
-    def track_cursor_on_selection_exit(self, right_amount:int = 0) -> int:
-        if right_amount == 0:
-            return right_amount
-
-        
-
-        return right_amount + (1 if right_amount < 0 else 1)
     
     def remove_selection(self) -> ((int, int), (int, int)):
         cursor_index = self.get_cursor_index()

@@ -71,4 +71,5 @@ print( "    Repeating the search for 'to' again...")
 keys = input_history.go_phrase("to", 'end')
 print( "        Should not move the cursor as there is only one option", len(keys) == 0)
 
-# TODO TEST SELECT CONSISTENCY
+# TODO TEST SELECT CONSISTENCY!
+# TODO TEST REMOVE CONSISTENCY?

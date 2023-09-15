@@ -22,8 +22,6 @@ input_history.apply_key("shift:down right:5 shift:up")
 keys = input_history.navigate_to_event(input_history.find_event_by_phrase("sentence"), 0)
 print( "        Should move the cursor to the right one time as the selection started on the first character", keys[0] == "right" and keys[1] == "right:8")
 print( "    Selecting one character to the left and then moving to the first character of the final word...")
-input_history.apply_key("shift:down left shift:up")
+input_history.apply_key("shift:down left shift:up") 
 keys = input_history.navigate_to_event(input_history.find_event_by_phrase("sentence"), 0)
 print( "        Should move the cursor to the right one time as the selection started on the first character", keys[0] == "right" and len(keys) == 1)
-
-# TODO TEST KEEPING SELECTION CURSOR

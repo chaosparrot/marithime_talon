@@ -509,13 +509,13 @@ class InputHistoryManager:
             self.clear_input_history()
 
     def go_phrase(self, phrase: str, position: str = 'end', keep_selection: bool = False, next_occurrence: bool = True) -> List[str]:
-        event = self.find_event_by_phrase(phrase, next_occurrence)
+        event = self.find_event_by_phrase(phrase, -1 if position == 'end' else 0, next_occurrence)
         if event:
             return self.navigate_to_event(event, -1 if position == 'end' else 0, keep_selection)
         else:
             return None
 
-    def find_event_by_phrase(self, phrase: str, next_occurrence: bool = True) -> InputHistoryEvent:
+    def find_event_by_phrase(self, phrase: str, char_position: int = -1, next_occurrence: bool = True) -> InputHistoryEvent:
         matching_events: List[(int, InputHistoryEvent)] = []
         for index, event in enumerate(self.input_history):
             if event.phrase == phrase:
@@ -530,6 +530,24 @@ class InputHistoryManager:
             return matching_events[0][1]
         else:
             input_index = self.determine_input_index()
+            current_event = self.input_history[input_index[0]]
+            text_length = len(current_event.text.replace("\n", ""))
+
+            if input_index[1] == text_length and current_event.phrase != phrase:
+                # Move to the next event if that event matches our phrase
+                if input_index[0] + 1 < len(self.input_history) and self.input_history[input_index[0] + 1].phrase == phrase:
+                    current_event = self.input_history[input_index[0] + 1]
+                    input_index = (input_index[0] + 1, 0)
+
+            # If the current event is the event we are looking for, make sure to check if we should cycle through it
+            if current_event.phrase == phrase:    
+                # If the cursor is in the middle of the event we are trying to find, make sure we don't look further                
+                if input_index[1] > 0 and input_index[1] < text_length:
+                    return current_event
+                
+                # If the cursor is on the opposite end of the event we are trying to find, make sure we don't look further
+                elif (input_index[1] == 0 and char_position == -1) or (input_index[1] == text_length and char_position >= 0):
+                    return current_event
 
             # Loop through the occurrences one by one, starting back at the end if we have reached the first event
             if next_occurrence:

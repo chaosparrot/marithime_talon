@@ -1,6 +1,9 @@
 from talon import Module, Context, actions, settings, ui
 from .input_history import InputHistoryManager
 from typing import List
+from formatters.formatters import FORMATTERS_LIST
+from formatters.text_formatter import TextFormatter
+
 mod = Module()
 
 mod.setting("context_remove_undo", type=str, default="ctrl-z", desc="The key combination to undo a paste action")
@@ -25,7 +28,7 @@ ctx.lists["user.input_history_words"] = []
 # Class to manage all the talon bindings and key presses for input history
 class InputMutator:
     manager: InputHistoryManager
-    formatters: List
+    active_formatters: List[TextFormatter]
     tracking = True
 
     insert_application_id: int = 0
@@ -33,7 +36,12 @@ class InputMutator:
 
     def __init__(self):
         self.manager = InputHistoryManager()
-        self.formatters = []
+        self.active_formatters = []
+
+    def set_formatter(self, name: str):
+        if name in FORMATTERS_LIST:
+            self.active_formatters = [FORMATTERS_LIST[name]]
+            self.formatters_name = [name]
 
     def enable_tracking(self):
         self.tracking = True

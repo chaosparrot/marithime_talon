@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Union
+from typing import Union, List
 
 from talon import Context, Module, actions
 from talon.grammar import Phrase
@@ -272,7 +272,7 @@ class Actions:
         unformatted = unformat_text(text)
         return actions.user.formatted_text(unformatted, formatters)
 
-    def insert_many(strings: list[str]) -> None:
+    def insert_many(strings: List[str]) -> None:
         """Insert a list of strings, sequentially."""
         for string in strings:
             actions.insert(string)

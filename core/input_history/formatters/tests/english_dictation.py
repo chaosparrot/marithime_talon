@@ -1,6 +1,6 @@
 from ..dictation_formatter import DICTATION_FORMATTERS
 
-formatter = DICTATION_FORMATTERS['en']
+formatter = DICTATION_FORMATTERS['EN']
 print( "English dictation" )
 print( "    should capitalize the first letter of a sentence", formatter.words_to_format(["this"]) == ["This"])
 print( "    should capitalize the first letter if it was preceded by dots", formatter.words_to_format(["this"], "testing. ") == ["This"])

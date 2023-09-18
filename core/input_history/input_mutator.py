@@ -1,8 +1,8 @@
 from talon import Module, Context, actions, settings, ui
 from .input_history import InputHistoryManager
 from typing import List
-from formatters.formatters import FORMATTERS_LIST
-from formatters.text_formatter import TextFormatter
+from .formatters.formatters import FORMATTERS_LIST
+from .formatters.text_formatter import TextFormatter
 
 mod = Module()
 
@@ -29,6 +29,7 @@ ctx.lists["user.input_history_words"] = []
 class InputMutator:
     manager: InputHistoryManager
     active_formatters: List[TextFormatter]
+    formatters_name: List[str]
     tracking = True
 
     insert_application_id: int = 0
@@ -37,6 +38,7 @@ class InputMutator:
     def __init__(self):
         self.manager = InputHistoryManager()
         self.active_formatters = []
+        self.formatters_name = []
 
     def set_formatter(self, name: str):
         if name in FORMATTERS_LIST:
@@ -77,9 +79,9 @@ class InputMutator:
                 for index, text in enumerate(inserts):
                     if index < len(inserts) - 1:
                         text += " "
-                    input_events.extend(self.manager.text_to_input_history_events(text, None, "|".join(self.formatters)))
+                    input_events.extend(self.manager.text_to_input_history_events(text, None, "|".join(self.formatters_name)))
             else:
-                input_events = self.manager.text_to_input_history_events(insert, phrase, "|".join(self.formatters))
+                input_events = self.manager.text_to_input_history_events(insert, phrase, "|".join(self.formatters_name))
             self.manager.insert_input_events(input_events)
             self.index()
 
@@ -104,7 +106,10 @@ class InputMutator:
         return self.manager.go_phrase(phrase, "end" if character_index == -1 else "start", keep_selection, next_occurrence )
 
     def transform_insert(self, insert: str) -> str:
-        return insert
+        if not self.active_formatters:
+            return insert
+        else:
+            return "".join(self.active_formatters[0].words_to_format(insert.split()))
 
     def clear_keys(self, backwards = True) -> List[str]:
         context = self.manager.determine_context()
@@ -172,6 +177,11 @@ class Actions:
         """Transform an insert automatically depending on previous context"""
         global mutator
         return mutator.transform_insert(insert)
+
+    def input_core_insert(prose: str):
+        """Input words based on context surrounding the words to input"""
+        global mutator
+        actions.insert(actions.user.input_core_transform_insert(prose))
 
     def input_core_track_key(key_string: str) -> str:
         """Track one or more key presses according to the key string"""

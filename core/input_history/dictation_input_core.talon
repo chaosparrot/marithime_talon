@@ -17,6 +17,16 @@ mode: dictation
 ^select <user.word>:
     user.input_core_select(word)
 
+# Replace
+^replace {user.input_history_words} with <user.word>:
+    user.input_core_select(input_history_words)
+    user.input_core_insert(word)
+    user.input_core_continue()
+^replace <user.word> with <user.word>:
+    user.input_core_select(word_1)
+    user.input_core_insert(word_2)
+    user.input_core_continue()
+
 # Text removal
 ^remove {user.input_history_words}:
     user.input_core_clear_phrase(input_history_words)

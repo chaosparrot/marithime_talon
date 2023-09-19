@@ -1,10 +1,11 @@
 mode: dictation
+and tag: user.asdf
 -
 ^press <user.modifiers>$: key(modifiers)
 ^press <user.keys>$: key(keys)
 
 # Everything here should call `user.dictation_insert()` instead of `insert()`, to correctly auto-capitalize/auto-space.
-<user.raw_prose>: user.dictation_insert(raw_prose)
+#<user.raw_prose>: user.dictation_insert(raw_prose)
 cap: user.dictation_format_cap()
 # Hyphenated variants are for Dragon.
 (no cap | no-caps): user.dictation_format_no_cap()

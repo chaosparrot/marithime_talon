@@ -18,9 +18,11 @@ no_space_before = re.compile(r"""
   )""", re.VERBOSE)
 
 def omit_space_before(text: str) -> bool:
-    return not text or no_space_before.search(text)
+    return not text or no_space_before.search(text) is not None
+
 def omit_space_after(text: str) -> bool:
-    return not text or no_space_after.search(text)
+    return not text or no_space_after.search(text) is not None
+
 def needs_space_between(before: str, after: str) -> bool:
     return not (omit_space_after(before) or omit_space_before(after))
 
@@ -38,7 +40,7 @@ class SentenceFormatter(TextFormatter):
         formatted_words = []
 
         # Add a leading space if the previous word had no leading space
-        if previous and not previous.endswith(" ") and not omit_space_after(previous):
+        if previous and not previous.endswith(" ") and needs_space_between(previous, words[0]):
             formatted_words.append(" ")
 
         for index, word in enumerate(words):
@@ -49,15 +51,12 @@ class SentenceFormatter(TextFormatter):
             else:
                 formatted_words.append(word)
 
-            # Add spaces according to the previous word
-            if index == 0 and needs_space_between(previous, word):
+            # Add spaces according to the next word
+            if index == len(words) - 1:
+                if needs_space_between(word, next):
+                    formatted_words[-1] += " "
+            elif needs_space_between(word, words[index + 1]):
                 formatted_words[-1] += " "
-            elif index > 0 and needs_space_between(words[index - 1], word):
-                formatted_words[-1] += " "
-        
-        # Remove the final space if it was added
-        if formatted_words[-1].endswith(" "):
-            formatted_words[-1] = formatted_words[-1][:-1]
         
         return formatted_words
 

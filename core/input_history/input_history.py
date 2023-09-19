@@ -37,6 +37,12 @@ class InputHistoryManager:
         self.cursor_position_tracker.clear()
         self.input_history = []
 
+    def determine_leftmost_input_index(self):
+        return self.determine_input_index(self.cursor_position_tracker.get_leftmost_cursor_index())
+    
+    def determine_rightmost_input_index(self):
+        return self.determine_input_index(self.cursor_position_tracker.get_rightmost_cursor_index())
+
     def determine_input_index(self, cursor_index: (int, int) = None) -> (int, int):
         if cursor_index is None:
             cursor_index = self.cursor_position_tracker.get_cursor_index()
@@ -579,10 +585,7 @@ class InputHistoryManager:
                     
                     elif distance_from_event_start - current_event.index_from_line_end < distance_to_event:
                         matched_event = event
-                        distance_to_event = distance_from_event_start - current_event.index_from_line_end
-                    
-                    print( distance_to_event, matched_event )
-                
+                        distance_to_event = distance_from_event_start - current_event.index_from_line_end                    
                 if matched_event is None:
                     matched_event = matching_events[-1]
 
@@ -606,3 +609,45 @@ class InputHistoryManager:
         else:
             key_events = []
         return key_events
+    
+    def get_current_formatters(self) -> List[str]:
+        formatters = []
+        input_index = self.determine_leftmost_input_index()
+        if input_index[0] != -1:
+            event = self.input_history[input_index[0]]
+            if len(event.format) > 0:
+                formatters = event.format.split("|")
+        return formatters
+    
+    # Get the text before the cursor, or a possible selection
+    def get_previous_text(self):
+        input_index = self.determine_leftmost_input_index()
+        previous_text = ""
+        if input_index[0] != -1:
+            previous_text = ""
+            for index, event in enumerate(self.input_history):
+                if index < input_index[0]:
+                    previous_text += event.text
+                elif index == input_index[0]:
+                    if input_index[1] > 0 and input_index[1] <= len(event.text.replace("\n", "")):
+                        previous_text += event.text[:input_index[1]]
+                else:
+                    break
+
+        return previous_text
+
+    # Get the text after the cursor, or a possible selection
+    def get_next_text(self) -> str:
+        right_input_index = self.determine_rightmost_input_index()
+        next_text = ""
+        if right_input_index[0] != -1:
+            for index, event in enumerate(self.input_history):
+                if index > right_input_index[0]:
+                    next_text += event.text
+                elif index == right_input_index[0]:
+                    if right_input_index[1] > 0 and right_input_index[1] < len(event.text.replace("\n", "")):
+                        next_text += self.input_history[index].text[right_input_index[1]:]
+                else:
+                    break
+
+        return next_text

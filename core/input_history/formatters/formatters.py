@@ -13,4 +13,4 @@ FORMATTERS_LIST = {
 }
 
 for dictation_key in DICTATION_FORMATTERS:
-    FORMATTERS_LIST["DICTATE_" + dictation_key] = DICTATION_FORMATTERS[dictation_key]
+    FORMATTERS_LIST["DICTATION_" + dictation_key] = DICTATION_FORMATTERS[dictation_key]

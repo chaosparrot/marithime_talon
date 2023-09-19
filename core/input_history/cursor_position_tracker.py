@@ -586,6 +586,22 @@ class CursorPositionTracker:
 
         return line_index, character_index
     
+    def get_leftmost_cursor_index(self, check_coarse = False) -> (int, int):
+        cursor_index = self.get_cursor_index(check_coarse)
+        chosen_index = cursor_index
+        if self.is_selecting():
+            selection_index = self.selection_cursor_marker
+            if selection_index[0] < cursor_index[0]:
+                chosen_index = selection_index
+            elif selection_index[0] == cursor_index[0] and selection_index[1] > cursor_index[1]:
+                chosen_index = selection_index
+
+        return chosen_index
+    
+    def get_rightmost_cursor_index(self, check_coarse = False) -> (int, int):
+        leftmost_index = self.get_leftmost_cursor_index(check_coarse)
+        return self.get_cursor_index(check_coarse) if not self.is_selecting() or self.get_cursor_index(check_coarse) != leftmost_index else self.selection_cursor_marker
+
     def split_string_with_punctuation(self, text: str) -> List[str]:
         return re.sub(r"[" + re.escape("!\"#$%&'()*+, -./:;<=>?@[\\]^`{|}~") + "]+", " ", text).split()
 

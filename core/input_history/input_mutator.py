@@ -29,8 +29,9 @@ ctx.lists["user.input_history_words"] = []
 class InputMutator:
     manager: InputHistoryManager
     active_formatters: List[TextFormatter]
-    formatters_name: List[str]
+    formatter_names: List[str]
     tracking = True
+    use_last_set_formatter = False
 
     insert_application_id: int = 0
     current_application_pid: int = 0
@@ -38,12 +39,13 @@ class InputMutator:
     def __init__(self):
         self.manager = InputHistoryManager()
         self.active_formatters = []
-        self.formatters_name = []
+        self.formatter_names = []
 
     def set_formatter(self, name: str):
         if name in FORMATTERS_LIST:
             self.active_formatters = [FORMATTERS_LIST[name]]
-            self.formatters_name = [name]
+            self.formatter_names = [name]
+            self.use_last_set_formatter = True
 
     def enable_tracking(self):
         self.tracking = True
@@ -55,9 +57,8 @@ class InputMutator:
         if self.tracking:
             keys = key_string.replace(":up", "").replace(":down", "").replace(":", "").split(" ")            
             if self.insert_application_id != self.current_application_pid:
-                actions.user.hud_add_log("error", "Clear because application id is off", self.insert_application_id)
+                actions.user.hud_add_log("error", "Clear because application id is off" + self.insert_application_id)
                 self.insert_application_id = self.current_application_pid
-                self.formatters = []
                 self.manager.clear_input_history()
             
             self.manager.apply_key(key_string)
@@ -68,10 +69,13 @@ class InputMutator:
             if self.insert_application_id != self.current_application_pid:
                 actions.user.hud_add_log("error", "Clear because application id is off")
                 self.insert_application_id = self.current_application_pid
-                self.formatters = []
                 self.manager.clear_input_history()
 
             input_events = []
+
+            formatters = self.manager.get_current_formatters()
+            if self.use_last_set_formatter or len(formatters) == 0:
+                formatters = self.formatter_names
 
             # Automatic insert splitting if no explicit phrase is given
             if phrase == "" and " " in insert:
@@ -79,9 +83,10 @@ class InputMutator:
                 for index, text in enumerate(inserts):
                     if index < len(inserts) - 1:
                         text += " "
-                    input_events.extend(self.manager.text_to_input_history_events(text, None, "|".join(self.formatters_name)))
+                    
+                    input_events.extend(self.manager.text_to_input_history_events(text, None, "|".join(formatters)))
             else:
-                input_events = self.manager.text_to_input_history_events(insert, phrase, "|".join(self.formatters_name))
+                input_events = self.manager.text_to_input_history_events(insert, phrase, "|".join(formatters))
             self.manager.insert_input_events(input_events)
             self.index()
 
@@ -98,18 +103,37 @@ class InputMutator:
     def move_cursor_back(self) -> List[str]:
         if len(self.manager.input_history) > 0:
             last_event = self.manager.input_history[-1]
+            self.use_last_set_formatter = True
             return self.manager.navigate_to_event(last_event, -1, False)
         else:
             return ["end"]
 
     def move_to_phrase(self, phrase: str, character_index: int = -1, keep_selection: bool = False, next_occurrence: bool = True) -> List[str]:
+        if self.has_phrase(phrase):
+            self.use_last_set_formatter = False
         return self.manager.go_phrase(phrase, "end" if character_index == -1 else "start", keep_selection, next_occurrence )
 
     def transform_insert(self, insert: str) -> str:
-        if not self.active_formatters:
-            return insert
+        formatter = self.active_formatters[0] if self.use_last_set_formatter and len(self.active_formatters) > 0 else None
+        previous_text = ""
+        next_text = ""
+
+        input_index = self.manager.determine_leftmost_input_index()
+        if input_index[0] > -1:
+            previous_text = self.manager.get_previous_text()
+            next_text = self.manager.get_next_text()
+
+            context_formatters = self.manager.get_current_formatters()
+            context_formatter = context_formatters[0] if len(context_formatters) > 0 else None
+            formatter = FORMATTERS_LIST[context_formatter] if formatter is None and context_formatter is not None and context_formatter in FORMATTERS_LIST else formatter
+
+        if formatter is not None:
+            actions.user.hud_add_log("warning", "A" + previous_text + "B" + next_text + "A")
+            
+            return "".join(formatter.words_to_format(insert.split(), previous_text, next_text))
         else:
-            return "".join(self.active_formatters[0].words_to_format(insert.split()))
+            actions.user.hud_add_log("warning", "No formatter used!" + ("TRUE" if self.use_last_set_formatter else "FALSE"))
+            return insert
 
     def clear_keys(self, backwards = True) -> List[str]:
         context = self.manager.determine_context()
@@ -264,10 +288,7 @@ class Actions:
             actions.key(key)
         mutator.enable_tracking()
 
-    def input_core_print():
-        """Print the current input core state"""
+    def input_core_forget():
+        """Forget the current context of the input history completely"""
         global mutator
-        print( "Input state")
-        print( "----------" )
-        print( mutator.manager.cursor_position_tracker.text_history )
-        print( "----------" )
+        mutator.manager.clear_input_history()

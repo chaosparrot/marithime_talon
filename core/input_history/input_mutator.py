@@ -94,11 +94,7 @@ class InputMutator:
         return self.manager.is_selecting()
 
     def has_phrase(self, phrase: str) -> bool:
-        for event in self.manager.input_history:
-            if event.phrase.lower() == phrase.lower():
-                return True
-            
-        return False
+        return self.manager.has_matching_phrase(phrase)
     
     def move_cursor_back(self) -> List[str]:
         if len(self.manager.input_history) > 0:

@@ -2,6 +2,7 @@ from talon import Module, Context, actions, settings, clip
 from .input_history_typing import InputHistoryEvent, InputContext
 from typing import List
 from .cursor_position_tracker import CursorPositionTracker
+from ..phonetics.actions import phonetic_search
 import re
 mod = Module()
 ctx = Context()
@@ -514,6 +515,15 @@ class InputHistoryManager:
         if not self.cursor_position_tracker.text_history:
             self.clear_input_history()
 
+    def has_matching_phrase(self, phrase: str) -> bool:
+        score = 0
+        for event in self.input_history:
+            score = phonetic_search.phonetic_similarity_score(phrase, event.phrase)
+            if score >= 1:
+                return True
+
+        return False
+    
     def go_phrase(self, phrase: str, position: str = 'end', keep_selection: bool = False, next_occurrence: bool = True) -> List[str]:
         event = self.find_event_by_phrase(phrase, -1 if position == 'end' else 0, next_occurrence)
         if event:
@@ -522,31 +532,43 @@ class InputHistoryManager:
             return None
 
     def find_event_by_phrase(self, phrase: str, char_position: int = -1, next_occurrence: bool = True) -> InputHistoryEvent:
-        matching_events: List[(int, InputHistoryEvent)] = []
+        exact_matching_events: List[(int, InputHistoryEvent)] = []
+        fuzzy_matching_events: List[(int, InputHistoryEvent, float)] = []
+
         for index, event in enumerate(self.input_history):
-            if event.phrase == phrase:
-                matching_events.append((index, event))
+            score = phonetic_search.phonetic_similarity_score(phrase, event.phrase)
+            if score >= 2:
+                exact_matching_events.append((index, event))
+            elif score > 0.8:
+                fuzzy_matching_events.append((index, event, score))
 
         # If we have no valid matches or valid cursors, we cannot find the phrase
         cursor_index = self.cursor_position_tracker.get_cursor_index()
-        if len(matching_events) == 0 or cursor_index[0] < 0:
+        if (len(exact_matching_events) + len(fuzzy_matching_events) == 0) or cursor_index[0] < 0:
             return None
         
-        if len(matching_events) == 1:
-            return matching_events[0][1]
+        # Get the first exact match
+        if len(exact_matching_events) == 1:
+            return exact_matching_events[0][1]
+        
+        # Get a fuzzy match if it is the only match
+        elif len(exact_matching_events) == 0 and len(fuzzy_matching_events) == 1:
+            return fuzzy_matching_events[0][1]
         else:
             input_index = self.determine_input_index()
             current_event = self.input_history[input_index[0]]
             text_length = len(current_event.text.replace("\n", ""))
+            current_phrase_similar = phonetic_search.phonetic_similarity_score(phrase, current_event.phrase) >= 1
 
-            if input_index[1] == text_length and current_event.phrase != phrase:
+            if input_index[1] == text_length and not current_phrase_similar:
                 # Move to the next event if that event matches our phrase
-                if input_index[0] + 1 < len(self.input_history) and self.input_history[input_index[0] + 1].phrase == phrase:
+                next_event_phrase = "" if input_index[0] + 1 >= len(self.input_history) else self.input_history[input_index[0] + 1].phrase 
+                if phonetic_search.phonetic_similarity_score(phrase, next_event_phrase) >= 1:
                     current_event = self.input_history[input_index[0] + 1]
                     input_index = (input_index[0] + 1, 0)
 
             # If the current event is the event we are looking for, make sure to check if we should cycle through it
-            if current_event.phrase == phrase:    
+            if current_phrase_similar:    
                 # If the cursor is in the middle of the event we are trying to find, make sure we don't look further                
                 if input_index[1] > 0 and input_index[1] < text_length:
                     return current_event
@@ -558,14 +580,14 @@ class InputHistoryManager:
             # Loop through the occurrences one by one, starting back at the end if we have reached the first event
             if next_occurrence:
                 matched_event = None
-                for event in matching_events:
+                for event in exact_matching_events:
                     if event[0] < input_index[0]:
                         matched_event = event[1]
                     elif (self.last_action_type == "insert" or self.last_action_type == "remove") and event[0] == input_index[0]:
                         matched_event = event[1]
                 
                 if matched_event is None:
-                    matched_event = matching_events[-1][1]
+                    matched_event = exact_matching_events[-1][1]
 
             # Just get the nearest matching event to the cursor as this is most likely the one we were after
             # Not all cases have been properly tested for this
@@ -574,7 +596,7 @@ class InputHistoryManager:
                 current_event = self.input_history[input_index[0]]
 
                 matched_event = None
-                for event_index, event in matching_events:
+                for event_index, event in exact_matching_events:
                     line_distance = abs(event.line_index - current_event.line_index) * 10000
                     distance_from_event_end = abs(event.index_from_line_end) + line_distance
                     distance_from_event_start = abs(event.index_from_line_end + len(event.text.replace("\n", ""))) + line_distance
@@ -587,9 +609,9 @@ class InputHistoryManager:
                         matched_event = event
                         distance_to_event = distance_from_event_start - current_event.index_from_line_end                    
                 if matched_event is None:
-                    matched_event = matching_events[-1]
+                    matched_event = exact_matching_events[-1]
 
-                return matching_events
+                return exact_matching_events
             
             return matched_event
 

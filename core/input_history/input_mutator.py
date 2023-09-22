@@ -103,6 +103,11 @@ class InputMutator:
             return self.manager.navigate_to_event(last_event, -1, False)
         else:
             return ["end"]
+        
+    def select_phrase(self, phrase: str) -> List[str]:
+        if self.has_phrase(phrase):
+            self.use_last_set_formatter = False
+        return self.manager.select_phrase(phrase)
 
     def move_to_phrase(self, phrase: str, character_index: int = -1, keep_selection: bool = False, next_occurrence: bool = True) -> List[str]:
         if self.has_phrase(phrase):
@@ -217,7 +222,6 @@ class Actions:
         """Apply a clear based on the current input history"""
         global mutator
         keys = mutator.clear_keys(backward)        
-        actions.user.hud_add_log("warning", "CLEAR! " + " ".join(keys))
         for key in keys:
             actions.key(key)
 
@@ -240,21 +244,12 @@ class Actions:
         global mutator
 
         if mutator.has_phrase(phrase):
-            before_keys = mutator.move_to_phrase(phrase, 0, False, True)
+            keys = mutator.select_phrase(phrase)
             mutator.disable_tracking()
-            if before_keys:
-                for key in before_keys:
+            if keys:
+                for key in keys:
                     actions.key(key)
             mutator.enable_tracking()
-
-            actions.key("shift:down")
-            mutator.disable_tracking()
-            after_keys = mutator.move_to_phrase(phrase, -1, True, False)
-            if after_keys:
-                for key in after_keys:
-                    actions.key(key)
-            mutator.enable_tracking()
-            actions.key("shift:up")            
         else:
             actions.user.hud_add_log("warning", phrase + " could not be found in context")
             raise RuntimeError("Input phrase '" + phrase + "' could not be found in the history")

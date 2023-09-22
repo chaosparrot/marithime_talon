@@ -604,6 +604,25 @@ class CursorPositionTracker:
 
     def split_string_with_punctuation(self, text: str) -> List[str]:
         return re.sub(r"[" + re.escape("!\"#$%&'()*+, -./:;<=>?@[\\]^`{|}~") + "]+", " ", text).split()
+    
+    def get_selection_text(self) -> str:
+        selection_lines = []
+        if self.is_selecting():
+            left = self.get_leftmost_cursor_index(True)
+            right = self.get_rightmost_cursor_index(True)
+
+            lines = self.text_history.splitlines()
+            for line_index, line in enumerate(lines):
+                replaced_line = line.replace(_CURSOR_MARKER, '').replace(_COARSE_MARKER, '')
+                if line_index == left[0] and line_index == right[0]:
+                    selection_lines.append(replaced_line[len(replaced_line) - left[1]:len(replaced_line) - right[1]])
+                elif line_index == left[0] and line_index < right[0]:
+                    selection_lines.append( replaced_line[len(replaced_line) - left[1]] )
+                elif line_index > left[0] and line_index < right[0]:
+                    selection_lines.append( replaced_line )
+                elif line_index > left[0] and line_index == right[0]:
+                    selection_lines.append( replaced_line[:len(replaced_line) - right[1]] )
+        return "\n".join(selection_lines)
 
     def navigate_to_position(self, line_index: int, character_from_end: int, deselection: bool = True) -> List[str]:
         current = self.get_cursor_index()

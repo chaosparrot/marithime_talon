@@ -23,10 +23,13 @@ def get_filled_ihm():
 
 input_history = get_filled_ihm()
 print( "Using a filled input history which contains homophones of certain words")
-print( "    Moving from the end of the word 'sentences' and finding 'two' for the query 'to'...") 
+print( "    Moving from the end of the word 'sentences' searching for 'to'...") 
 keys = input_history.go_phrase("to", 'start')
 print( "        Should go left until the word 'two' is found", keys[0] == "left:14" )
+print( "    Searching for 'to' again...") 
+keys = input_history.go_phrase("to", 'start')
+print( "        Should go left until the word 'to' is found", keys[0] == "left:16" )
 keys = input_history.go_phrase("wil", 'end')
-print( "    Moving from the start of the word 'two', searching for 'wil' which fuzzy matches a single word...") 
-print( "        Should go left until the word 'will' is found", keys[0] == "left:40" )
+print( "    Searching for 'wil', which isn't available directly...") 
+print( "        Should go left until the word 'will' is found", keys[0] == "left:24" )
   

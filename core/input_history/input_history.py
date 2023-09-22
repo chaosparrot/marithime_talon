@@ -33,6 +33,12 @@ class InputHistoryManager:
 
     def is_selecting(self) -> bool:
         return self.cursor_position_tracker.is_selecting()
+    
+    def is_phrase_selected(self, phrase: str) -> bool:
+        if self.is_selecting():
+            selection = self.cursor_position_tracker.get_selection_text()
+            return phonetic_search.phonetic_similarity_score(normalize_text(selection).replace(" ", ''), phrase) >= 2
+        return False
 
     def clear_input_history(self):
         self.cursor_position_tracker.clear()
@@ -531,7 +537,27 @@ class InputHistoryManager:
         else:
             return None
 
-    def find_event_by_phrase(self, phrase: str, char_position: int = -1, next_occurrence: bool = True) -> InputHistoryEvent:
+    def select_phrase(self, phrase: str, extend_selection: bool = False) -> List[str]:        
+        event = self.find_event_by_phrase(phrase, 0, not extend_selection and self.is_phrase_selected(phrase), True)
+        if event:
+            self.use_last_set_formatter = False
+            before_keys = self.navigate_to_event(event, 0, False)
+            self.apply_key("shift:down")
+            select_key_down = ["shift:down"]
+            after_keys = self.navigate_to_event(event, -1, True)
+            select_key_up = ["shift:up"]
+            self.apply_key("shift:up")
+            
+            keys = before_keys
+            keys.extend(select_key_down)
+            keys.extend(after_keys)
+            keys.extend(select_key_up)
+
+            return keys
+        else:
+            return None
+
+    def find_event_by_phrase(self, phrase: str, char_position: int = -1, next_occurrence: bool = True, selecting: bool = False) -> InputHistoryEvent:
         exact_matching_events: List[(int, InputHistoryEvent)] = []
         fuzzy_matching_events: List[(int, InputHistoryEvent, float)] = []
 
@@ -574,7 +600,8 @@ class InputHistoryManager:
                     return current_event
                 
                 # If the cursor is on the opposite end of the event we are trying to find, make sure we don't look further
-                elif (input_index[1] == 0 and char_position == -1) or (input_index[1] == text_length and char_position >= 0):
+                # Unless we are actively selecting new ocurrences
+                elif not (selecting and next_occurrence) and ( (input_index[1] == 0 and char_position == -1) or (input_index[1] == text_length and char_position >= 0) ):
                     return current_event
 
             # Loop through the occurrences one by one, starting back at the end if we have reached the first event
@@ -607,12 +634,11 @@ class InputHistoryManager:
                     
                     elif distance_from_event_start - current_event.index_from_line_end < distance_to_event:
                         matched_event = event
-                        distance_to_event = distance_from_event_start - current_event.index_from_line_end                    
+                        distance_to_event = distance_from_event_start - current_event.index_from_line_end
+
                 if matched_event is None:
                     matched_event = exact_matching_events[-1]
 
-                return exact_matching_events
-            
             return matched_event
 
     def navigate_to_event(self, event: InputHistoryEvent, char_position: int = -1, keep_selection: bool = False) -> List[str]:

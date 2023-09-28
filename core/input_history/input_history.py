@@ -536,22 +536,46 @@ class InputHistoryManager:
             return self.navigate_to_event(event, -1 if position == 'end' else 0, keep_selection)
         else:
             return None
+        
+    def select_until_end(self, phrase: str = "") -> List[str]:
+        keys = []
+        if len(self.input_history) > 0:
+            if phrase != "":
+                start_event = self.find_event_by_phrase(phrase, 0, True, False)
+                if start_event:
+                    keys.extend(self.navigate_to_event(start_event, 0, False))
+            
+            keys.extend(self.select_event(self.input_history[-1], True))
+
+        return keys
 
     def select_phrase(self, phrase: str, extend_selection: bool = False) -> List[str]:        
         event = self.find_event_by_phrase(phrase, 0, not extend_selection and self.is_phrase_selected(phrase), True)
+        return self.select_event(event, extend_selection)
+    
+    def select_event(self, event: InputHistoryEvent, extend_selection: bool = False) -> List[str]:
         if event:
             self.use_last_set_formatter = False
-            before_keys = self.navigate_to_event(event, 0, False)
-            self.apply_key("shift:down")
-            select_key_down = ["shift:down"]
+
+            select_key_down = "shift:down"
+            keys = []
+            if extend_selection:
+                if not self.cursor_position_tracker.shift_down:
+                    self.apply_key(select_key_down)
+                    keys.append(select_key_down)
+            else:
+                before_keys = self.navigate_to_event(event, 0, False)
+                keys.extend(before_keys)
+                keys.append(select_key_down)
+                self.apply_key(select_key_down)
+
             after_keys = self.navigate_to_event(event, -1, True)
-            select_key_up = ["shift:up"]
-            self.apply_key("shift:up")
+            select_key_up = "shift:up"
             
-            keys = before_keys
-            keys.extend(select_key_down)
             keys.extend(after_keys)
-            keys.extend(select_key_up)
+
+            self.apply_key(select_key_up)
+            keys.append(select_key_up)
 
             return keys
         else:
@@ -592,6 +616,7 @@ class InputHistoryManager:
                 if phonetic_search.phonetic_similarity_score(phrase, next_event_phrase) >= 1:
                     current_event = self.input_history[input_index[0] + 1]
                     input_index = (input_index[0] + 1, 0)
+                    current_phrase_similar = True
 
             # If the current event is the event we are looking for, make sure to check if we should cycle through it
             if current_phrase_similar:    
@@ -603,7 +628,7 @@ class InputHistoryManager:
                 # Unless we are actively selecting new ocurrences
                 elif not (selecting and next_occurrence) and ( (input_index[1] == 0 and char_position == -1) or (input_index[1] == text_length and char_position >= 0) ):
                     return current_event
-
+                
             # Loop through the occurrences one by one, starting back at the end if we have reached the first event
             if next_occurrence:
                 matched_event = None
@@ -628,13 +653,13 @@ class InputHistoryManager:
                     distance_from_event_end = abs(event.index_from_line_end) + line_distance
                     distance_from_event_start = abs(event.index_from_line_end + len(event.text.replace("\n", ""))) + line_distance
                     
-                    if distance_from_event_end - current_event.index_from_line_end < distance_to_event:
+                    if abs(distance_from_event_end - current_event.index_from_line_end) < distance_to_event:
                         matched_event = event
-                        distance_to_event = distance_from_event_end - current_event.index_from_line_end
+                        distance_to_event = abs(distance_from_event_end - current_event.index_from_line_end)
                     
-                    elif distance_from_event_start - current_event.index_from_line_end < distance_to_event:
+                    elif abs(distance_from_event_start - current_event.index_from_line_end) < distance_to_event:
                         matched_event = event
-                        distance_to_event = distance_from_event_start - current_event.index_from_line_end
+                        distance_to_event = abs(distance_from_event_start - current_event.index_from_line_end)
 
                 if matched_event is None:
                     matched_event = exact_matching_events[-1]

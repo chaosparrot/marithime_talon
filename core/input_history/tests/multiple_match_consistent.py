@@ -34,14 +34,13 @@ keys = input_history.go_phrase("sentence", 'end')
 print( "        Should go right until the last occurrence of sentence", keys[0] == "right:6")
 
 input_history = get_filled_ihm()
-input_history.apply_key("left:9 right:9")
+input_history.apply_key("left:9 right:9") 
 print( "    Moving from the end of the word 'sentence' and finding 'sentence'...") 
 keys = input_history.go_phrase("sentence", 'start')
 print( "        Should go left until the last occurrence of sentence", keys[0] == "left:9")
 
-# TODO FIX THIS INCONSISTENCY!!!
 input_history = get_filled_ihm()
 input_history.apply_key("left:9")
 print( "    Moving from the start of the word 'sentence' and finding 'sentence'...")
 keys = input_history.go_phrase("sentence", 'end')
-print( "        Should go right until the last occurrence of sentence", keys[0] == "right:9", keys )
+print( "        Should go right until the last occurrence of sentence", keys[0] == "right:9")

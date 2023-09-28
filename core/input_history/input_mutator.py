@@ -96,18 +96,25 @@ class InputMutator:
     def has_phrase(self, phrase: str) -> bool:
         return self.manager.has_matching_phrase(phrase)
     
-    def move_cursor_back(self) -> List[str]:
+    def move_cursor_back(self, keep_selection: bool = False) -> List[str]:
         if len(self.manager.input_history) > 0:
             last_event = self.manager.input_history[-1]
             self.use_last_set_formatter = True
-            return self.manager.navigate_to_event(last_event, -1, False)
+            if keep_selection:
+                return self.manager.select_until_end("", True)
+            else:
+                return self.manager.navigate_to_event(last_event, -1, keep_selection)
         else:
             return ["end"]
         
-    def select_phrase(self, phrase: str) -> List[str]:
+    def select_phrase(self, phrase: str, until_end = False) -> List[str]:
         if self.has_phrase(phrase):
             self.use_last_set_formatter = False
-        return self.manager.select_phrase(phrase)
+
+        if until_end:
+            return self.manager.select_until_end(phrase)
+        else:
+            return self.manager.select_phrase(phrase)
 
     def move_to_phrase(self, phrase: str, character_index: int = -1, keep_selection: bool = False, next_occurrence: bool = True) -> List[str]:
         if self.has_phrase(phrase):

@@ -556,23 +556,75 @@ class InputHistoryManager:
     def select_event(self, event: InputHistoryEvent, extend_selection: bool = False) -> List[str]:
         if event:
             self.use_last_set_formatter = False
-
             select_key_down = "shift:down"
+            select_key_up = "shift:up"
+
             keys = []
+
+            # Continue the selection we have going right now
             if extend_selection:
-                if not self.cursor_position_tracker.shift_down:
+                # By default, go towards the end of the event
+                event_cursor_end = -1            
+                reset_selection = False
+
+                left_cursor = self.cursor_position_tracker.get_leftmost_cursor_index()
+                right_cursor = self.cursor_position_tracker.get_rightmost_cursor_index()
+
+                cursor_index = self.cursor_position_tracker.get_cursor_index()
+                cursor_on_left_side = cursor_index[0] == left_cursor[0] and cursor_index[1] == left_cursor[1]
+
+                # We need to reset our selection if we are adding new tokens in the opposite side of the selection
+                if event.line_index < left_cursor[0] or \
+                    (event.line_index == left_cursor[0] and event.index_from_line_end + len(event.text.replace('\n', '')) > left_cursor[1]):
+
+                    # When extending left, make sure to move to the start of the event to be selected
+                    left_cursor = (event.line_index, event.index_from_line_end + len(event.text.replace('\n', '')))
+                    if cursor_on_left_side:
+                        event_cursor_end = 0
+                    else:
+                        reset_selection = True
+                    #print( "LEFT OF SELECTION", reset_selection)
+                
+                # When going right, we need to reset the selection if our cursor is on the left side of the seletion
+                elif event.line_index > right_cursor[0] or \
+                    (event.line_index == right_cursor[0] and event.index_from_line_end < right_cursor[1]):
+                    #print( "RIGHT OF SELECTION" )
+
+                    right_cursor = (event.line_index, event.index_from_line_end)                
+                    if cursor_on_left_side:
+                        reset_selection = True
+
+                if not reset_selection:
+                    if not self.cursor_position_tracker.shift_down:
+                        self.apply_key(select_key_down)
+                        keys.append(select_key_down)
+                    
+                    after_keys = self.navigate_to_event(event, event_cursor_end, True)
+                    keys.extend(after_keys)
+
+                # Reset the selection, go to the left side and all the way to the right side
+                else:
+                    key_events = self.cursor_position_tracker.navigate_to_position(left_cursor[0], left_cursor[1], True)
+                    for key in key_events:
+                        self.apply_key(key)
+                    keys.extend(key_events)
+
                     self.apply_key(select_key_down)
                     keys.append(select_key_down)
-            else:
+
+                    key_events = self.cursor_position_tracker.navigate_to_position(right_cursor[0], right_cursor[1], False)
+                    for key in key_events:
+                        self.apply_key(key)
+                    keys.extend(key_events)
+            
+            # New selection - just go to the event and select it
+            else:                
                 before_keys = self.navigate_to_event(event, 0, False)
                 keys.extend(before_keys)
                 keys.append(select_key_down)
                 self.apply_key(select_key_down)
-
-            after_keys = self.navigate_to_event(event, -1, True)
-            select_key_up = "shift:up"
-            
-            keys.extend(after_keys)
+                after_keys = self.navigate_to_event(event, -1, True)                
+                keys.extend(after_keys)
 
             self.apply_key(select_key_up)
             keys.append(select_key_up)

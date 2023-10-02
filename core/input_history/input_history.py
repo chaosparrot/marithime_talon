@@ -1,6 +1,7 @@
 from talon import Module, Context, actions, settings, clip
 from .input_history_typing import InputHistoryEvent, InputContext
-from typing import List
+from .input_matcher import InputMatcher
+from typing import List, Dict
 from .cursor_position_tracker import CursorPositionTracker
 from ..phonetics.actions import phonetic_search
 import re
@@ -20,7 +21,7 @@ MERGE_STRATEGY_SPLIT_LEFT_JOIN_RIGHT = 2
 MERGE_STRATEGY_JOIN_LEFT_SPLIT_RIGHT = 3
 MERGE_STRATEGY_SPLIT = 4
 
-# Class to manage the cursor position within inserted text
+# Class to manage the state of inserted text
 class InputHistoryManager:
     input_history: List[InputHistoryEvent]
     cursor_position_tracker: CursorPositionTracker = None
@@ -29,16 +30,14 @@ class InputHistoryManager:
 
     def __init__(self):
         self.cursor_position_tracker = CursorPositionTracker()
+        self.input_matcher = InputMatcher(phonetic_search)
         self.clear_input_history()
 
     def is_selecting(self) -> bool:
         return self.cursor_position_tracker.is_selecting()
     
     def is_phrase_selected(self, phrase: str) -> bool:
-        if self.is_selecting():
-            selection = self.cursor_position_tracker.get_selection_text()
-            return phonetic_search.phonetic_similarity_score(normalize_text(selection).replace(" ", ''), phrase) >= 2
-        return False
+        return self.input_matcher.has_matching_phrase(self, phrase)
 
     def clear_input_history(self):
         self.cursor_position_tracker.clear()
@@ -522,13 +521,7 @@ class InputHistoryManager:
             self.clear_input_history()
 
     def has_matching_phrase(self, phrase: str) -> bool:
-        score = 0
-        for event in self.input_history:
-            score = phonetic_search.phonetic_similarity_score(phrase, event.phrase)
-            if score >= 1:
-                return True
-
-        return False
+        return self.input_matcher.has_matching_phrase(self, phrase)
     
     def go_phrase(self, phrase: str, position: str = 'end', keep_selection: bool = False, next_occurrence: bool = True) -> List[str]:
         event = self.find_event_by_phrase(phrase, -1 if position == 'end' else 0, next_occurrence)
@@ -548,9 +541,26 @@ class InputHistoryManager:
             keys.extend(self.select_event(self.input_history[-1], True))
 
         return keys
+    
+    def select_phrases(self, phrases: List[str], match_threshold: float = 3, extend_selection: bool = False) -> List[str]:
+        # Determine if we need to cycle between selections
+        should_go_to_next_occurrence = not extend_selection
+        if should_go_to_next_occurrence:
+            for phrase in phrases:
+                should_go_to_next_occurrence = self.input_matcher.is_phrase_selected(self, phrase)
+                if not should_go_to_next_occurrence:
+                    break
+
+        best_match = self.input_matcher.find_best_match_by_phrases(self, phrases, match_threshold, should_go_to_next_occurrence, True)
+        if best_match is not None and len(best_match) > 0:
+            keys = self.select_event(best_match[0], extend_selection)
+            keys.extend( self.select_event(best_match[-1], True))
+            return keys
+        else:
+            return []
 
     def select_phrase(self, phrase: str, extend_selection: bool = False) -> List[str]:        
-        event = self.find_event_by_phrase(phrase, 0, not extend_selection and self.is_phrase_selected(phrase), True)
+        event = self.find_event_by_phrase(phrase, 0, not extend_selection and self.input_matcher.is_phrase_selected(self, phrase), True)
         return self.select_event(event, extend_selection)
     
     def select_event(self, event: InputHistoryEvent, extend_selection: bool = False) -> List[str]:
@@ -583,12 +593,10 @@ class InputHistoryManager:
                         event_cursor_end = 0
                     else:
                         reset_selection = True
-                    #print( "LEFT OF SELECTION", reset_selection)
                 
                 # When going right, we need to reset the selection if our cursor is on the left side of the seletion
                 elif event.line_index > right_cursor[0] or \
                     (event.line_index == right_cursor[0] and event.index_from_line_end < right_cursor[1]):
-                    #print( "RIGHT OF SELECTION" )
 
                     right_cursor = (event.line_index, event.index_from_line_end)                
                     if cursor_on_left_side:
@@ -630,93 +638,11 @@ class InputHistoryManager:
             keys.append(select_key_up)
 
             return keys
-        else:
+        else: 
             return None
 
     def find_event_by_phrase(self, phrase: str, char_position: int = -1, next_occurrence: bool = True, selecting: bool = False) -> InputHistoryEvent:
-        exact_matching_events: List[(int, InputHistoryEvent)] = []
-        fuzzy_matching_events: List[(int, InputHistoryEvent, float)] = []
-
-        for index, event in enumerate(self.input_history):
-            score = phonetic_search.phonetic_similarity_score(phrase, event.phrase)
-            if score >= 2:
-                exact_matching_events.append((index, event))
-            elif score > 0.8:
-                fuzzy_matching_events.append((index, event, score))
-
-        # If we have no valid matches or valid cursors, we cannot find the phrase
-        cursor_index = self.cursor_position_tracker.get_cursor_index()
-        if (len(exact_matching_events) + len(fuzzy_matching_events) == 0) or cursor_index[0] < 0:
-            return None
-        
-        # Get the first exact match
-        if len(exact_matching_events) == 1:
-            return exact_matching_events[0][1]
-        
-        # Get a fuzzy match if it is the only match
-        elif len(exact_matching_events) == 0 and len(fuzzy_matching_events) == 1:
-            return fuzzy_matching_events[0][1]
-        else:
-            input_index = self.determine_input_index()
-            current_event = self.input_history[input_index[0]]
-            text_length = len(current_event.text.replace("\n", ""))
-            current_phrase_similar = phonetic_search.phonetic_similarity_score(phrase, current_event.phrase) >= 1
-
-            if input_index[1] == text_length and not current_phrase_similar:
-                # Move to the next event if that event matches our phrase
-                next_event_phrase = "" if input_index[0] + 1 >= len(self.input_history) else self.input_history[input_index[0] + 1].phrase 
-                if phonetic_search.phonetic_similarity_score(phrase, next_event_phrase) >= 1:
-                    current_event = self.input_history[input_index[0] + 1]
-                    input_index = (input_index[0] + 1, 0)
-                    current_phrase_similar = True
-
-            # If the current event is the event we are looking for, make sure to check if we should cycle through it
-            if current_phrase_similar:    
-                # If the cursor is in the middle of the event we are trying to find, make sure we don't look further                
-                if input_index[1] > 0 and input_index[1] < text_length:
-                    return current_event
-                
-                # If the cursor is on the opposite end of the event we are trying to find, make sure we don't look further
-                # Unless we are actively selecting new ocurrences
-                elif not (selecting and next_occurrence) and ( (input_index[1] == 0 and char_position == -1) or (input_index[1] == text_length and char_position >= 0) ):
-                    return current_event
-                
-            # Loop through the occurrences one by one, starting back at the end if we have reached the first event
-            if next_occurrence:
-                matched_event = None
-                for event in exact_matching_events:
-                    if event[0] < input_index[0]:
-                        matched_event = event[1]
-                    elif (self.last_action_type == "insert" or self.last_action_type == "remove") and event[0] == input_index[0]:
-                        matched_event = event[1]
-                
-                if matched_event is None:
-                    matched_event = exact_matching_events[-1][1]
-
-            # Just get the nearest matching event to the cursor as this is most likely the one we were after
-            # Not all cases have been properly tested for this
-            else:
-                distance_to_event = 1000000
-                current_event = self.input_history[input_index[0]]
-
-                matched_event = None
-                for event_index, event in exact_matching_events:
-                    line_distance = abs(event.line_index - current_event.line_index) * 10000
-                    distance_from_event_end = abs(event.index_from_line_end) + line_distance
-                    distance_from_event_start = abs(event.index_from_line_end + len(event.text.replace("\n", ""))) + line_distance
-                    
-                    if abs(distance_from_event_end - current_event.index_from_line_end) < distance_to_event:
-                        matched_event = event
-                        distance_to_event = abs(distance_from_event_end - current_event.index_from_line_end)
-                    
-                    elif abs(distance_from_event_start - current_event.index_from_line_end) < distance_to_event:
-                        matched_event = event
-                        distance_to_event = abs(distance_from_event_start - current_event.index_from_line_end)
-
-                if matched_event is None:
-                    matched_event = exact_matching_events[-1]
-
-            return matched_event
+        return self.input_matcher.find_single_match_by_phrase(self, phrase, char_position, next_occurrence, selecting)
 
     def navigate_to_event(self, event: InputHistoryEvent, char_position: int = -1, keep_selection: bool = False) -> List[str]:
         if event != None:

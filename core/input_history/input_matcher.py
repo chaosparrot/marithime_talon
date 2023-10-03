@@ -48,21 +48,18 @@ class InputMatcher:
         needed_average_score = match_threshold * len(phrases)
         used_indices = {}
 
-        # TODO THINK OF A WAY TO SKIP DUPLICATES
         matches = []
         for phrase_index, phrase in enumerate(phrases):
-            print( "CHECKING " + phrase )
-
             if not str(phrase_index) in used_indices:
-                used_indices[str(phrase_index)] = []
+                used_indices[str(phrase_index)] = [0 for _ in range(0, len(matrix[phrase]))]
             skip_count = 0
 
             current_match = None
             for index, score in enumerate(matrix[phrase]):
                 # Skip indices that we have already checked for this phrase
-                #if index in used_indices[str(phrase_index)]:
-                #    skip_count += 1
-                #    continue
+                if used_indices[str(phrase_index)][index] == 1:
+                    skip_count += 1
+                    continue
 
                 if score >= match_threshold:
                     current_match = {
@@ -73,7 +70,8 @@ class InputMatcher:
                     }
 
                     # Keep a list of used indexes to know which to skip for future passes
-                    used_indices[str(phrase_index)].append(index)
+                    used_indices[str(phrase_index)][index] = 1
+                    missed_phrase_length = 0
 
                     current_word_index = index
                     current_phrase_index = phrase_index
@@ -82,7 +80,7 @@ class InputMatcher:
                         current_word_index += 1
                         current_phrase_index += 1
                         if not str(current_phrase_index) in used_indices:
-                            used_indices[str(current_phrase_index)] = []
+                            used_indices[str(current_phrase_index)] = [0 for _ in range(0, len(matrix[phrase]))]
 
                         # Calculate the minimum threshold required to meet the average match threshold in the next sequence
                         if tokens_left > 0:
@@ -91,22 +89,49 @@ class InputMatcher:
                         next_index = self.match_next_in_phrases(matrix, current_word_index, phrases, current_phrase_index, min_threshold_to_meet_average)
                         if next_index[0] != -1:
                             current_match['distance'] += next_index[0] - current_word_index
-                            current_match['indices'].append(next_index[0])
 
+                            # Add the score of the missed phrases in between the matches
+                            while missed_phrase_length > 0:
+
+                                # Make sure we only count item scores in between words rather than skipped words entirely
+                                if next_index[0] - missed_phrase_length > current_match['indices'][-1]:
+                                    current_match['distance'] -= 1
+                                    current_match['indices'].append(next_index[0] - missed_phrase_length)
+                                    current_match['score'] += matrix[phrases[current_phrase_index - missed_phrase_length]][next_index[0] - missed_phrase_length]
+                                missed_phrase_length -= 1
+
+                            current_match['indices'].append(next_index[0])
                             current_match['score'] += next_index[1]
                             current_word_index = next_index[0]
 
                             # Keep a list of used indexes to know which to skip for future passes
-                            used_indices[str(current_phrase_index)].append(next_index[0])
+                            used_indices[str(current_phrase_index)][next_index[0]] = 1
+                            missed_phrase_length = 0
+                        else:
+                            missed_phrase_length += 1
+
+                    # Do a simple look back without another search
+                    if current_match != None and phrase_index > 0:
+                        previous_indices = []
+                        previous_score = 0
+                        current_phrase_index = phrase_index
+                        for previous_phrase_index in range(0 - phrase_index, 0):
+                            if index + previous_phrase_index >= 0:
+                                previous_indices.append(index + previous_phrase_index)
+                                previous_phrase = phrases[phrase_index + previous_phrase_index]
+                                previous_score += matrix[previous_phrase][index - previous_phrase_index] 
+                        
+                        previous_indices.extend(current_match['indices'])
+                        current_match['indices'] = previous_indices
+                        current_match['score'] += previous_score
 
                 # Prune out matches below the average score threshold
-                if current_match != None and (current_match['score'] / len(phrases)) >= match_threshold:
+                # And with a distance between words that is larger than forgetting a word in between every word
+                if current_match != None and (current_match['score'] / len(phrases)) >= match_threshold and (current_match['distance'] <= len(phrases) - 1):
                     matches.append(current_match)
                     current_match = None
-            print( "SKIP!", phrase, skip_count ) 
         sorted(matches, key=lambda match: match['score'], reverse=True)
 
-        print( "AMOUNT OF MATCHES!", len(matches) )
         return matches
     
     def match_next_in_phrases(self, matrix, matrix_index: int, phrases: List[str], phrase_index: int, match_threshold: float):
@@ -114,10 +139,6 @@ class InputMatcher:
 
         for i in range(matrix_index, len(matrix[phrase])):
             score = matrix[phrase][i]
-            #print( i, score, ">=", match_threshold, phrase )
-            #if phrase == 'an' and match_threshold == 0.5:
-            #    print( "Score for an '" + str(score) + "' on index " + str(i), score >= match_threshold )
-
             if score >= match_threshold:
                 return (i, score)
         
@@ -217,8 +238,8 @@ class InputMatcher:
             for event in input_history.input_history:
                 similarity_key = phrase + "." + event.phrase
                 if similarity_key not in self.similarity_matrix:
+
                     # Keep a list of known results to make it faster to generate the matrix in the future
-                    print( "SCORE!", event.phrase, phrase, self.phonetic_search.phonetic_similarity_score(event.phrase, phrase) )
                     self.similarity_matrix[similarity_key] = self.phonetic_search.phonetic_similarity_score(event.phrase, phrase)
                 
                 matrix[phrase].append(self.similarity_matrix[similarity_key])

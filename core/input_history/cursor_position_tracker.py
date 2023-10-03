@@ -74,12 +74,9 @@ class CursorPositionTracker:
         if not self.cursor_tracking_enabled:
             return False
         
-        #print( "    APPLYING " + key )
-
         key_used = False
         keys = key.lower().split(" ")
         for key in keys:
-            #print( "        STATE BEFORE APPLYING " + key, self.get_cursor_index(), self.selection_cursor_marker)            
             key_modifier = key.split(":")
             if len(key_modifier) > 1 and key_modifier[-1] == "up":
                 if "shift" in key:
@@ -118,7 +115,6 @@ class CursorPositionTracker:
                 self.shift_down = key_modifier[-1] == "down"
                 if self.shift_down and self.selection_cursor_marker == (-1, -1):
                     self.selection_cursor_marker = self.get_cursor_index()
-                    #print( "        SETTING SELECTION CURSOR MARKER BECAUSE IT WAS UNSET!!", self.selection_cursor_marker )                    
 
                 key_used = True
             elif "left" in key:
@@ -127,11 +123,8 @@ class CursorPositionTracker:
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     left_movements = int(key_modifier[-1])
 
-                #print( "        SHOULD TRACK SELECTION LEFT", selecting_text, key )
                 if selecting_text != self.selecting_text or selecting_text == True:
                     left_movements = abs(self.track_selection(selecting_text, -left_movements))
-                
-                #print( "        CURSOR INDEX AFTER TRACK SELECTION", self.get_cursor_index() )
 
                 if left_movements > 0:
                     self.track_cursor_left(left_movements)
@@ -143,11 +136,9 @@ class CursorPositionTracker:
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     right_movements = int(key_modifier[-1])
                 
-                #print( "        SHOULD TRACK SELECTION RIGHT", selecting_text, key )
                 if selecting_text != self.selecting_text or selecting_text == True:
                     right_movements = self.track_selection(selecting_text, right_movements)
 
-                #print( "        CURSOR INDEX AFTER TRACK SELECTION", self.get_cursor_index() )
                 if right_movements > 0:
                     self.track_cursor_right(right_movements)
                 key_used = True
@@ -414,10 +405,8 @@ class CursorPositionTracker:
     def track_selection(self, selecting: bool, right_amount: int = 1) -> int:
         current_index = self.get_cursor_index()
 
-        #print( "            TRACKING SELECTION!!!", self.selection_cursor_marker, selecting )
         # Remember the cursor position of the start of the selection if we do not have a selection yet
         if selecting and self.selection_cursor_marker == (-1, -1):
-            #print( "           SETTING SELECTION CURSOR MARKER TO ", current_index )
             self.selection_cursor_marker = current_index
 
         # Set the cursor to the a side of the selection
@@ -461,7 +450,6 @@ class CursorPositionTracker:
                 self.set_history("\n".join(before_cursor) + before_cursor_string, after_cursor_string + "\n".join(after_cursor))
 
             self.selecting_text = False
-            #print( "           SETTING SELECTION CURSOR MARKER FROM ", self.selection_cursor_marker, " TO (-1, -1)")
             self.selection_cursor_marker = (-1, -1)
 
         return right_amount
@@ -469,7 +457,6 @@ class CursorPositionTracker:
     def remove_selection(self) -> ((int, int), (int, int)):
         cursor_index = self.get_cursor_index()
         selection_index = self.selection_cursor_marker
-        #print( "           REMOVE SELECTION" )
 
         first_index = selection_index
         second_index = cursor_index
@@ -502,7 +489,6 @@ class CursorPositionTracker:
 
             self.set_history("\n".join(before_cursor) + before_cursor_string, after_cursor_string + "\n".join(after_cursor))
             self.selecting_text = False
-            #print( "           REMOVING SELECTION!" )
             self.selection_cursor_marker = (-1, -1)
         else:
             first_index = cursor_index
@@ -651,7 +637,6 @@ class CursorPositionTracker:
             
             if self.is_selecting():
                 selection = self.selection_cursor_marker
-                #print( "TEST IS SELECTING!" )
 
                 # If we are dealing with a coarse cursor, navigate from the selection start point instead to have a known starting point
                 favour_selection = False
@@ -668,7 +653,6 @@ class CursorPositionTracker:
                             favour_selection = selection[1] < current[1]
                         # If the selection is in between the current selection, pick the nearest end to the place we need to go
                         else:
-                            #print( "CHECK IN BETWEEN!" )
                             favour_selection = abs(selection[1] - character_from_end) < abs(current[1] - character_from_end)
 
                     elif current[0] == line_index:
@@ -678,7 +662,6 @@ class CursorPositionTracker:
                     else:
                         favour_selection = abs(selection[0] - line_index) < abs(current[0] - line_index)
 
-                #print( "FAVOUR SELECTION DURING DESELECT?", favour_selection, current, selection )
                 if favour_selection:
                     current = selection
 
@@ -714,7 +697,6 @@ class CursorPositionTracker:
 
         # Move to the right character position
         if not character_from_end == current[1] and current[1] != -1:
-            #print( "MOVE FROM ", current[1], " TO ", character_from_end)
             char_diff = current[1] - character_from_end
             keys.append(("left:" if char_diff < 0 else "right:") + str(abs(char_diff)))
 

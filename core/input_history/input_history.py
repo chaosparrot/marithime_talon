@@ -78,10 +78,10 @@ class InputHistoryManager:
             return InputContext(0)
     
     def insert_input_events(self, events: List[InputHistoryEvent]):
-        for event in events:
-            self.insert_input_event(event)
+        for index, event in enumerate(events):
+            self.insert_input_event(event, index == len(events) - 1)
 
-    def insert_input_event(self, event: InputHistoryEvent):
+    def insert_input_event(self, event: InputHistoryEvent, reformat = True):
         if self.is_selecting() and event.text != "":
             self.remove_selection()
 
@@ -101,11 +101,11 @@ class InputHistoryManager:
                 
                 if merge_strategies[1] == MERGE_STRATEGY_APPEND_AFTER:
                     if input_index < len(self.input_history) - 1:
-                        self.append_event_after(input_index, event)
+                        self.append_event_after(input_index, event, reformat)
                     else:
                         self.input_history.append(event)
                 else:
-                    self.append_event_after(input_index - 1, event)
+                    self.append_event_after(input_index - 1, event, reformat)
 
                 self.cursor_position_tracker.append_before_cursor(event.text)
                 appended = True
@@ -123,8 +123,9 @@ class InputHistoryManager:
                     elif merge_strategies[0] == MERGE_STRATEGY_JOIN:
                         self.merge_input_events(input_index - 1, len(self.input_history[input_index - 1].text), event)
                     elif merge_strategies[2] == MERGE_STRATEGY_JOIN:
-                        self.merge_input_events(input_index + 1, 0, event)                        
-                    self.reformat_events()
+                        self.merge_input_events(input_index + 1, 0, event)
+                    if reformat:
+                        self.reformat_events()
 
                 elif MERGE_STRATEGY_SPLIT in merge_strategies or \
                     MERGE_STRATEGY_JOIN_LEFT_SPLIT_RIGHT in merge_strategies or MERGE_STRATEGY_SPLIT_LEFT_JOIN_RIGHT in merge_strategies:
@@ -136,12 +137,12 @@ class InputHistoryManager:
         
         self.last_action_type = "insert"
 
-    def append_event_after(self, input_index: int, appended_event: InputHistoryEvent):
+    def append_event_after(self, input_index: int, appended_event: InputHistoryEvent, should_reindex = True):
         appended_event.line_index = self.input_history[input_index].line_index
         if self.input_history[input_index].text.endswith("\n"):
             appended_event.line_index += 1
 
-        reindex = input_index + 1 < len(self.input_history)
+        reindex = should_reindex and input_index + 1 < len(self.input_history)
         self.input_history.insert(input_index + 1, appended_event)
         if reindex:
             self.reformat_events()
@@ -553,7 +554,10 @@ class InputHistoryManager:
 
         best_match = self.input_matcher.find_best_match_by_phrases(self, phrases, match_threshold, should_go_to_next_occurrence, True)
         if best_match is not None and len(best_match) > 0:
-            keys = self.select_event(best_match[0], extend_selection)
+            if not extend_selection:
+                keys = self.navigate_to_event(best_match[0], 0)
+            else:
+                keys = self.select_event(best_match[0], extend_selection)
             keys.extend( self.select_event(best_match[-1], True))
             return keys
         else:

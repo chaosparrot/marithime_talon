@@ -42,12 +42,28 @@ class InputMatcher:
         else:
             return None
 
-    def find_matches_by_phrases(self, input_history, phrases: List[str], match_threshold: float = 3) -> List[Dict]:
+    def find_matches_by_phrases(self, input_history, phrases: List[str], match_threshold: float = 2) -> List[Dict]:
         matrix = self.generate_similarity_matrix(input_history, phrases)
+
+        needed_average_score = match_threshold * len(phrases)
+        used_indices = {}
+
+        # TODO THINK OF A WAY TO SKIP DUPLICATES
         matches = []
         for phrase_index, phrase in enumerate(phrases):
+            print( "CHECKING " + phrase )
+
+            if not str(phrase_index) in used_indices:
+                used_indices[str(phrase_index)] = []
+            skip_count = 0
+
             current_match = None
             for index, score in enumerate(matrix[phrase]):
+                # Skip indices that we have already checked for this phrase
+                #if index in used_indices[str(phrase_index)]:
+                #    skip_count += 1
+                #    continue
+
                 if score >= match_threshold:
                     current_match = {
                         "starts": phrase_index,
@@ -55,14 +71,57 @@ class InputMatcher:
                         "score": score,
                         "distance": 0
                     }
-                    # TODO ADD CONSEQUTIVE INDICES
-                
-                if current_match != None:
+
+                    # Keep a list of used indexes to know which to skip for future passes
+                    used_indices[str(phrase_index)].append(index)
+
+                    current_word_index = index
+                    current_phrase_index = phrase_index
+                    while(current_phrase_index + 1 < len(phrases)):                        
+                        tokens_left = len(phrases) - current_phrase_index - 1
+                        current_word_index += 1
+                        current_phrase_index += 1
+                        if not str(current_phrase_index) in used_indices:
+                            used_indices[str(current_phrase_index)] = []
+
+                        # Calculate the minimum threshold required to meet the average match threshold in the next sequence
+                        if tokens_left > 0:
+                            min_threshold_to_meet_average = max(0.2, ((needed_average_score - current_match['score'] ) / tokens_left) - 1)
+                            
+                        next_index = self.match_next_in_phrases(matrix, current_word_index, phrases, current_phrase_index, min_threshold_to_meet_average)
+                        if next_index[0] != -1:
+                            current_match['distance'] += next_index[0] - current_word_index
+                            current_match['indices'].append(next_index[0])
+
+                            current_match['score'] += next_index[1]
+                            current_word_index = next_index[0]
+
+                            # Keep a list of used indexes to know which to skip for future passes
+                            used_indices[str(current_phrase_index)].append(next_index[0])
+
+                # Prune out matches below the average score threshold
+                if current_match != None and (current_match['score'] / len(phrases)) >= match_threshold:
                     matches.append(current_match)
                     current_match = None
-
+            print( "SKIP!", phrase, skip_count ) 
         sorted(matches, key=lambda match: match['score'], reverse=True)
+
+        print( "AMOUNT OF MATCHES!", len(matches) )
         return matches
+    
+    def match_next_in_phrases(self, matrix, matrix_index: int, phrases: List[str], phrase_index: int, match_threshold: float):
+        phrase = phrases[phrase_index]
+
+        for i in range(matrix_index, len(matrix[phrase])):
+            score = matrix[phrase][i]
+            #print( i, score, ">=", match_threshold, phrase )
+            #if phrase == 'an' and match_threshold == 0.5:
+            #    print( "Score for an '" + str(score) + "' on index " + str(i), score >= match_threshold )
+
+            if score >= match_threshold:
+                return (i, score)
+        
+        return (-1, -1)
 
     def find_single_match_by_phrase(self, input_history, phrase: str, char_position: int = -1, next_occurrence: bool = True, selecting: bool = False) -> InputHistoryEvent:
         exact_matching_events: List[(int, InputHistoryEvent)] = []
@@ -159,6 +218,7 @@ class InputMatcher:
                 similarity_key = phrase + "." + event.phrase
                 if similarity_key not in self.similarity_matrix:
                     # Keep a list of known results to make it faster to generate the matrix in the future
+                    print( "SCORE!", event.phrase, phrase, self.phonetic_search.phonetic_similarity_score(event.phrase, phrase) )
                     self.similarity_matrix[similarity_key] = self.phonetic_search.phonetic_similarity_score(event.phrase, phrase)
                 
                 matrix[phrase].append(self.similarity_matrix[similarity_key])

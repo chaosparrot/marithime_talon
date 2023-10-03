@@ -180,5 +180,7 @@ class PhoneticSearch:
                     return 1
                 elif levenshtein_dist < len(word_a):
                     return 1 - (levenshtein_dist / len(word_a))
+                elif levenshtein_dist < len(word_b):
+                    return 1 - (levenshtein_dist / len(word_b))                    
                 else:
                     return 0

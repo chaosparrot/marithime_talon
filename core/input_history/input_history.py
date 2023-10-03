@@ -542,7 +542,7 @@ class InputHistoryManager:
 
         return keys
     
-    def select_phrases(self, phrases: List[str], match_threshold: float = 3, extend_selection: bool = False) -> List[str]:
+    def select_phrases(self, phrases: List[str], match_threshold: float = 1, extend_selection: bool = False) -> List[str]:
         # Determine if we need to cycle between selections
         should_go_to_next_occurrence = not extend_selection
         if should_go_to_next_occurrence:

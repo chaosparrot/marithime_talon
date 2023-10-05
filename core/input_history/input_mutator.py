@@ -329,3 +329,17 @@ class Actions:
         """Forget the current context of the input history completely"""
         global mutator
         mutator.manager.clear_input_history()
+
+    def input_core_best_match(phrases: List[str], correct_previous: bool = False, starting_phrase: str = '') -> str:
+        """Improve accuracy by picking the best matches out of the words used"""
+        global mutator
+        match_dictionary = {}
+        if starting_phrase:
+            phrases.append( starting_phrase )
+
+        for phrase in phrases:
+            if phrase not in match_dictionary:
+                match_dictionary[phrase] = 0
+            match_dictionary[phrase] += 1
+        
+        return max(match_dictionary, key=match_dictionary.get)

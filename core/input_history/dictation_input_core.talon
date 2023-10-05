@@ -17,10 +17,24 @@ mode: dictation
 ^correction <user.word>+:
     user.input_core_correction(word_list)
     user.input_core_continue()
-^correction <user.fuzzy_indexed_word> with <user.word>:
+^correction word <user.fuzzy_indexed_word> <user.word>:
     user.input_core_select(fuzzy_indexed_word)
     user.input_core_insert(word)
     user.input_core_continue()
+
+# Inflow correction
+<user.word> repeat <user.word> <user.word>:
+    word_list = user.as_list(word_2, word_3)
+    best_match_word = user.input_core_best_match(word_list, 0, word_1)
+    user.input_core_insert(best_match_word)
+
+^letter <user.letters>:
+    insert(letters)
+<user.letter> <user.letters>:
+    insert(letter + letters)
+
+^quill <user.raw_prose>:
+    user.input_core_insert(raw_prose)
 
 # Text removal
 ^remove <user.fuzzy_indexed_word>:

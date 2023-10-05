@@ -32,7 +32,7 @@ print( "        Should go right once to go to the end of 'Insert a new '", keys[
 print( "        Should then go left 6 times to go to the start of 'a'", keys[1] == "left:6")
 print( "        Should then hold down shift", keys[2] == "shift:down")
 print( "        And then go right until 'new ' is selected", keys[3] == "right:6")
-keys = input_history.select_phrases(["a", "nyou", "sentences"])  
+keys = input_history.select_phrases(["a", "nyou", "sentences"])
 print( "    Starting from the current selection and searching for 'a nyou sentences'...")
 print( "        Should have the text 'a new sentence.' selected", input_history.cursor_position_tracker.get_selection_text() == 'a new sentence.')
 print( "        Should go left once to go to the start of 'a '", keys[0] == "left")

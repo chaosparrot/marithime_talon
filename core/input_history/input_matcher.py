@@ -34,8 +34,29 @@ class InputMatcher:
     def find_best_match_by_phrases(self, input_history, phrases: List[str], match_threshold: float = 3, next_occurrence: bool = True, selecting: bool = False) -> List[InputHistoryEvent]:
         matches = self.find_matches_by_phrases( input_history, phrases, match_threshold)
         if len(matches) > 0:
+            best_match = matches[0]
+
+            current_index = input_history.determine_input_index()
+            if current_index[0] != -1:
+                # Get the closest item to the cursor in the case of multiple matches
+                distance = 1000000
+                for match in matches:
+                    end_index = max(match['indices'])
+                    start_index = min(match['indices'])
+                    
+                    distance_from_found_end = abs(end_index - current_index[0])
+                    distance_from_found_start = abs(start_index - current_index[0])
+                    
+                    if distance_from_found_end < distance:
+                        best_match = match
+                        distance = distance_from_found_end
+                    
+                    elif distance_from_found_start < distance:
+                        best_match = match
+                        distance = distance_from_found_start
+            
             best_match_events = []
-            for index in matches[0]['indices']:
+            for index in best_match['indices']:
                 best_match_events.append(input_history.input_history[index])
 
             return best_match_events

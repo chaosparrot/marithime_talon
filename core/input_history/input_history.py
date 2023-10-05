@@ -544,6 +544,10 @@ class InputHistoryManager:
         return keys
     
     def select_phrases(self, phrases: List[str], match_threshold: float = 1, extend_selection: bool = False) -> List[str]:
+        # For a single phrase we can fall back to a single selection
+        if len(phrases) == 1:
+            return self.select_phrase(phrases[0], extend_selection)
+
         # Determine if we need to cycle between selections
         should_go_to_next_occurrence = not extend_selection
         if should_go_to_next_occurrence:

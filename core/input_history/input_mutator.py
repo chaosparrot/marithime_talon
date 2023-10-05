@@ -1,6 +1,6 @@
 from talon import Module, Context, actions, settings, ui
 from .input_history import InputHistoryManager
-from typing import List
+from typing import List, Union
 from .formatters.formatters import FORMATTERS_LIST
 from .formatters.text_formatter import TextFormatter
 
@@ -19,11 +19,18 @@ mod.tag("flow_words", desc="Ensure that the user can freely insert words")
 
 mod.tag("context_disable_shift_selection", desc="Disables shift selection for the current context")
 mod.tag("context_disable_word_wrap", desc="Disables word wrap detection for the current context")
-mod.tag("context_disable_word_wrap", desc="Disables word wrap detection for the current context")
 
-mod.list("input_history_words", desc="A list of words that correspond to inserted text and their cursor positions for quick navigation in text")
+mod.list("indexed_words", desc="A list of words that correspond to inserted text and their cursor positions for quick navigation in text")
 ctx = Context()
-ctx.lists["user.input_history_words"] = []
+ctx.lists["user.indexed_words"] = []
+
+@mod.capture(rule="({user.indexed_words} | <user.word>)")
+def fuzzy_indexed_word(m) -> str:
+    "Returns a single word that is possibly indexed inside of the input history"
+    try:
+        return m.indexed_words
+    except AttributeError:
+        return m.word
 
 # Class to manage all the talon bindings and key presses for input history
 class InputMutator:
@@ -115,6 +122,14 @@ class InputMutator:
             return self.manager.select_until_end(phrase)
         else:
             return self.manager.select_phrase(phrase)
+        
+    def select_phrases(self, phrases: List[str], until_end = False) -> List[str]:
+        self.use_last_set_formatter = False
+
+        if until_end:
+            return self.manager.select_until_end(phrases)
+        else:
+            return self.manager.select_phrases(phrases)
 
     def move_to_phrase(self, phrase: str, character_index: int = -1, keep_selection: bool = False, next_occurrence: bool = True) -> List[str]:
         if self.has_phrase(phrase):
@@ -171,7 +186,7 @@ class InputMutator:
         words_list = []
         for event in self.manager.input_history:
             words_list.append(event.phrase)
-        ctx.lists["user.input_history_words"] = words_list
+        ctx.lists["user.indexed_words"] = words_list
 
         tags = []
         input_index = self.manager.determine_input_index()
@@ -246,20 +261,44 @@ class Actions:
             actions.user.hud_add_log("command", phrase + " could not be found in context")
             raise RuntimeError("Input phrase '" + phrase + "' could not be found in the history")
 
-    def input_core_select(phrase: str):
+    def input_core_select(phrase: Union[str, List[str]]):
         """Move the cursor to the given phrase and select it"""
         global mutator
 
-        if mutator.has_phrase(phrase):
-            keys = mutator.select_phrase(phrase)
+        if isinstance(phrase, List):
+            keys = mutator.select_phrases(phrase)
             mutator.disable_tracking()
             if keys:
                 for key in keys:
                     actions.key(key)
             mutator.enable_tracking()
         else:
-            actions.user.hud_add_log("warning", phrase + " could not be found in context")
-            raise RuntimeError("Input phrase '" + phrase + "' could not be found in the history")
+            if mutator.has_phrase(phrase):
+                keys = mutator.select_phrase(phrase)
+                mutator.disable_tracking()
+                if keys:
+                    for key in keys:
+                        actions.key(key)
+                mutator.enable_tracking()
+            else:
+                actions.user.hud_add_log("warning", phrase + " could not be found in context")
+                raise RuntimeError("Input phrase '" + phrase + "' could not be found in the history")
+            
+    def input_core_correction(selection_and_correction: List[str]):
+        """Select a fuzzy match of the words and apply the given words"""
+        global mutator
+        keys = mutator.select_phrases(selection_and_correction)
+        if len(keys) > 0:
+            mutator.disable_tracking()
+            if keys:
+                for key in keys:
+                    actions.key(key)
+            mutator.enable_tracking()
+            for word in selection_and_correction:
+                actions.user.input_core_insert(word)
+        else:
+            actions.user.hud_add_log("warning", "'" + " ".join(selection_and_correction) + "' could not be corrected")
+            raise RuntimeError("Input phrase '" + " ".join(selection_and_correction) + "' could not be corrected")
 
     def input_core_clear_phrase(phrase: str):
         """Move the cursor behind the given phrase and remove it"""

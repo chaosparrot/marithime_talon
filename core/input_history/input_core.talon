@@ -1,23 +1,15 @@
 ^input state show$: user.input_core_print()
-before {user.input_history_words}:
-    user.input_core_move_cursor(input_history_words, 0)
-before <user.word>:
-    user.input_core_move_cursor(word, 0)
+before <user.fuzzy_indexed_word>:
+    user.input_core_move_cursor(fuzzy_indexed_word, 0)
+after <user.fuzzy_indexed_word>:
+    user.input_core_move_cursor(input_history_word, -1)
 
-after {user.input_history_words}:
-    user.input_core_move_cursor(input_history_words, -1)
-after <user.word>:
-    user.input_core_move_cursor(word, -1)
+select <user.fuzzy_indexed_word>:
+    user.input_core_select(fuzzy_indexed_word)
+remove <user.fuzzy_indexed_word>:
+    user.input_core_clear_phrase(indexed_words)
 
-select {user.input_history_words}:
-    user.input_core_select(input_history_words)
-select <user.word>:
-    user.input_core_select(word)    
-remove {user.input_history_words}:
-    user.input_core_clear_phrase(input_history_words)
-remove <user.word>:
-    user.input_core_clear_phrase(word)
-^line index:
+    ^line index:
     user.input_core_index_line()
 
 ^clear context$:

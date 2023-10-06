@@ -62,7 +62,7 @@ class InputHistoryManager:
                     return input_index, input_character_index
             
             # Detect new lines properly
-            if "\n" in self.input_history[-1].text:
+            if len(self.input_history) > 0 and "\n" in self.input_history[-1].text:
                 return len(self.input_history) - 1, len(self.input_history[-1].text)
         return -1, -1
     
@@ -706,7 +706,5 @@ class InputHistoryManager:
                 elif index == right_input_index[0]:
                     if right_input_index[1] > 0 and right_input_index[1] < len(event.text.replace("\n", "")):
                         next_text += self.input_history[index].text[right_input_index[1]:]
-                else:
-                    break
 
         return next_text

@@ -152,6 +152,8 @@ class InputMutator:
 
         if formatter is not None:
             actions.user.hud_add_log("warning", "A" + previous_text + "B" + next_text + "A")
+
+            print( insert.split(), "Prev: '" + previous_text + "'", "Next: '" + next_text + "'")
             
             return "".join(formatter.words_to_format(insert.split(), previous_text, next_text))
         else:
@@ -294,8 +296,9 @@ class Actions:
                 for key in keys:
                     actions.key(key)
             mutator.enable_tracking()
-            for word in selection_and_correction:
-                actions.user.input_core_insert(word)
+            text = " ".join(selection_and_correction)
+            actions.sleep(0.05)
+            actions.user.input_core_insert(text)
         else:
             actions.user.hud_add_log("warning", "'" + " ".join(selection_and_correction) + "' could not be corrected")
             raise RuntimeError("Input phrase '" + " ".join(selection_and_correction) + "' could not be corrected")

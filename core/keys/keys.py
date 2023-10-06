@@ -64,7 +64,6 @@ def letter(m) -> str:
     "One letter key"
     return m.letter
 
-
 @mod.capture(rule="{self.special_key}")
 def special_key(m) -> str:
     "One special key"
@@ -88,6 +87,11 @@ def any_alphanumeric_key(m) -> str:
     "any alphanumeric key"
     return str(m)
 
+@mod.capture(rule="(type <user.any_alphanumeric_key>+ | <user.any_alphanumeric_key> <user.any_alphanumeric_key>+)")
+def direct_spelling(m) -> str:
+    """Type direct letters, symbols and digits into a stream"""
+    keys = m.any_alphanumeric_key_list
+    return "".join(keys)
 
 @mod.capture(
     rule="( <self.letter> | <self.number_key> | <self.symbol_key> "

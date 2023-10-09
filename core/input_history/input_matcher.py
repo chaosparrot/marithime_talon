@@ -1,5 +1,5 @@
 from ..phonetics.phonetics import PhoneticSearch
-from .input_history_typing import InputHistoryEvent
+from .input_history_typing import InputHistoryEvent, InputEventMatch
 import re
 from typing import List, Dict
 
@@ -31,8 +31,25 @@ class InputMatcher:
 
         return False
     
+    def find_self_repair_match(self, input_history, phrases: List[str]):
+        # We don't do any self repair checking with selected text, only in free-flow text
+        if not input_history.is_selecting():
+            current_index = input_history.determine_input_index()
+
+            if current_index[0] != -1 and current_index[1] != -1:
+                earliest_index_for_look_behind = max(0, current_index[0] - len(phrases))
+                events_behind = input_history.input_history[earliest_index_for_look_behind:current_index[0] + 1]
+
+                matches = self.find_matches_by_phrases(events_behind, phrases, 1, 'most_direct_matches')
+                # Get the match with the most matches, closest to the end
+                # Make sure we adhere to 'reasonable' self repair of about 5 words back max
+                if len(matches) > 0:
+                    return matches[0]
+        
+        return None
+    
     def find_best_match_by_phrases(self, input_history, phrases: List[str], match_threshold: float = 3, next_occurrence: bool = True, selecting: bool = False) -> List[InputHistoryEvent]:
-        matches = self.find_matches_by_phrases( input_history, phrases, match_threshold)
+        matches = self.find_matches_by_phrases( input_history.input_history, phrases, match_threshold)
         if len(matches) > 0:
             best_match = matches[0]
 
@@ -41,8 +58,8 @@ class InputMatcher:
                 # Get the closest item to the cursor in the case of multiple matches
                 distance = 1000000
                 for match in matches:
-                    end_index = max(match['indices'])
-                    start_index = min(match['indices'])
+                    end_index = max(match.indices)
+                    start_index = min(match.indices)
                     
                     distance_from_found_end = abs(end_index - current_index[0])
                     distance_from_found_start = abs(start_index - current_index[0])
@@ -56,15 +73,15 @@ class InputMatcher:
                         distance = distance_from_found_start
             
             best_match_events = []
-            for index in best_match['indices']:
+            for index in best_match.indices:
                 best_match_events.append(input_history.input_history[index])
 
             return best_match_events
         else:
             return None
 
-    def find_matches_by_phrases(self, input_history, phrases: List[str], match_threshold: float = 2) -> List[Dict]:
-        matrix = self.generate_similarity_matrix(input_history, phrases)
+    def find_matches_by_phrases(self, input_history_events: List[InputHistoryEvent], phrases: List[str], match_threshold: float = 2, strategy='highest_score') -> List[InputEventMatch]:
+        matrix = self.generate_similarity_matrix(input_history_events, phrases)
 
         needed_average_score = match_threshold * len(phrases)
         used_indices = {}
@@ -83,12 +100,7 @@ class InputMatcher:
                     continue
 
                 if score >= match_threshold:
-                    current_match = {
-                        "starts": phrase_index,
-                        "indices": [index],
-                        "score": score,
-                        "distance": 0
-                    }
+                    current_match = InputEventMatch(phrase_index, [index], score, [score])
 
                     # Keep a list of used indexes to know which to skip for future passes
                     used_indices[str(phrase_index)][index] = 1
@@ -105,24 +117,28 @@ class InputMatcher:
 
                         # Calculate the minimum threshold required to meet the average match threshold in the next sequence
                         if tokens_left > 0:
-                            min_threshold_to_meet_average = max(0.2, ((needed_average_score - current_match['score'] ) / tokens_left) - 1)
+                            min_threshold_to_meet_average = max(0.2, ((needed_average_score - current_match.score ) / tokens_left) - 1)
                             
                         next_index = self.match_next_in_phrases(matrix, current_word_index, phrases, current_phrase_index, min_threshold_to_meet_average)
                         if next_index[0] != -1:
-                            current_match['distance'] += next_index[0] - current_word_index
+                            current_match.distance += next_index[0] - current_word_index
 
                             # Add the score of the missed phrases in between the matches
                             while missed_phrase_length > 0:
 
                                 # Make sure we only count item scores in between words rather than skipped words entirely
-                                if next_index[0] - missed_phrase_length > current_match['indices'][-1]:
-                                    current_match['distance'] -= 1
-                                    current_match['indices'].append(next_index[0] - missed_phrase_length)
-                                    current_match['score'] += matrix[phrases[current_phrase_index - missed_phrase_length]][next_index[0] - missed_phrase_length]
+                                if next_index[0] - missed_phrase_length > current_match.indices[-1]:
+                                    current_match.distance -= 1
+                                    current_match.indices.append(next_index[0] - missed_phrase_length)
+                                    added_score = matrix[phrases[current_phrase_index - missed_phrase_length]][next_index[0] - missed_phrase_length]
+                                    current_match.score += added_score
+                                    current_match.scores.append( added_score )
+
                                 missed_phrase_length -= 1
 
-                            current_match['indices'].append(next_index[0])
-                            current_match['score'] += next_index[1]
+                            current_match.indices.append(next_index[0])
+                            current_match.score += next_index[1]
+                            current_match.scores.append( next_index[1] )
                             current_word_index = next_index[0]
 
                             # Keep a list of used indexes to know which to skip for future passes
@@ -136,23 +152,35 @@ class InputMatcher:
                         previous_indices = []
                         previous_score = 0
                         current_phrase_index = phrase_index
+                        prepend_index = 0
                         for previous_phrase_index in range(0 - phrase_index, 0):
                             if index + previous_phrase_index >= 0:
                                 previous_indices.append(index + previous_phrase_index)
                                 previous_phrase = phrases[phrase_index + previous_phrase_index]
-                                previous_score += matrix[previous_phrase][index - previous_phrase_index] 
+                                new_previous_score = matrix[previous_phrase][index + previous_phrase_index]
+                                previous_score += new_previous_score
+                                current_match.scores.insert(prepend_index, new_previous_score)
+                            prepend_index += 1
                         
-                        previous_indices.extend(current_match['indices'])
-                        current_match['indices'] = previous_indices
-                        current_match['score'] += previous_score
+                        previous_indices.extend(current_match.indices)
+                        current_match.indices = previous_indices
+                        current_match.score += previous_score
 
                 # Prune out matches below the average score threshold
                 # And with a distance between words that is larger than forgetting a word in between every word
-                if current_match != None and (current_match['score'] / len(phrases)) >= match_threshold and (current_match['distance'] <= len(phrases) - 1):
+                if current_match != None and (current_match.distance <= len(phrases) - 1) and strategy == 'most_direct_matches':
                     matches.append(current_match)
                     current_match = None
-        sorted(matches, key=lambda match: match['score'], reverse=True)
+                elif current_match != None and (current_match.score / len(phrases)) >= match_threshold and (current_match.distance <= len(phrases) - 1):
+                    matches.append(current_match)
+                    current_match = None
 
+        if strategy == 'highest_score':
+            matches = sorted(matches, key=lambda match: match.score, reverse=True)
+
+        # Place the highest direct matches on top
+        elif strategy == 'most_direct_matches':
+            matches = sorted(matches, key=lambda match: len(list(filter(lambda x: x >= 1, match.scores))), reverse=True)
         return matches
     
     def match_next_in_phrases(self, matrix, matrix_index: int, phrases: List[str], phrase_index: int, match_threshold: float):
@@ -250,13 +278,13 @@ class InputMatcher:
 
             return matched_event
 
-    def generate_similarity_matrix(self, input_history, phrases: List[str]) -> Dict[str, List[float]]:
+    def generate_similarity_matrix(self, input_history_events: List[InputHistoryEvent], phrases: List[str]) -> Dict[str, List[float]]:
         matrix = {}
         for phrase in phrases:
             if phrase in matrix:
                 continue
             matrix[phrase] = []
-            for event in input_history.input_history:
+            for event in input_history_events:
                 similarity_key = phrase + "." + event.phrase
                 if similarity_key not in self.similarity_matrix:
 

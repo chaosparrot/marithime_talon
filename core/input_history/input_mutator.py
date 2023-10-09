@@ -136,10 +136,25 @@ class InputMutator:
             self.use_last_set_formatter = False
         return self.manager.go_phrase(phrase, "end" if character_index == -1 else "start", keep_selection, next_occurrence )
 
-    def transform_insert(self, insert: str) -> str:
+    def transform_insert(self, insert: str, enable_self_repair: bool = False) -> (str, List[str]):
         formatter = self.active_formatters[0] if self.use_last_set_formatter and len(self.active_formatters) > 0 else None
         previous_text = ""
         next_text = ""
+
+        repair_keys = []
+        if enable_self_repair:
+            self_repair_match = self.manager.find_self_repair(insert.split())
+            if self_repair_match is not None:
+                actions.user.hud_add_log("success", "SELF REPAIR FOUND! " + insert )
+
+                # If we are dealing with a continuation, change the insert to remove the first few words
+                if self_repair_match.score / len(self_repair_match.scores) == 3:
+                    words = insert.split()
+                    if len(words) > len(self_repair_match.scores):
+                        insert = " ".join(words[len(self_repair_match.scores):])
+                    # Complete repetition - Do not insert anything
+                    else:
+                        return ("", [])
 
         input_index = self.manager.determine_leftmost_input_index()
         if input_index[0] > -1:
@@ -151,14 +166,11 @@ class InputMutator:
             formatter = FORMATTERS_LIST[context_formatter] if formatter is None and context_formatter is not None and context_formatter in FORMATTERS_LIST else formatter
 
         if formatter is not None:
-            actions.user.hud_add_log("warning", "A" + previous_text + "B" + next_text + "A")
-
-            print( insert.split(), "Prev: '" + previous_text + "'", "Next: '" + next_text + "'")
-            
-            return "".join(formatter.words_to_format(insert.split(), previous_text, next_text))
+            actions.user.hud_add_log("warning", "A" + previous_text + "B" + next_text + "A")            
+            return ("".join(formatter.words_to_format(insert.split(), previous_text, next_text)), repair_keys)
         else:
             actions.user.hud_add_log("warning", "No formatter used!" + ("TRUE" if self.use_last_set_formatter else "FALSE"))
-            return insert
+            return (insert, repair_keys)
 
     def clear_keys(self, backwards = True) -> List[str]:
         context = self.manager.determine_context()
@@ -225,12 +237,33 @@ class Actions:
     def input_core_transform_insert(insert: str) -> str:
         """Transform an insert automatically depending on previous context"""
         global mutator
-        return mutator.transform_insert(insert)
+        return mutator.transform_insert(insert)[0]
+
+    def input_core_self_repair_insert(prose: str):
+        """Input words based on context surrounding the words to input, allowing for self repair within speech as well"""
+        global mutator
+
+        text_to_insert, keys = mutator.transform_insert(prose, True)
+        if len(keys) > 0:
+            mutator.disable_tracking()
+            for key in keys:
+                actions.key(key)
+            mutator.enable_tracking()
+
+        actions.insert(text_to_insert)
 
     def input_core_insert(prose: str):
         """Input words based on context surrounding the words to input"""
         global mutator
-        actions.insert(actions.user.input_core_transform_insert(prose))
+
+        text_to_insert, keys = mutator.transform_insert(prose)
+        if len(keys) > 0:
+            mutator.disable_tracking()
+            for key in keys:
+                actions.key(key)
+            mutator.enable_tracking()
+
+        actions.insert(text_to_insert)
 
     def input_core_track_key(key_string: str) -> str:
         """Track one or more key presses according to the key string"""

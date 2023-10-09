@@ -147,6 +147,12 @@ class InputHistoryManager:
         if reindex:
             self.reformat_events()
 
+    def find_self_repair(self, phrase: List[str]):
+        return self.input_matcher.find_self_repair_match(self, phrase)
+
+    def detect_self_repair(self, phrase: List[str]) -> bool:
+        return self.find_self_repair(phrase) is not None
+
     def detect_merge_strategy(self, input_index: int, input_character_index: int, event: InputHistoryEvent) -> (int, int, int):
         current_strategy = MERGE_STRATEGY_IGNORE
         previous_strategy = MERGE_STRATEGY_IGNORE

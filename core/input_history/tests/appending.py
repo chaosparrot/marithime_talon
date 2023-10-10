@@ -10,6 +10,9 @@ print( "    Expect event with special characters without phrase is expected phra
 print( "    Expect event with special characters with phrase is expected phrase", input_history.text_to_input_history_events("Insert;.", "insert semi dot")[0].phrase == "insert semi dot")
 print( "    Expect line ending to insert two events", len(input_history.text_to_input_history_events("\n")) == 2) 
 print( "    Expect line ending to insert empty phrase event", input_history.text_to_input_history_events("\n")[0].phrase == "")
+print( "    Expect 'that's' to become thats as a phrase", input_history.text_to_input_history_events("that's")[0].phrase == "thats")
+print( "    Expect 'we’re' to become were as a phrase", input_history.text_to_input_history_events("we’re")[0].phrase == "were")
+print( "    Expect 'I'm' to become im as a phrase", input_history.text_to_input_history_events("i'm")[0].phrase == "im") 
 
 print( "Detecting insert strategies for inserting input events" )
 empty_ihm = InputHistoryManager()

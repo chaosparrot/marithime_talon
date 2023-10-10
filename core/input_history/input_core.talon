@@ -14,3 +14,6 @@ remove <user.fuzzy_indexed_word>:
 
 ^clear context$:
     user.input_core_forget()
+
+^dump context$:
+    user.input_core_dump()

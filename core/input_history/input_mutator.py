@@ -3,6 +3,7 @@ from .input_history import InputHistoryManager
 from typing import List, Union
 from .formatters.formatters import FORMATTERS_LIST
 from .formatters.text_formatter import TextFormatter
+import json
 
 mod = Module()
 
@@ -38,6 +39,7 @@ class InputMutator:
     active_formatters: List[TextFormatter]
     formatter_names: List[str]
     tracking = True
+    tracking_lock: str = ""
     use_last_set_formatter = False
 
     insert_application_id: int = 0
@@ -54,10 +56,13 @@ class InputMutator:
             self.formatter_names = [name]
             self.use_last_set_formatter = True
 
-    def enable_tracking(self):
-        self.tracking = True
+    def enable_tracking(self, lock: str = ""):
+        if self.tracking_lock == "" or self.tracking_lock == lock:
+            self.tracking = True
 
-    def disable_tracking(self):
+    def disable_tracking(self, lock: str = ""):
+        if self.tracking_lock == "" and lock != "":
+            self.tracking_lock = lock
         self.tracking = False
 
     def track_key(self, key_string: str):
@@ -309,7 +314,7 @@ class Actions:
     def input_core_clear(backward: bool = True):
         """Apply a clear based on the current input history"""
         global mutator
-        keys = mutator.clear_keys(backward)        
+        keys = mutator.clear_keys(backward)
         for key in keys:
             actions.key(key)
 
@@ -334,6 +339,7 @@ class Actions:
         if isinstance(phrase, List):
             keys = mutator.select_phrases(phrase)
             mutator.disable_tracking()
+            actions.user.hud_add_log("command", " ".join(keys))
             if keys:
                 for key in keys:
                     actions.key(key)
@@ -410,3 +416,22 @@ class Actions:
             match_dictionary[phrase] += 1
         
         return max(match_dictionary, key=match_dictionary.get)
+    
+    def input_core_dump():
+        """Dump the current state of the input history for debugging purposes"""
+        global mutator
+        mutator.disable_tracking("DUMP")
+        actions.key("enter")
+        actions.insert(mutator.manager.cursor_position_tracker.text_history)
+        actions.key("enter:2")
+        events = []
+        for event in mutator.manager.input_history:
+            events.append({
+                "index_from_line_end": event.index_from_line_end,
+                "line_index": event.line_index,
+                "phrase": event.phrase,
+                "text": event.text
+            })
+        actions.insert(json.dumps(events))
+        actions.key("enter")
+        mutator.enable_tracking("DUMP")

@@ -500,6 +500,15 @@ class InputHistoryManager:
                 previous_line_index = event.line_index
             previous_line_end_count += len(event.text.replace("\n", ""))
 
+        context = ""
+        for new_event in new_events:
+            context += new_event.text
+            if "$CURSOR" in new_event.text:
+                actions.user.hud_add_log("error", "CURSOR MARKER FOUND!!!!!")
+
+        if context != self.cursor_position_tracker.text_history.replace('$CURSOR', "").replace('$COARSE_CURSOR', ""):
+            actions.user.hud_add_log("error", "DESYNC DETECTED!")
+
         self.input_history = new_events
 
     def apply_key(self, keystring: str):

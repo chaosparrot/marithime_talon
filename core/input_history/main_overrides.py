@@ -21,7 +21,6 @@ class MainOverrideActions:
 
     def insert(text: str):
         """Overrides the insert action to trace it properly"""
-        text = actions.user.input_core_transform_insert(text)
         actions.user.append_insert_to_analytics(text)
         actions.user.input_core_track_insert(text)
         actions.user.input_core_disable_tracking()

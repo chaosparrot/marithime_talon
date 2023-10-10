@@ -2,14 +2,19 @@ from typing import List
 from ..sentence_formatter import SentenceFormatter
 from .language import Language
 from ...converters.english_I import IConverter
-from ...converters.english_commas import EnglishCommaPrependingConverter
+from ...converters.english_commas import EnglishCommaPrependingConverter, EnglishCommaAppendingConverter
+from ...converters.english_days import DayConverter
+from ...converters.english_months import MonthConverter
 
 class EnglishLanguage(Language):
     sentence_formatter = SentenceFormatter("sentence")
 
     converters = [
         IConverter(),
-        EnglishCommaPrependingConverter()
+        DayConverter(),
+        MonthConverter(),
+        EnglishCommaPrependingConverter(),
+        EnglishCommaAppendingConverter(),
     ]
 
     def dictation_format(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
@@ -22,7 +27,7 @@ class EnglishLanguage(Language):
             for converter in self.converters:
                 if converter.match_text(word, previous_word, next_word):
                     converted_word = converter.convert(word)
-            new_words.append(converted_word)
+            new_words.append(converted_word) 
 
         return self.sentence_formatter.words_to_format([word for word in new_words], previous, next)
 

@@ -23,7 +23,7 @@ class MonthConverter:
         if text.capitalize() in self.months:
             return True
         elif text.capitalize() in self.context_months:
-            return previous.lower().endswith("on") or previous.lower().endswith("in")
+            return previous.lower().replace(" ", "").endswith(("on", "at", "this", "next", "of")) or next.lower().replace(" ", "").startswith(("1", "2", "3", "4", "5", "6", "7", "8", "9"))
         return False
     
     def convert(self, text: str) -> str:

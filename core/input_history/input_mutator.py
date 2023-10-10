@@ -142,7 +142,20 @@ class InputMutator:
         next_text = ""
 
         repair_keys = []
+
+        # Allow the user to do self repair in speech
         if enable_self_repair:
+            
+            # Remove stutters / repeats in the same phrase
+            words = insert.split()
+            words_to_insert = []
+            preceding_word = ""
+            for word in words:
+                if word != preceding_word:
+                    words_to_insert.append(word)
+                preceding_word = word
+            insert = " ".join(words_to_insert)
+
             self_repair_match = self.manager.find_self_repair(insert.split())
             if self_repair_match is not None:
                 actions.user.hud_add_log("success", "SELF REPAIR FOUND! " + insert )

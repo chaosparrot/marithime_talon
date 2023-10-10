@@ -37,18 +37,5 @@ settings():
     # pasting from the clipboard. This is often faster than typing.
     user.paste_to_insert_threshold = 10
 
-    # Uncomment the below to enable context-sensitive dictation. This determines
-    # how to format (capitalize, space) dictation-mode speech by selecting &
-    # copying surrounding text before inserting. This can be slow and may not
-    # work in some applications. You may wish to enable this on a
-    # per-application basis.
-    # user.context_sensitive_dictation = 1
-
-    # How to resize windows moved across physical screens (eg. via `snap next`).
-    # Default is 'proportional', which preserves window size : screen size ratio.
-    # 'size aware' keeps absolute window size the same, except full-height or
-    # -width windows are resized to stay full-height/width.
-    #user.window_snap_screen = "size aware"
-
 # Uncomment this to enable the curse yes/curse no commands (show hide mouse cursor). See issue #688.
 # tag(): user.mouse_cursor_commands_enable

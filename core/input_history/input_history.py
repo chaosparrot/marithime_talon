@@ -564,14 +564,17 @@ class InputHistoryManager:
 
         best_match = self.input_matcher.find_best_match_by_phrases(self, phrases, match_threshold, should_go_to_next_occurrence, True)
         if best_match is not None and len(best_match) > 0:
-            if not extend_selection:
-                keys = self.navigate_to_event(best_match[0], 0)
-            else:
-                keys = self.select_event(best_match[0], extend_selection)
-            keys.extend( self.select_event(best_match[-1], True))
-            return keys
+            return self.select_event_range(best_match[0], best_match[-1])
         else:
             return []
+    
+    def select_event_range(self, start_event: InputHistoryEvent, end_event: InputHistoryEvent, extend_selection: bool = False ) -> List[str]:
+        if not extend_selection:
+            keys = self.navigate_to_event(start_event, 0)
+        else:
+            keys = self.select_event(start_event, extend_selection)
+        keys.extend( self.select_event(end_event, True))
+        return keys
 
     def select_phrase(self, phrase: str, extend_selection: bool = False) -> List[str]:        
         event = self.find_event_by_phrase(phrase, 0, not extend_selection and self.input_matcher.is_phrase_selected(self, phrase), True)

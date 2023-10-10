@@ -2,12 +2,14 @@ from typing import List
 from ..sentence_formatter import SentenceFormatter
 from .language import Language
 from ...converters.english_I import IConverter
+from ...converters.english_commas import EnglishCommaPrependingConverter
 
 class EnglishLanguage(Language):
     sentence_formatter = SentenceFormatter("sentence")
 
     converters = [
-        IConverter()
+        IConverter(),
+        EnglishCommaPrependingConverter()
     ]
 
     def dictation_format(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
@@ -23,5 +25,8 @@ class EnglishLanguage(Language):
             new_words.append(converted_word)
 
         return self.sentence_formatter.words_to_format([word for word in new_words], previous, next)
+
+    def determine_correction_keys(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
+        return self.sentence_formatter.determine_correction_keys(words, previous, next)
 
 englishLanguage = EnglishLanguage()

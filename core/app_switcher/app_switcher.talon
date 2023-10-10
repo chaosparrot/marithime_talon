@@ -27,9 +27,6 @@ focus previous: user.alt_shift_tab_start(false)
 ^spreadsheets <phrase>$:
     user.switcher_launch_or_focus("Excel")
     user.rephrase(phrase, true)
-^documents <phrase>$:
-    user.switcher_launch_or_focus("Word")
-    user.rephrase(phrase, true)
 ^editor <phrase>$:
     user.switcher_launch_or_focus("Visual Studio Code")
     user.rephrase(phrase, true)

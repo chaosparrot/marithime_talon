@@ -155,6 +155,24 @@ class InputMutator:
                     # Complete repetition - Do not insert anything
                     else:
                         return ("", [])
+                # Do a complete replacement from the first high matching score
+                # We do not support replacing initial words, only inserting, as replacing initial words requires more context about meaning
+                # ( We have no -> We have a , but not, We have no -> They have no )
+                elif True == False:
+                    replacement_index = -1
+                    for index, score in enumerate(self_repair_match.scores):
+                        if score >= 1:
+                            replacement_index = index
+                            insert = " ".join(insert.split()[index:])
+                            break
+                    
+                    if replacement_index >= 0:
+                        start_index = self_repair_match.indices[replacement_index]
+                        end_index = self_repair_match.indices[-1]
+                        input_history = self.manager.input_history
+                        if start_index < len(input_history) and end_index < len(input_history):
+                            repair_keys.extend( self.manager.select_event_range(input_history[start_index], input_history[end_index]) )
+                            repair_keys.append("backspace")
 
         input_index = self.manager.determine_leftmost_input_index()
         if input_index[0] > -1:
@@ -166,10 +184,10 @@ class InputMutator:
             formatter = FORMATTERS_LIST[context_formatter] if formatter is None and context_formatter is not None and context_formatter in FORMATTERS_LIST else formatter
 
         if formatter is not None:
-            actions.user.hud_add_log("warning", "A" + previous_text + "B" + next_text + "A")            
+            actions.user.hud_add_log("warning", self.manager.cursor_position_tracker.text_history )
+            repair_keys.extend(formatter.determine_correction_keys(insert.split(), previous_text, next_text))
             return ("".join(formatter.words_to_format(insert.split(), previous_text, next_text)), repair_keys)
         else:
-            actions.user.hud_add_log("warning", "No formatter used!" + ("TRUE" if self.use_last_set_formatter else "FALSE"))
             return (insert, repair_keys)
 
     def clear_keys(self, backwards = True) -> List[str]:

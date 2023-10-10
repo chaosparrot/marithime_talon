@@ -13,16 +13,16 @@ next one: edit.find_next()
 scroll up: edit.page_up()
 scroll down: edit.page_down()
 
-go word left: edit.word_left()
-go word right: edit.word_right()
+word left: edit.word_left()
+word right: edit.word_right()
 
 go left: edit.left()
 go right: edit.right()
-go up: edit.up()
-go down: edit.down()
+line up: edit.up()
+line down: edit.down()
 
-go line start: edit.line_start()
-go line end: edit.line_end()
+line start: edit.line_start()
+line end: edit.line_end()
 
 go way left:
     edit.line_start()
@@ -38,79 +38,49 @@ go page up: edit.page_up()
 go page down: edit.page_down()
 
 # Selecting
-select all: edit.select_all()
-select line: edit.select_line()
-select line start: user.select_line_start()
-select line end: user.select_line_end()
+document select [all]: edit.select_all()
+line select: edit.select_line()
+line select start: user.select_line_start()
+line select end: user.select_line_end()
 
-select left: edit.extend_left()
-select right: edit.extend_right()
-select up: edit.extend_line_up()
-select down: edit.extend_line_down()
+line select left: edit.extend_left()
+line select right: edit.extend_right()
+line select up: edit.extend_line_up()
+line select down: edit.extend_line_down()
 
-select word: edit.select_word()
-select word left: edit.extend_word_left()
-select word right: edit.extend_word_right()
+word select: edit.select_word()
+word select left: edit.extend_word_left()
+word select right: edit.extend_word_right()
 
-select way left: edit.extend_line_start()
-select way right: edit.extend_line_end()
-select way up: edit.extend_file_start()
-select way down: edit.extend_file_end()
+document select left: edit.extend_line_start()
+document select right: edit.extend_line_end()
+document select start: edit.extend_file_start()
+document select end: edit.extend_file_end()
 
 # Indentation
 indent [more]: edit.indent_more()
 (indent less | out dent): edit.indent_less()
 
-# Delete
-
 
 # Copy
-copy that: edit.copy()
-copy all: user.copy_all()
-copy line: user.copy_line()
-copy line start: user.copy_line_start()
-copy line end: user.copy_line_end()
-copy word: user.copy_word()
-copy word left: user.copy_word_left()
-copy word right: user.copy_word_right()
-
-#to do: do we want these variants, seem to conflict
-# copy left:
-#      edit.extend_left()
-#      edit.copy()
-# copy right:
-#     edit.extend_right()
-#     edit.copy()
-# copy up:
-#     edit.extend_up()
-#     edit.copy()
-# copy down:
-#     edit.extend_down()
-#     edit.copy()
+selection copy: edit.copy()
+document copy: user.copy_all()
+line copy: user.copy_line()
+line copy start: user.copy_line_start()
+line copy end: user.copy_line_end()
+word copy: user.copy_word()
+word copy left: user.copy_word_left()
+word copy right: user.copy_word_right()
 
 # Cut
-cut that: edit.cut()
-cut all: user.cut_all()
-cut line: user.cut_line()
-cut line start: user.cut_line_start()
-cut line end: user.cut_line_end()
-cut word: user.cut_word()
-cut word left: user.cut_word_left()
-cut word right: user.cut_word_right()
-
-#to do: do we want these variants
-# cut left:
-#      edit.select_all()
-#      edit.cut()
-# cut right:
-#      edit.select_all()
-#      edit.cut()
-# cut up:
-#      edit.select_all()
-#     edit.cut()
-# cut down:
-#     edit.select_all()
-#     edit.cut()
+selection cut: edit.cut()
+document cut: user.cut_all()
+line cut: user.cut_line()
+line cut start: user.cut_line_start()
+line cut end: user.cut_line_end()
+word cut: user.cut_word()
+word cut left: user.cut_word_left()
+word cut right: user.cut_word_right()
 
 # Paste
 (pace | paste) that: edit.paste()
@@ -118,15 +88,14 @@ cut word right: user.cut_word_right()
     edit.paste()
     key(enter)
 paste match: edit.paste_match_style()
-(pace | paste) all: user.paste_all()
-(pace | paste) line: user.paste_line()
-(pace | paste) line start: user.paste_line_start()
-(pace | paste) line end: user.paste_line_end()
-(pace | paste) word: user.paste_word()
+document (pace | paste): user.paste_all()
+line (pace | paste): user.paste_line()
+line (pace | paste) start: user.paste_line_start()
+line (pace | paste) end: user.paste_line_end()
 
 # Duplication
-clone that: edit.selection_clone()
-clone line: edit.line_clone()
+selection clone: edit.selection_clone()
+line clone: edit.line_clone()
 
 # Insert new line
 new line above: edit.line_insert_up()
@@ -144,5 +113,5 @@ undo that: edit.undo()
 redo that: edit.redo()
 
 # Save
-file save: edit.save()
-file save all: edit.save_all()
+document save: edit.save()
+document save all: edit.save_all()

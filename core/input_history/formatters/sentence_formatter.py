@@ -62,3 +62,11 @@ class SentenceFormatter(TextFormatter):
 
     def detect_end_sentence(self, previous: str) -> bool:
         return previous == "" or "".join(previous.split()).endswith(("?", ".", "!"))
+    
+    def determine_correction_keys(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
+        # Remove a space if we are adding punctiation
+        # Add a leading space if the previous word had no leading space
+        if previous and previous.endswith(" ") and omit_space_before(words[0]):
+            return ["backspace"]
+        return []
+

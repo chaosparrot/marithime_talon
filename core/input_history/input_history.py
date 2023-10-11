@@ -78,18 +78,26 @@ class InputHistoryManager:
             return InputContext(0)
     
     def insert_input_events(self, events: List[InputHistoryEvent]):
+        input_index = self.determine_input_index()
+        reformat_after_each_event = input_index[0] < len(self.input_history) - 1
+
         for index, event in enumerate(events):
-            self.insert_input_event(event, index == len(events) - 1)
+            self.insert_input_event(event, reformat_after_each_event or index == len(events) - 1)
 
     def insert_input_event(self, event: InputHistoryEvent, reformat = True):
         if self.is_selecting() and event.text != "":
             self.remove_selection()
+
+            print( self.cursor_position_tracker.get_cursor_index() )
+            print( self.input_history )
 
         line_index, character_index = self.cursor_position_tracker.get_cursor_index()
         if line_index > -1 and character_index > -1:
             input_index, input_character_index = self.determine_input_index()
 
             merge_strategies = self.detect_merge_strategy(input_index, input_character_index, event)
+
+            print( "INSERTING!", input_index, input_character_index )
 
             appended = False
             if merge_strategies[0] == MERGE_STRATEGY_APPEND_AFTER or merge_strategies[1] == MERGE_STRATEGY_APPEND_AFTER:
@@ -102,12 +110,18 @@ class InputHistoryManager:
                 if merge_strategies[1] == MERGE_STRATEGY_APPEND_AFTER:
                     if input_index < len(self.input_history) - 1:
                         self.append_event_after(input_index, event, reformat)
+                        print( "APPENDING AFTER!" )
                     else:
                         self.input_history.append(event)
+                        if reformat:
+                            self.reformat_events()
+                        print( "APPENDING" )
                 else:
                     self.append_event_after(input_index - 1, event, reformat)
+                    print( "APPENDING AFTER!" )
 
                 self.cursor_position_tracker.append_before_cursor(event.text)
+                print( "APPEND BEFORE CURSOR " + event.text )
                 appended = True
 
             # If empty events are inserted in the middle, just ignore them
@@ -115,6 +129,7 @@ class InputHistoryManager:
                 return
             
             if appended == False:
+                print( "(NOT APPENDED ) APPEND BEFORE CURSOR " + event.text)
                 self.cursor_position_tracker.append_before_cursor(event.text)
 
                 if MERGE_STRATEGY_JOIN in merge_strategies:
@@ -131,10 +146,11 @@ class InputHistoryManager:
                     MERGE_STRATEGY_JOIN_LEFT_SPLIT_RIGHT in merge_strategies or MERGE_STRATEGY_SPLIT_LEFT_JOIN_RIGHT in merge_strategies:
                     self.split_input_events(input_index, input_character_index, event, merge_strategies)
         else:
+            actions.user.hud_add_log("warning", "Clearing history - wrong line index")
             self.clear_input_history()
             self.input_history.append(event)
             self.cursor_position_tracker.append_before_cursor(event.text)
-        
+
         self.last_action_type = "insert"
 
     def append_event_after(self, input_index: int, appended_event: InputHistoryEvent, should_reindex = True):
@@ -258,12 +274,14 @@ class InputHistoryManager:
 
         for index, new_event in enumerate(events):
             if index == 0:
+                print( "SETTING INDEX " + str(input_index))
                 self.input_history[input_index].text = new_event.text
                 self.input_history[input_index].phrase = new_event.phrase
                 if new_event.text.endswith("\n"):
                     self.input_history[input_index].index_from_line_end = 0
             else:
                 self.append_event_after(input_index + index - 1, new_event)
+                print( "APPENDING AFTER " + str(input_index + index - 1))
 
     def text_to_input_history_events(self, text: str, phrase: str = None, format: str = None) -> InputHistoryEvent:
         lines = text.splitlines()
@@ -286,6 +304,9 @@ class InputHistoryManager:
             return events
         
     def remove_selection(self) -> bool:
+        actions.user.hud_add_log("command", "REMOVE SELECTION?")
+
+        selection_text = self.cursor_position_tracker.get_selection_text()
         selection_indexes = self.cursor_position_tracker.remove_selection()
         if selection_indexes[0][0] != selection_indexes[1][0] or \
             selection_indexes[0][1] != selection_indexes[1][1]:
@@ -295,6 +316,9 @@ class InputHistoryManager:
 
             merge_event = None
             should_detect_merge = False
+
+            actions.user.hud_add_log("command", "REMOVE SELECTION! '" + selection_text + "'" + str(start_index) + ", " + str(end_index))
+            print( start_index, end_index )
 
             events = []
             for event_index, event in enumerate(self.input_history):
@@ -310,10 +334,12 @@ class InputHistoryManager:
                         events[-1].phrase = text_to_phrase(text)
                         merge_event = None
                         should_detect_merge = False
+                        actions.user.hud_add_log("command", "MERGE EVENT " + str(event_index))
 
                     # Otherwise just add the event
                     else:
                         events.append(event)
+                        actions.user.hud_add_log("command", "APPEND EVENT " + str(event_index))
                 else:
                     text = event.text
 
@@ -323,11 +349,19 @@ class InputHistoryManager:
                         if text != "":
                             events.append(InputHistoryEvent(text, text_to_phrase(text), "", event.line_index))
                             should_detect_merge = start_index[1] == 0 or end_index[1] >= len(text.replace("\n", ""))
+                        else:
+                            actions.user.hud_add_log("command", "REMOVING SINGLE EVENT " + str(start_index[0]))
                     # Split event, remember the first event from the selection
                     elif event_index == start_index[0]:
                         text = text[:start_index[1]]
-                        merge_event = InputHistoryEvent(text, text_to_phrase(text), "", event.line_index)
-                        should_detect_merge = not re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").endswith(" ")
+                        if start_index[1] == len(event.text.replace('\n', '')):
+                            events.append(event)
+                            actions.user.hud_add_log("command", "APPEND EVENT AT END" + str(event_index))
+                        elif start_index[1] > 0:
+                            merge_event = InputHistoryEvent(text, text_to_phrase(text), "", event.line_index)
+                            should_detect_merge = not re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").endswith(" ")
+                        else:
+                            actions.user.hud_add_log("command", "REMOVING START EVENT " + str(start_index[0]))
                     # Split event, attempt to merge the first event with the current event
                     elif event_index == end_index[0]:
                         text = text[end_index[1]:]
@@ -336,17 +370,27 @@ class InputHistoryManager:
                             text = merge_event.text + text
                         elif merge_event is not None:
                             events.append(merge_event)
+                            actions.user.hud_add_log("command", "MERGE EVENT " + str(event_index))
+
                         merge_event = None
                         should_detect_merge = False
                         if text != "":
+                            actions.user.hud_add_log("command", "APPEND MERGED EVENT " + str(event_index))
                             events.append(InputHistoryEvent(text, text_to_phrase(text), "", event.line_index))
+                        else:
+                            actions.user.hud_add_log("command", "REMOVING END EVENT " + str(end_index[0]))                            
+                    else:
+                        actions.user.hud_add_log("command", "REMOVING IN BETWEEN EVENT " + str(event_index))
             
             # If we are left with a merge event, add it anyway
             if merge_event is not None:
                 events.append(merge_event)
+                actions.user.hud_add_log("command", "APPENDING FINAL MERGED EVENT" )
 
             self.input_history = events
             self.reformat_events()
+
+            print( "AFTER SELECTION REMOVAL!", self.input_history )
 
             return True
         else:
@@ -500,15 +544,7 @@ class InputHistoryManager:
                 previous_line_index = event.line_index
             previous_line_end_count += len(event.text.replace("\n", ""))
 
-        context = ""
-        for new_event in new_events:
-            context += new_event.text
-            if "$CURSOR" in new_event.text:
-                actions.user.hud_add_log("error", "CURSOR MARKER FOUND!!!!!")
-
-        if context != self.cursor_position_tracker.text_history.replace('$CURSOR', "").replace('$COARSE_CURSOR', ""):
-            actions.user.hud_add_log("error", "DESYNC DETECTED!")
-
+        print( "REFORMATTING!" )
         self.input_history = new_events
 
     def apply_key(self, keystring: str):
@@ -583,6 +619,9 @@ class InputHistoryManager:
         else:
             keys = self.select_event(start_event, extend_selection)
         keys.extend( self.select_event(end_event, True))
+
+        print( "SELECT!", self.input_history, self.determine_leftmost_input_index(), self.determine_rightmost_input_index())
+
         return keys
 
     def select_phrase(self, phrase: str, extend_selection: bool = False) -> List[str]:        

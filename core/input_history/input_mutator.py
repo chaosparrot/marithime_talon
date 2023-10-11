@@ -67,14 +67,15 @@ class InputMutator:
 
     def track_key(self, key_string: str):
         if self.tracking:
-            keys = key_string.replace(":up", "").replace(":down", "").replace(":", "").split(" ")            
             if self.insert_application_id != self.current_application_pid:
-                actions.user.hud_add_log("error", "Clear because application id is off" + self.insert_application_id)
+                actions.user.hud_add_log("error", "Clear because application id is off" + str(self.insert_application_id))
                 self.insert_application_id = self.current_application_pid
                 self.manager.clear_input_history()
             
             self.manager.apply_key(key_string)
             self.index()
+        elif self.tracking_lock:
+            actions.user.hud_add_log("error", "DISABLING TRACKING LOCK + " + str(self.tracking_lock))
 
     def track_insert(self, insert: str, phrase: str = None):
         if self.tracking:
@@ -191,6 +192,7 @@ class InputMutator:
                         if start_index < len(input_history) and end_index < len(input_history):
                             repair_keys.extend( self.manager.select_event_range(input_history[start_index], input_history[end_index]) )
                             repair_keys.append("backspace")
+                            self.manager.apply_key("backspace")
 
         input_index = self.manager.determine_leftmost_input_index()
         if input_index[0] > -1:
@@ -203,7 +205,11 @@ class InputMutator:
 
         if formatter is not None:
             actions.user.hud_add_log("warning", self.manager.cursor_position_tracker.text_history )
-            repair_keys.extend(formatter.determine_correction_keys(insert.split(), previous_text, next_text))
+            formatter_repair_keys = formatter.determine_correction_keys(insert.split(), previous_text, next_text)
+            for formatter_repair_key in formatter_repair_keys:
+                self.manager.apply_key(formatter_repair_key)
+
+            repair_keys.extend(formatter_repair_keys)
             return ("".join(formatter.words_to_format(insert.split(), previous_text, next_text)), repair_keys)
         else:
             return (insert, repair_keys)
@@ -339,7 +345,6 @@ class Actions:
         if isinstance(phrase, List):
             keys = mutator.select_phrases(phrase)
             mutator.disable_tracking()
-            actions.user.hud_add_log("command", " ".join(keys))
             if keys:
                 for key in keys:
                     actions.key(key)

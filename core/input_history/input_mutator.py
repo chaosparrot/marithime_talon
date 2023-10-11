@@ -4,6 +4,7 @@ from typing import List, Union
 from .formatters.formatters import FORMATTERS_LIST
 from .formatters.text_formatter import TextFormatter
 import json
+from time import time
 
 mod = Module()
 
@@ -49,6 +50,7 @@ class InputMutator:
         self.manager = InputHistoryManager()
         self.active_formatters = []
         self.formatter_names = []
+        self.id = time()
 
     def set_formatter(self, name: str):
         if name in FORMATTERS_LIST:
@@ -59,6 +61,7 @@ class InputMutator:
     def enable_tracking(self, lock: str = ""):
         if self.tracking_lock == "" or self.tracking_lock == lock:
             self.tracking = True
+            self.tracking_lock = ""
 
     def disable_tracking(self, lock: str = ""):
         if self.tracking_lock == "" and lock != "":
@@ -75,7 +78,7 @@ class InputMutator:
             self.manager.apply_key(key_string)
             self.index()
         elif self.tracking_lock:
-            actions.user.hud_add_log("error", "DISABLING TRACKING LOCK + " + str(self.tracking_lock))
+            actions.user.hud_add_log("error", "DISABLING TRACKING LOCK + " + str(self.tracking_lock) + str(self.id))
 
     def track_insert(self, insert: str, phrase: str = None):
         if self.tracking:
@@ -143,6 +146,11 @@ class InputMutator:
         return self.manager.go_phrase(phrase, "end" if character_index == -1 else "start", keep_selection, next_occurrence )
 
     def transform_insert(self, insert: str, enable_self_repair: bool = False) -> (str, List[str]):
+        if self.insert_application_id != self.current_application_pid:
+            actions.user.hud_add_log("error", "Clear because application id is off")
+            self.insert_application_id = self.current_application_pid
+            self.manager.clear_input_history()
+
         formatter = self.active_formatters[0] if self.use_last_set_formatter and len(self.active_formatters) > 0 else None
         previous_text = ""
         next_text = ""
@@ -372,7 +380,6 @@ class Actions:
                     actions.key(key)
             mutator.enable_tracking()
             text = " ".join(selection_and_correction)
-            actions.sleep(0.05)
             actions.user.input_core_insert(text)
         else:
             actions.user.hud_add_log("warning", "'" + " ".join(selection_and_correction) + "' could not be corrected")

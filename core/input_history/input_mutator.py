@@ -185,7 +185,7 @@ class InputMutator:
                 # Do a complete replacement from the first high matching score
                 # We do not support replacing initial words, only inserting, as replacing initial words requires more context about meaning
                 # ( We have no -> We have a , but not, We have no -> They have no )
-                elif True == False:
+                else:
                     replacement_index = -1
                     for index, score in enumerate(self_repair_match.scores):
                         if score >= 1:
@@ -199,6 +199,8 @@ class InputMutator:
                         input_history = self.manager.input_history
                         if start_index < len(input_history) and end_index < len(input_history):
                             repair_keys.extend( self.manager.select_event_range(input_history[start_index], input_history[end_index]) )
+                            print( self.manager.cursor_position_tracker.get_selection_text() + " -> " + insert )
+
                             repair_keys.append("backspace")
                             self.manager.apply_key("backspace")
 

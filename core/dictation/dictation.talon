@@ -14,5 +14,5 @@ mode: dictation
     user.input_core_insert(best_match_word)
 
 # Spelling
-<user.direct_spelling>:
+^<user.direct_spelling>:
     user.input_core_insert(direct_spelling)

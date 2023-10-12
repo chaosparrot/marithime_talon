@@ -31,7 +31,7 @@ class InputMatcher:
 
         return False
     
-    def find_self_repair_match(self, input_history, phrases: List[str]):
+    def find_self_repair_match(self, input_history, phrases: List[str]) -> InputEventMatch:
         # We don't do any self repair checking with selected text, only in free-flow text
         if not input_history.is_selecting():
             current_index = input_history.determine_input_index()
@@ -40,11 +40,33 @@ class InputMatcher:
                 earliest_index_for_look_behind = max(0, current_index[0] - len(phrases))
                 events_behind = input_history.input_history[earliest_index_for_look_behind:current_index[0] + 1]
 
-                matches = self.find_matches_by_phrases(events_behind, phrases, 1, 'most_direct_matches')
-                # Get the match with the most matches, closest to the end
-                # Make sure we adhere to 'reasonable' self repair of about 5 words back max
-                if len(matches) > 0:
-                    return matches[0]
+                # We consider punctuations as statements that the user cannot match with
+                events_from_last_punctuation = []
+                for event in events_behind:
+                    if not event.text.replace("\n", ".").replace(" ", "").endswith((".", "!", "?")):
+                        events_from_last_punctuation.append(event)
+                    else:
+                        events_from_last_punctuation = []
+
+                if len(events_from_last_punctuation) > 0:
+                    matches = self.find_matches_by_phrases(events_from_last_punctuation, phrases, 1, 'most_direct_matches')
+
+                    # Get the match with the most matches, closest to the end
+                    # Make sure we adhere to 'reasonable' self repair of about 5 words back max
+                    if len(matches) > 0:
+                        best_match = matches[0]
+
+                        print( "CHANGING!!!", best_match, "EARLIEST!", earliest_index_for_look_behind, "CURRENT!", current_index)
+
+                        # Make sure we normalize the index to our best knowledge
+                        index_offset = earliest_index_for_look_behind
+                        if current_index[1] > 0:
+                            index_offset -= 1
+
+                        # Normalize the best match indices
+                        best_match.starts += index_offset
+                        best_match.indices = [index_offset + index for index in best_match.indices]
+                        return best_match
         
         return None
     

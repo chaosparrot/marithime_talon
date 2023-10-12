@@ -153,7 +153,10 @@ class InputHistoryManager:
             self.reformat_events()
 
     def find_self_repair(self, phrase: List[str]):
-        return self.input_matcher.find_self_repair_match(self, phrase)
+        self_repair_matches = self.input_matcher.find_self_repair_match(self, phrase)
+        if self_repair_matches is not None:
+            print("SELF REPAIR! " + " ".join(phrase), self_repair_matches )
+        return self_repair_matches
 
     def detect_self_repair(self, phrase: List[str]) -> bool:
         return self.find_self_repair(phrase) is not None

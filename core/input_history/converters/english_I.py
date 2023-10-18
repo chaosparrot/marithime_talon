@@ -6,6 +6,7 @@ class IConverter:
         "i'll": "I'll",
         "i'm": "I'm",
         "i": "I",
+        "i'd": "I'd",
     }
 
     def match_text(self, text: str, previous: str = "", next = "") -> bool:

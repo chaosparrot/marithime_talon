@@ -24,10 +24,16 @@ class EnglishLanguage(Language):
             next_word = next if index == len(words) - 1 else words[index + 1]
 
             converted_word = word.lower()
+            matched_word = False
             for converter in self.converters:
-                if converter.match_text(word, previous_word, next_word):
-                    converted_word = converter.convert(word)
-            new_words.append(converted_word) 
+                if converter.match_text(converted_word, previous_word, next_word):
+                    converted_word = converter.convert(converted_word)
+                    matched_word = True
+            
+            if matched_word:
+                new_words.append(converted_word)
+            else:
+                new_words.append(word)
 
         return self.sentence_formatter.words_to_format([word for word in new_words], previous, next)
 

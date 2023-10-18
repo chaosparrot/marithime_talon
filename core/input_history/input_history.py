@@ -154,8 +154,6 @@ class InputHistoryManager:
 
     def find_self_repair(self, phrase: List[str]):
         self_repair_matches = self.input_matcher.find_self_repair_match(self, phrase)
-        if self_repair_matches is not None:
-            print("SELF REPAIR! " + " ".join(phrase), self_repair_matches )
         return self_repair_matches
 
     def detect_self_repair(self, phrase: List[str]) -> bool:

@@ -53,20 +53,26 @@ class InputMatcher:
 
                     # Get the match with the most matches, closest to the end
                     # Make sure we adhere to 'reasonable' self repair of about 5 words back max
-                    if len(matches) > 0:
-                        best_match = matches[0]
-
-                        print( "CHANGING!!!", best_match, "EARLIEST!", earliest_index_for_look_behind, "CURRENT!", current_index)
+                    for best_match in matches:
 
                         # Make sure we normalize the index to our best knowledge
                         index_offset = earliest_index_for_look_behind
-                        if current_index[1] > 0:
-                            index_offset -= 1
-
-                        # Normalize the best match indices
                         best_match.starts += index_offset
                         best_match.indices = [index_offset + index for index in best_match.indices]
-                        return best_match
+
+                        # When the final index does not align with the current index, it won't be a self repair replacement
+                        if best_match.indices[-1] < current_index[0]:
+                            print( "NOT ALIGNED WITH END ", best_match, current_index)
+                            continue
+
+                        # If the average score of all the matching parts is lower than 1, we can assume we haven't had a proper match for self repair                        
+                        elif best_match.score / len(best_match.indices) + best_match.distance < 1:
+                            print( "INSUFFICIENT SCORE ", best_match, best_match.score / len(best_match.indices) + best_match.distance)                            
+                            continue
+                        
+                        else:
+                            print( "MATCH!", phrases, best_match)
+                            return best_match
         
         return None
     

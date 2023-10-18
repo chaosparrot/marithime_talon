@@ -186,20 +186,30 @@ class InputMutator:
                 # We do not support replacing initial words, only inserting, as replacing initial words requires more context about meaning
                 # ( We have no -> We have a , but not, We have no -> They have no )
                 else:
-                    replacement_index = -1
-                    for index, score in enumerate(self_repair_match.scores):
-                        if score >= 1:
-                            replacement_index = index
-                            insert = " ".join(insert.split()[index:])
-                            break
+                    first_index = self_repair_match.indices[0]
+                    allow_initial_replacement = False
+                    if first_index - 1 >= 0:
+                        allow_initial_replacement = any(punc in self.manager.input_history[first_index - 1].text for punc in (".", "?", "!"))
+                    else:
+                        allow_initial_replacement = True
+                    replacement_index = 0 if allow_initial_replacement else -1
+
+                    # Make sure that we only replace words from the first matching word instead of allowing a full replacement
+                    if not allow_initial_replacement:
+                        for index, score in enumerate(self_repair_match.scores):
+                            if score >= 1:
+                                replacement_index = index
+                                insert = " ".join(insert.split()[index:])
+                                break
                     
+                    print( self_repair_match )
                     if replacement_index >= 0:
                         start_index = self_repair_match.indices[replacement_index]
                         end_index = self_repair_match.indices[-1]
+
                         input_history = self.manager.input_history
                         if start_index < len(input_history) and end_index < len(input_history):
                             repair_keys.extend( self.manager.select_event_range(input_history[start_index], input_history[end_index]) )
-                            print( self.manager.cursor_position_tracker.get_selection_text() + " -> " + insert )
 
                             repair_keys.append("backspace")
                             self.manager.apply_key("backspace")

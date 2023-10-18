@@ -17,3 +17,4 @@ remove <user.fuzzy_indexed_word>:
 
 ^dump context$:
     user.input_core_dump()
+    

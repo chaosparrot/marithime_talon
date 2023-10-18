@@ -33,6 +33,8 @@ class InputMatcher:
     
     def find_self_repair_match(self, input_history, phrases: List[str]) -> InputEventMatch:
         # We don't do any self repair checking with selected text, only in free-flow text
+        print( "DETERMINING SELF REPAIR", phrases )
+
         if not input_history.is_selecting():
             current_index = input_history.determine_input_index()
 
@@ -61,7 +63,7 @@ class InputMatcher:
                         best_match.indices = [index_offset + index for index in best_match.indices]
 
                         # When the final index does not align with the current index, it won't be a self repair replacement
-                        if best_match.indices[-1] < current_index[0]:
+                        if best_match.indices[-1] < current_index[0] - 1:
                             print( "NOT ALIGNED WITH END ", best_match, current_index)
                             continue
 
@@ -69,7 +71,7 @@ class InputMatcher:
                         elif best_match.score / len(best_match.indices) + best_match.distance < 1:
                             print( "INSUFFICIENT SCORE ", best_match, best_match.score / len(best_match.indices) + best_match.distance)                            
                             continue
-                        
+
                         else:
                             print( "MATCH!", phrases, best_match)
                             return best_match

@@ -46,6 +46,20 @@ class InputMutator:
     insert_application_id: int = 0
     current_application_pid: int = 0
 
+    insert_application_key: str = ""
+    current_application_key: str = ""
+
+    def detect_context_switch(self):
+        if self.insert_application_id != self.current_application_pid:
+            self.clear_context()
+
+    def clear_context(self):
+        actions.user.hud_add_log("error", "CLEARING!" + str(self.insert_application_id) + "!=" + str(self.current_application_pid))
+        actions.user.hud_add_log("error", self.insert_application_key + "----" + self.current_application_key)
+        self.insert_application_key = self.current_application_key
+        self.insert_application_id = self.current_application_pid
+        self.manager.clear_input_history()
+
     def __init__(self):
         self.manager = InputHistoryManager()
         self.active_formatters = []
@@ -70,10 +84,7 @@ class InputMutator:
 
     def track_key(self, key_string: str):
         if self.tracking:
-            if self.insert_application_id != self.current_application_pid:
-                actions.user.hud_add_log("error", "Clear because application id is off" + str(self.insert_application_id))
-                self.insert_application_id = self.current_application_pid
-                self.manager.clear_input_history()
+            self.detect_context_switch()
             
             self.manager.apply_key(key_string)
             self.index()
@@ -82,10 +93,7 @@ class InputMutator:
 
     def track_insert(self, insert: str, phrase: str = None):
         if self.tracking:
-            if self.insert_application_id != self.current_application_pid:
-                actions.user.hud_add_log("error", "Clear because application id is off")
-                self.insert_application_id = self.current_application_pid
-                self.manager.clear_input_history()
+            self.detect_context_switch()
 
             input_events = []
 
@@ -146,10 +154,7 @@ class InputMutator:
         return self.manager.go_phrase(phrase, "end" if character_index == -1 else "start", keep_selection, next_occurrence )
 
     def transform_insert(self, insert: str, enable_self_repair: bool = False) -> (str, List[str]):
-        if self.insert_application_id != self.current_application_pid:
-            actions.user.hud_add_log("error", "Clear because application id is off")
-            self.insert_application_id = self.current_application_pid
-            self.manager.clear_input_history()
+        self.detect_context_switch()
 
         formatter = self.active_formatters[0] if self.use_last_set_formatter and len(self.active_formatters) > 0 else None
         previous_text = ""
@@ -272,11 +277,26 @@ class InputMutator:
         ctx.tags = tags
 
     def focus_changed(self, event):
-        self.current_application_pid = event.app.pid if event.app else -1
+        # We only determine a focus change if
+        # 1 - The app is enabled
+        # 2 - The app is visible
+        # 3 - The app has a rectangle ( for window )
+        # 4 - The window isn't 0 pixels
+        # 5 - The window is inside of the current screen
+        if event.app and event.enabled and not event.hidden and event.rect:
+            # Detect whether or not the window is in the current screen
+            if event.rect.width * event.rect.height > 0 and \
+                event.rect.x >= event.screen.x and \
+                event.rect.y >= event.screen.y and \
+                event.rect.x <= event.screen.x + event.screen.width and \
+                event.rect.y <= event.screen.y + event.screen.height:
+
+                print( "FOCUS CHANGED!", event )
+                self.current_application_pid = event.app.pid
+                self.current_application_key = event.title
 
 mutator = InputMutator()
 ui.register("win_focus", mutator.focus_changed)
-
 
 @mod.action_class
 class Actions:

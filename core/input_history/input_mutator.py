@@ -1,5 +1,5 @@
 from talon import Module, Context, actions, settings, ui
-from .input_history import InputHistoryManager
+from .input_context_manager import InputContextManager
 from typing import List, Union
 from .formatters.formatters import FORMATTERS_LIST
 from .formatters.text_formatter import TextFormatter
@@ -36,32 +36,18 @@ def fuzzy_indexed_word(m) -> str:
 
 # Class to manage all the talon bindings and key presses for input history
 class InputMutator:
-    manager: InputHistoryManager
+    manager: InputContextManager    
     active_formatters: List[TextFormatter]
     formatter_names: List[str]
     tracking = True
     tracking_lock: str = ""
     use_last_set_formatter = False
 
-    insert_application_id: int = 0
-    current_application_pid: int = 0
-
-    insert_application_key: str = ""
-    current_application_key: str = ""
-
-    def detect_context_switch(self):
-        if self.insert_application_id != self.current_application_pid:
-            self.clear_context()
-
     def clear_context(self):
-        actions.user.hud_add_log("error", "CLEARING!" + str(self.insert_application_id) + "!=" + str(self.current_application_pid))
-        actions.user.hud_add_log("error", self.insert_application_key + "----" + self.current_application_key)
-        self.insert_application_key = self.current_application_key
-        self.insert_application_id = self.current_application_pid
-        self.manager.clear_input_history()
+        self.manager.get_current_context().clear_context()
 
     def __init__(self):
-        self.manager = InputHistoryManager()
+        self.manager = InputContextManager()
         self.active_formatters = []
         self.formatter_names = []
         self.id = time()
@@ -84,20 +70,17 @@ class InputMutator:
 
     def track_key(self, key_string: str):
         if self.tracking:
-            self.detect_context_switch()
-            
-            self.manager.apply_key(key_string)
+            self.manager.get_current_context().apply_key(key_string)
             self.index()
         elif self.tracking_lock:
             actions.user.hud_add_log("error", "DISABLING TRACKING LOCK + " + str(self.tracking_lock) + str(self.id))
 
     def track_insert(self, insert: str, phrase: str = None):
         if self.tracking:
-            self.detect_context_switch()
-
             input_events = []
 
-            formatters = self.manager.get_current_formatters()
+            ihm = self.manager.get_current_context().input_history_manager
+            formatters = ihm.get_current_formatters()
             if self.use_last_set_formatter or len(formatters) == 0:
                 formatters = self.formatter_names
 
@@ -108,57 +91,62 @@ class InputMutator:
                     if index < len(inserts) - 1:
                         text += " "
                     
-                    input_events.extend(self.manager.text_to_input_history_events(text, None, "|".join(formatters)))
+                    input_events.extend(ihm.text_to_input_history_events(text, None, "|".join(formatters)))
             else:
-                input_events = self.manager.text_to_input_history_events(insert, phrase, "|".join(formatters))
-            self.manager.insert_input_events(input_events)
+                input_events = ihm.text_to_input_history_events(insert, phrase, "|".join(formatters))
+            ihm.insert_input_events(input_events)
             self.index()
 
     def is_selecting(self) -> bool:
-        return self.manager.is_selecting()
+        return self.manager.get_current_context().input_history_manager.is_selecting()
 
     def has_phrase(self, phrase: str) -> bool:
-        return self.manager.has_matching_phrase(phrase)
+        return self.manager.get_current_context().input_history_manager.has_matching_phrase(phrase)
     
     def move_cursor_back(self, keep_selection: bool = False) -> List[str]:
-        if len(self.manager.input_history) > 0:
-            last_event = self.manager.input_history[-1]
+        ihm = self.manager.get_current_context().input_history_manager
+
+        if len(ihm.input_history) > 0:
+            last_event = ihm.input_history[-1]
             self.use_last_set_formatter = True
             if keep_selection:
-                return self.manager.select_until_end("", True)
+                return ihm.select_until_end("", True)
             else:
-                return self.manager.navigate_to_event(last_event, -1, keep_selection)
+                return ihm.navigate_to_event(last_event, -1, keep_selection)
         else:
             return ["end"]
         
     def select_phrase(self, phrase: str, until_end = False) -> List[str]:
+        ihm = self.manager.get_current_context().input_history_manager
+
         if self.has_phrase(phrase):
             self.use_last_set_formatter = False
 
         if until_end:
-            return self.manager.select_until_end(phrase)
+            return ihm.select_until_end(phrase)
         else:
-            return self.manager.select_phrase(phrase)
+            return ihm.select_phrase(phrase)
         
     def select_phrases(self, phrases: List[str], until_end = False) -> List[str]:
+        ihm = self.manager.get_current_context().input_history_manager
         self.use_last_set_formatter = False
 
         if until_end:
-            return self.manager.select_until_end(phrases)
+            return ihm.select_until_end(phrases)
         else:
-            return self.manager.select_phrases(phrases)
+            return ihm.select_phrases(phrases)
 
     def move_to_phrase(self, phrase: str, character_index: int = -1, keep_selection: bool = False, next_occurrence: bool = True) -> List[str]:
         if self.has_phrase(phrase):
             self.use_last_set_formatter = False
-        return self.manager.go_phrase(phrase, "end" if character_index == -1 else "start", keep_selection, next_occurrence )
+        ihm = self.manager.get_current_context().input_history_manager
+        return ihm.go_phrase(phrase, "end" if character_index == -1 else "start", keep_selection, next_occurrence )
 
     def transform_insert(self, insert: str, enable_self_repair: bool = False) -> (str, List[str]):
-        self.detect_context_switch()
-
         formatter = self.active_formatters[0] if self.use_last_set_formatter and len(self.active_formatters) > 0 else None
         previous_text = ""
         next_text = ""
+        ihm = self.manager.get_current_context().input_history_manager
 
         repair_keys = []
 
@@ -175,7 +163,7 @@ class InputMutator:
                 preceding_word = word
             insert = " ".join(words_to_insert)
 
-            self_repair_match = self.manager.find_self_repair(insert.split())
+            self_repair_match = ihm.find_self_repair(insert.split())
             if self_repair_match is not None:
                 actions.user.hud_add_log("success", "SELF REPAIR FOUND! " + insert )
 
@@ -212,24 +200,24 @@ class InputMutator:
                         start_index = self_repair_match.indices[replacement_index]
                         end_index = self_repair_match.indices[-1]
 
-                        input_history = self.manager.input_history
+                        input_history = ihm.input_history
                         if start_index < len(input_history) and end_index < len(input_history):
-                            repair_keys.extend( self.manager.select_event_range(input_history[start_index], input_history[end_index]) )
+                            repair_keys.extend( ihm.select_event_range(input_history[start_index], input_history[end_index]) )
 
                             repair_keys.append("backspace")
                             self.manager.apply_key("backspace")
 
-        input_index = self.manager.determine_leftmost_input_index()
+        input_index = ihm.determine_leftmost_input_index()
         if input_index[0] > -1:
-            previous_text = self.manager.get_previous_text()
-            next_text = self.manager.get_next_text()
+            previous_text = ihm.get_previous_text()
+            next_text = ihm.get_next_text()
 
-            context_formatters = self.manager.get_current_formatters()
+            context_formatters = ihm.get_current_formatters()
             context_formatter = context_formatters[0] if len(context_formatters) > 0 else None
             formatter = FORMATTERS_LIST[context_formatter] if formatter is None and context_formatter is not None and context_formatter in FORMATTERS_LIST else formatter
 
         if formatter is not None:
-            actions.user.hud_add_log("warning", self.manager.cursor_position_tracker.text_history )
+            actions.user.hud_add_log("warning", ihm.cursor_position_tracker.text_history )
             formatter_repair_keys = formatter.determine_correction_keys(insert.split(), previous_text, next_text)
             for formatter_repair_key in formatter_repair_keys:
                 self.manager.apply_key(formatter_repair_key)
@@ -240,7 +228,8 @@ class InputMutator:
             return (insert, repair_keys)
 
     def clear_keys(self, backwards = True) -> List[str]:
-        context = self.manager.determine_context()
+        ihm = self.manager.get_current_context().input_history_manager
+        context = ihm.determine_context()
 
         if self.is_selecting():
             return [settings.get("user.context_remove_letter")]
@@ -264,39 +253,32 @@ class InputMutator:
         return [settings.get("user.context_remove_word") if backwards else settings.get("user.context_remove_forward_word")]
 
     def index(self):
+        ihm = self.manager.get_current_context().input_history_manager
+
         words_list = []
-        for event in self.manager.input_history:
+        for event in ihm.input_history:
             words_list.append(event.phrase)
         ctx.lists["user.indexed_words"] = words_list
 
         tags = []
-        input_index = self.manager.determine_input_index()
+        input_index = ihm.determine_input_index()
         if input_index[0] > -1 and input_index[1] > -1:
-            event = self.manager.input_history[input_index[0]]
+            event = ihm.input_history[input_index[0]]
             # TODO APPLY FLOW TAGS DEPENDING ON WORDS
         ctx.tags = tags
 
     def focus_changed(self, event):
-        # We only determine a focus change if
-        # 1 - The app is enabled
-        # 2 - The app is visible
-        # 3 - The app has a rectangle ( for window )
-        # 4 - The window isn't 0 pixels
-        # 5 - The window is inside of the current screen
-        if event.app and event.enabled and not event.hidden and event.rect:
-            # Detect whether or not the window is in the current screen
-            if event.rect.width * event.rect.height > 0 and \
-                event.rect.x >= event.screen.x and \
-                event.rect.y >= event.screen.y and \
-                event.rect.x <= event.screen.x + event.screen.width and \
-                event.rect.y <= event.screen.y + event.screen.height:
+        context_switched = self.manager.switch_context(event)
+        if context_switched:
+            self.index()
 
-                print( "FOCUS CHANGED!", event )
-                self.current_application_pid = event.app.pid
-                self.current_application_key = event.title
+    def window_closed(self, event):
+        self.manager.close_context(event)
+
 
 mutator = InputMutator()
 ui.register("win_focus", mutator.focus_changed)
+ui.register("win_close", mutator.window_closed)
 
 @mod.action_class
 class Actions:
@@ -445,7 +427,7 @@ class Actions:
     def input_core_forget():
         """Forget the current context of the input history completely"""
         global mutator
-        mutator.manager.clear_input_history()
+        mutator.clear_context()
 
     def input_core_best_match(phrases: List[str], correct_previous: bool = False, starting_phrase: str = '') -> str:
         """Improve accuracy by picking the best matches out of the words used"""
@@ -466,10 +448,10 @@ class Actions:
         global mutator
         mutator.disable_tracking("DUMP")
         actions.key("enter")
-        actions.insert(mutator.manager.cursor_position_tracker.text_history)
+        actions.insert(mutator.manager.get_current_context().input_history_manager.cursor_position_tracker.text_history)
         actions.key("enter:2")
         events = []
-        for event in mutator.manager.input_history:
+        for event in mutator.manager.get_current_context().input_history_manager.input_history:
             events.append({
                 "index_from_line_end": event.index_from_line_end,
                 "line_index": event.line_index,

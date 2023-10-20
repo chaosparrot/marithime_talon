@@ -32,9 +32,11 @@ class InputMatcher:
         return False
     
     def find_self_repair_match(self, input_history, phrases: List[str]) -> InputEventMatch:
-        # We don't do any self repair checking with selected text, only in free-flow text
+        # Do not allow punctuation to activate self repair
+        phrases = [phrase for phrase in phrases if not phrase.replace(" ", "").endswith((",", ".", "!", "?"))]
         print( "DETERMINING SELF REPAIR", phrases )
 
+        # We don't do any self repair checking with selected text, only in free-flow text
         if not input_history.is_selecting():
             current_index = input_history.determine_input_index()
 

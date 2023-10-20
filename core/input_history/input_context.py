@@ -25,7 +25,7 @@ class InputContext:
             self.pid = pid
 
     def match_pattern(self, key_matching: str, pid: int) -> bool:
-        return self.key_matching == key_matching and pid == self.pid
+        return self.key_matching == key_matching or pid == self.pid
 
     # A context is stale if it has had no changes in 5 minutes
     def is_stale(self, inactive_threshold: int = 300):
@@ -43,5 +43,6 @@ class InputContext:
         self.pid = -1
         self.key_matching = ""
         self.modified_at = 0
+        self.input_history_manager = None
 
     

@@ -83,8 +83,8 @@ class CursorPositionTracker:
                     self.shift_down = False
                 continue
 
+            # TODO PROPER ALT TRACKING? FOR NOW TURNED OFF SO WE KEEP CONTEXT DURING PROGRAM SWITCHES
             if "alt" in key:
-                self.set_history("")
                 key_used = True
 
             # Control keys are slightly inconsistent across programs, but generally they skip a word

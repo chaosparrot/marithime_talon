@@ -1,0 +1,96 @@
+from talon import Module, Context, actions, clip
+from typing import List, Union
+
+mod = Module()
+hud_ctx = Context()
+hud_ctx.matches = """
+tag: user.talon_hud_available
+"""
+
+browser_ctx = Context()
+browser_ctx.matches = """
+tag: browser
+"""
+
+manager = None
+
+@mod.action_class
+class Actions:
+
+    def remember_text(words: List[str], append: Union[bool, int] = False) -> str:
+        """Detect text and save it as something known to use later"""
+        global manager
+        value_to_remember = actions.user.remember_detect_text()
+        if value_to_remember:
+            pass
+            #value_to_remember = value_to_remember if manager.persist(" ".join(words), append > 0 or append == True) else ""
+
+        return value_to_remember
+    
+    def forget_text(words: List[str]) -> str:
+        """Detect text and remove it from the user managed lists"""
+        global manager
+        value_to_forget = actions.user.remember_detect_text()
+        if value_to_forget:
+            pass
+            #value_to_forget = value_to_forget if manager.remove(value_to_forget, " ".join(words)) else ""
+        
+        return value_to_forget
+    
+    def remember_detect_text() -> str:
+        """Detect text from a selection for use in user managed lists"""
+        selection = ""
+        old_clipboard = clip.text()
+        with clip.revert():
+            actions.edit.copy()
+            selection = clip.text()
+
+            if old_clipboard == selection:
+                selection = ""
+
+        if selection:
+            return selection.splitlines()[0]
+        else:
+            return ""
+
+@hud_ctx.action_class("user")
+class HudActions:
+
+    def remember_text(words: List[str], append: Union[bool, int] = False) -> str:
+        """Detect text and save it as something known to use later"""
+        remembered = actions.next(words, append)
+        if remembered:
+            actions.user.hud_add_log("success", "'" + remembered + "' remembered as '" + " ".join(words) + "'")
+        else:
+            actions.user.hud_add_log("warning", "Could not detect anything to remember as '" + " ".join(words) + "'")
+        return remembered
+    
+    def forget_text(words: List[str]) -> str:
+        """Detect text and remove it from the user managed lists"""
+        value_to_forget = actions.next(words)
+        if value_to_forget:
+            actions.user.hud_add_log("success", "'" + " ".join(words) + "' forgotten")
+        else:
+            actions.user.hud_add_log("warning", "Could not find anything to forget")
+        return value_to_forget
+
+@browser_ctx.action_class("user")
+class BrowserActions:
+
+    def remember_detect_text() -> str:
+        """Detect text from a selection or the browser location for use in user managed lists"""
+        remembered_text = actions.next()
+        if not remembered_text:
+            actions.browser.focus_address()
+            browser_location = ""
+            with clip.revert():
+                actions.sleep("150ms")
+                actions.edit.copy()
+                actions.sleep("150ms")                
+                browser_location = clip.text()
+                if browser_location:
+                    remembered_text = browser_location.splitlines()[0]
+                actions.sleep("150ms")
+            actions.browser.focus_page()
+            
+        return remembered_text

@@ -1,16 +1,17 @@
 import csv
 import os
 from pathlib import Path
+from typing import IO, Callable, Dict
 
 from talon import resource
 
 # NOTE: This method requires this module to be one folder below the top-level
 #   community/knausj folder.
 SETTINGS_DIR = Path(__file__).parents[1] / "settings"
+SETTINGS_DIR.mkdir(exist_ok=True)
 
-if not SETTINGS_DIR.is_dir():
-    os.mkdir(SETTINGS_DIR)
-
+CallbackT = Callable[[Dict[str, str]], None]
+DecoratorT = Callable[[CallbackT], CallbackT]
 
 def get_list_from_csv(
     filename: str, headers: tuple[str, str], default: dict[str, str] = {}
@@ -75,3 +76,10 @@ def append_to_csv(filename: str, rows: dict[str, str]):
             writer.writerow([])
         for key, value in rows.items():
             writer.writerow([key] if key == value else [value, key])
+
+def track_csv_list(path: str, callable: Callable):
+    assert path.endswith(".csv")
+
+    @resource.watch(str(path))
+    def on_update(f):
+        callable(f)

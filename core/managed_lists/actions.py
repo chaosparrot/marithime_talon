@@ -1,5 +1,13 @@
 from talon import Module, Context, actions, clip
 from typing import List, Union
+from .list_manager import ListManager
+from .managed_websites import ManagedWebsites
+from .managed_directories import ManagedDirectories
+from .managed_homophones import ManagedHomophones
+from .managed_abbreviations import ManagedAbbreviations
+from .managed_additional_words import ManagedAdditionalWords
+from .managed_words_to_replace import ManagedWordsToReplace
+from ..user_settings import SETTINGS_DIR
 
 mod = Module()
 hud_ctx = Context()
@@ -12,7 +20,18 @@ browser_ctx.matches = """
 tag: browser
 """
 
-manager = None
+manager = ListManager(
+    [
+        ManagedWebsites("user.website", SETTINGS_DIR / "websites.csv"),
+        ManagedDirectories("user.directories", SETTINGS_DIR / "directories.csv"),
+    ],
+    [
+        ManagedHomophones("user.homophones", SETTINGS_DIR / "homophones.csv"),
+        ManagedAdditionalWords("user.vocabulary", SETTINGS_DIR / "additional_words.csv"),
+        ManagedWordsToReplace("user.words_to_replace", SETTINGS_DIR / "words_to_replace.csv"),
+        ManagedAbbreviations("user.abbreviation", SETTINGS_DIR / "abbreviations.csv"),
+    ]
+)
 
 @mod.action_class
 class Actions:
@@ -22,8 +41,7 @@ class Actions:
         global manager
         value_to_remember = actions.user.remember_detect_text()
         if value_to_remember:
-            pass
-            #value_to_remember = value_to_remember if manager.persist(" ".join(words), append > 0 or append == True) else ""
+            value_to_remember = value_to_remember if manager.update(value_to_remember, " ".join(words), append > 0 or append == True) else ""
 
         return value_to_remember
     
@@ -32,8 +50,7 @@ class Actions:
         global manager
         value_to_forget = actions.user.remember_detect_text()
         if value_to_forget:
-            pass
-            #value_to_forget = value_to_forget if manager.remove(value_to_forget, " ".join(words)) else ""
+            value_to_forget = value_to_forget if manager.remove(value_to_forget, " ".join(words)) else ""
         
         return value_to_forget
     

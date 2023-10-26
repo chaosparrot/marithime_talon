@@ -1,7 +1,7 @@
 -
-remember as <user.word>+$:
+remember only as <user.word>+$:
     user.remember_text(word_list)
-remember also as <user.word>+$:
+remember as <user.word>+$:
     user.remember_text(word_list, 1)
 forget <user.word>+$:
     user.forget_text(word_list)

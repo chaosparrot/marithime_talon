@@ -22,13 +22,13 @@ tag: browser
 
 manager = ListManager(
     [
-        ManagedWebsites("user.website", SETTINGS_DIR / "websites.csv"),
-        ManagedDirectories("user.directories", SETTINGS_DIR / "directories.csv"),
+        ManagedWebsites("user.websites", SETTINGS_DIR / "websites.csv"),
+        ManagedDirectories("user.system_paths", SETTINGS_DIR / "system_paths.csv"),
     ],
     [
-        ManagedHomophones("user.homophones", SETTINGS_DIR / "homophones.csv"),
+        ManagedHomophones(),
+        ManagedWordsToReplace(SETTINGS_DIR / "words_to_replace.csv"),
         ManagedAdditionalWords("user.vocabulary", SETTINGS_DIR / "additional_words.csv"),
-        ManagedWordsToReplace("user.words_to_replace", SETTINGS_DIR / "words_to_replace.csv"),
         ManagedAbbreviations("user.abbreviation", SETTINGS_DIR / "abbreviations.csv"),
     ]
 )

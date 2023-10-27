@@ -25,8 +25,9 @@ def update_language(language: str):
         global phonetics_file
         global phonetic_search
 
-        homophones_file = os.path.join(cwd, "lists", "homophones_" + language + ".csv")
-        phonetics_file = os.path.join(cwd, "lists", "phonetic_similarties_" + language + ".csv")
+        postfix = "" if language == "en" else "_" + language
+        homophones_file = os.path.join(cwd, "lists", "homophones" + postfix + ".csv")
+        phonetics_file = os.path.join(cwd, "lists", "phonetic_similarties" + postfix + ".csv")
 
         homophones_content = ""
         if os.path.exists(homophones_file):
@@ -41,7 +42,6 @@ def update_language(language: str):
         phonetic_search.set_homophones(homophones_content, lambda content, file_location=homophones_file: write_file(file_location, content))
         phonetic_search.set_phonetic_similiarities(phonetics_content, lambda content, file_location=phonetics_file: write_file(file_location, content))
         phonetic_search.set_language(language)
-        print( phonetic_search.homophones['to'] )
 
 settings.register("speech.language", update_language)
 update_language( settings.get("speech.language") )

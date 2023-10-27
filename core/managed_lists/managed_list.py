@@ -81,15 +81,16 @@ class ManagedList:
     def list_to_text(self) -> str:
         rows = []
         output = io.StringIO()
-        for key in self.rows:
-            rows.append({
-                "value": self.rows[key],
-                "spoken": key
-            })
+        if self.rows:
+            for key in self.rows:
+                rows.append({
+                    "value": self.rows[key],
+                    "spoken": key
+                })
 
-        csv_writer = csv.DictWriter(output, rows[0].keys(), delimiter=";", lineterminator="\n", quoting=csv.QUOTE_ALL)
-        csv_writer.writeheader()
-        csv_writer.writerows(rows)
+            csv_writer = csv.DictWriter(output, rows[0].keys(), delimiter=";", lineterminator="\n", quoting=csv.QUOTE_ALL)
+            csv_writer.writeheader()
+            csv_writer.writerows(rows)
 
         return output.getvalue()
 
@@ -116,8 +117,9 @@ class ManagedList:
     def persist(self) -> bool:
         if os.path.exists(self.filename):
             text = self.list_to_text()
-            with open(self.filename, 'w') as file:
-                file.write(text)
+            if text != "":
+                with open(self.filename, 'w') as file:
+                    file.write(text)
             
             return self.update_context_list()
         else:

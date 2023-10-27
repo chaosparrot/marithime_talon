@@ -12,7 +12,7 @@ class ManagedHomophones(ManagedList):
 
     # Append an item to the list, never overwriting known names
     def append_to_list(self, value: str, name: str):
-        if actions.user.phonetic_similarity_score(value, name) >= 0.9:
+        if actions.user.phonetic_similarity_score(value, name) >= 1:
             actions.user.homophones_add(value, name)
         else:
             actions.user.phonetic_similarities_add(value, name)
@@ -29,7 +29,7 @@ class ManagedHomophones(ManagedList):
 
     # Whether or not the value can possible be used as a value to keep in this list
     def matches(self, value: str, name: str) -> bool:
-        return actions.user.phonetic_similarity_score(value, name) >= 0.8
+        return actions.user.phonetic_similarity_score(value, name) == 0.8
     
     def is_valid_value(self, value: str) -> bool:
         return True

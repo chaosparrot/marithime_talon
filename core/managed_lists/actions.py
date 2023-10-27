@@ -22,35 +22,35 @@ tag: browser
 
 manager = ListManager(
     [
-        ManagedWebsites("user.websites", SETTINGS_DIR / "websites.csv"),
+        ManagedWebsites("user.website", SETTINGS_DIR / "websites.csv"),
         ManagedDirectories("user.system_paths", SETTINGS_DIR / "system_paths.csv"),
     ],
     [
         ManagedHomophones(),
         ManagedWordsToReplace(SETTINGS_DIR / "words_to_replace.csv"),
-        ManagedAdditionalWords("user.vocabulary", SETTINGS_DIR / "additional_words.csv"),
         ManagedAbbreviations("user.abbreviation", SETTINGS_DIR / "abbreviations.csv"),
+        ManagedAdditionalWords("user.vocabulary", SETTINGS_DIR / "additional_words.csv"),
     ]
 )
 
 @mod.action_class
 class Actions:
 
-    def remember_text(words: List[str], append: Union[bool, int] = False) -> str:
+    def remember_text(words: List[str], append: Union[bool, int] = False, list_name: str = None) -> str:
         """Detect text and save it as something known to use later"""
         global manager
         value_to_remember = actions.user.remember_detect_text()
         if value_to_remember:
-            value_to_remember = value_to_remember if manager.update(value_to_remember, " ".join(words), append > 0 or append == True) else ""
+            value_to_remember = value_to_remember if manager.update(value_to_remember, " ".join(words), append > 0 or append == True, list_name) else ""
 
         return value_to_remember
     
-    def forget_text(words: List[str]) -> str:
+    def forget_text(words: List[str], list_name: str = None) -> str:
         """Detect text and remove it from the user managed lists"""
         global manager
         value_to_forget = actions.user.remember_detect_text()
         if value_to_forget:
-            value_to_forget = value_to_forget if manager.remove(value_to_forget, " ".join(words)) else ""
+            value_to_forget = value_to_forget if manager.remove(value_to_forget, " ".join(words), list_name) else ""
         
         return value_to_forget
     
@@ -60,6 +60,7 @@ class Actions:
         old_clipboard = clip.text()
         with clip.revert():
             actions.edit.copy()
+            actions.sleep("150ms")
             selection = clip.text()
 
             if old_clipboard == selection:
@@ -73,9 +74,9 @@ class Actions:
 @hud_ctx.action_class("user")
 class HudActions:
 
-    def remember_text(words: List[str], append: Union[bool, int] = False) -> str:
+    def remember_text(words: List[str], append: Union[bool, int] = False, list_name: str = None) -> str:
         """Detect text and save it as something known to use later"""
-        remembered = actions.next(words, append)
+        remembered = actions.next(words, append, list_name)
         if remembered:
             actions.user.hud_add_log("success", "'" + remembered + "' remembered as '" + " ".join(words) + "'")
         else:

@@ -1,5 +1,4 @@
 import re
-from dutch import dutch_homophone_normalize
 from .languages import english, dutch, german
 
 # Levenshtein text distance

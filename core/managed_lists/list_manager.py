@@ -34,7 +34,8 @@ class ListManager:
         # TODO THIS ADDS RESOURCE TRACKERS EVERY TIME THE LANGUAGE SWITCHES
         # DO NOT CURRENTLY KNOW HOW TO UN-WATCH THIS LIST
         for managed_list in self.managed_lists:
-            track_csv_list(managed_list.filename, managed_list.reload_list)
+            if managed_list.filename:
+                track_csv_list(managed_list.filename, managed_list.reload_list)
 
         ctx.lists["user.managed_lists"] = [managed_list.name for managed_list in self.managed_lists]
 

@@ -23,3 +23,12 @@ class InputEventMatch:
     score: float
     scores: List[float]
     distance: float = 0.0
+
+@dataclass
+class InputFix:
+    key: str
+    from_text: str
+    to_text: str
+    amount: int = 0
+    previous: str = ""
+    next: str = ""

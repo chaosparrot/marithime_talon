@@ -1,5 +1,6 @@
 from talon import Module, Context, actions, settings, ui
 from .input_context_manager import InputContextManager
+from .input_fixer import InputFixer
 from typing import List, Union
 import json
 
@@ -34,18 +35,20 @@ def fuzzy_indexed_word(m) -> str:
 # Class to manage all the talon bindings and key presses for input history
 class InputMutator:
     manager: InputContextManager    
+    fixer: InputFixer
     tracking = True
     tracking_lock: str = ""
     use_last_set_formatter = False
+
+    def __init__(self):
+        self.manager = InputContextManager()
+        self.fixer = InputFixer()
 
     def clear_context(self):
         for context in self.manager.contexts:
             context.clear_context()
         self.manager.contexts = []
         self.manager.current_context = None
-
-    def __init__(self):
-        self.manager = InputContextManager()
 
     def set_formatter(self, name: str):
         self.manager.set_formatter(name)
@@ -116,13 +119,12 @@ class InputMutator:
         return ihm.go_phrase(phrase, "end" if character_index == -1 else "start", keep_selection, next_occurrence )
 
     def transform_insert(self, insert: str, enable_self_repair: bool = False) -> (str, List[str]):
-        previous_text = ""
-        next_text = ""
         ihm = self.manager.get_current_context().input_history_manager
 
         repair_keys = []
 
         # Allow the user to do self repair in speech
+        correction_insertion = self.is_selecting()
         if enable_self_repair:
             
             # Remove stutters / repeats in the same phrase
@@ -178,7 +180,11 @@ class InputMutator:
 
                             repair_keys.append("backspace")
                             self.manager.apply_key("backspace")
-
+                            correction_insertion = True
+        
+        # Determine formatter
+        previous_text = ""
+        next_text = ""
         input_index = ihm.determine_leftmost_input_index()
         if input_index[0] > -1:
             previous_text = ihm.get_previous_text()
@@ -190,6 +196,8 @@ class InputMutator:
         else:
             formatter = self.manager.get_formatter()
 
+        # Format text 
+        words = insert.split()
         if formatter is not None:
             actions.user.hud_add_log("warning", ihm.cursor_position_tracker.text_history )
             formatter_repair_keys = formatter.determine_correction_keys(insert.split(), previous_text, next_text)
@@ -197,10 +205,22 @@ class InputMutator:
                 self.manager.apply_key(formatter_repair_key)
 
             repair_keys.extend(formatter_repair_keys)
-            return ("".join(formatter.words_to_format(insert.split(), previous_text, next_text)), repair_keys)
-        else:
-            print( "NO FORMATTER!" )
-            return (insert, repair_keys)
+            words = formatter.words_to_format(insert.split(), previous_text, next_text)
+        
+        # Do automatic fixing for non-correction text
+        if not correction_insertion:
+            replaced_words = []
+            previous_word = previous_text.split(" ")[-1]
+            next_word = next_text.split(" ")[-1]
+            for index, word in enumerate(words):
+                previous = previous_word if index == 0 else words[index - 1]
+                next = next_word if index == len(words) - 1 else words[index + 1]
+                replaced_words.append(self.fixer.automatic_fix(word, previous, next))
+            
+            words = replaced_words
+        # TODO - For correction text, keep track of 'fixes'
+        
+        return ("".join(words), repair_keys)
 
     def clear_keys(self, backwards = True) -> List[str]:
         ihm = self.manager.get_current_context().input_history_manager

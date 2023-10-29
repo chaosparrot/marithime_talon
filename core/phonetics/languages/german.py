@@ -12,7 +12,7 @@ def homophone_normalize(text: str, strict = False) -> str:
     text = text.replace("öh", "u").replace("ö", "oe")
 
     text = text.replace("ou", "au")
-    text = text.replace("ai", "ei").replace("ou", "au")
+    text = text.replace("ai", "ei").replace("ay", "ei").replace("ou", "au")
     text = text.replace("ß", "ss")
     text = text.replace("tz", "z")
     if text.startswith("ch"):

@@ -3,7 +3,6 @@ from .detection import detect_phonetic_fix_type, phonetic_normalize, levenshtein
 from pathlib import Path
 
 # TODO - REMEMBER PRIORITIZATION SOMEHOW?
-# TODO - REMEMBER CONTEXT
 class PhoneticSearch:    
 
     # The file content and callbacks, - Separated from talon bindings for easier testing

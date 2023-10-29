@@ -5,7 +5,7 @@ from .managed_websites import ManagedWebsites
 from .managed_directories import ManagedDirectories
 from .managed_homophones import ManagedHomophones
 from .managed_abbreviations import ManagedAbbreviations
-from .managed_additional_words import ManagedAdditionalWords
+from .managed_additional_words import ManagedVocabulary
 from .managed_words_to_replace import ManagedWordsToReplace
 from ..user_settings import SETTINGS_DIR
 
@@ -29,7 +29,7 @@ manager = ListManager(
         ManagedHomophones(),
         ManagedWordsToReplace(SETTINGS_DIR / "words_to_replace.csv"),
         ManagedAbbreviations("user.abbreviation", SETTINGS_DIR / "abbreviations.csv"),
-        ManagedAdditionalWords("user.vocabulary", SETTINGS_DIR / "additional_words.csv"),
+        ManagedVocabulary("user.vocabulary", SETTINGS_DIR / "additional_words.csv"),
     ]
 )
 

@@ -19,7 +19,7 @@ class InputFixer:
     done_fixes: Dict[str, List[InputFix]] = {}
     known_fixes: Dict[str, List[InputFix]] = {}
 
-    def __init__(self, language: str = "en", engine: str = "", path_prefix: str = str(Path(SETTINGS_DIR))):
+    def __init__(self, language: str = "en", engine: str = "", path_prefix: str = str(Path(SETTINGS_DIR) / "cache")):
         self.language = language
         self.engine = engine
         self.path_prefix = path_prefix
@@ -42,7 +42,7 @@ class InputFixer:
                     writer.writerow([field.name for field in fields(InputFix) if field.name != "key"])
 
             # Read the fixes from the known CSV file
-            with open(fix_file, 'r') as fix_file:
+            with open(fix_file_path, 'r') as fix_file:
                 file = csv.DictReader(fix_file, delimiter=";", quoting=csv.QUOTE_ALL, lineterminator="\n")
                 for row in file:
                     if "from_text" in row:
@@ -264,4 +264,4 @@ class InputFixer:
         return amount >= context_threshold
     
     def get_current_fix_file_path(self) -> Path:
-        return self.path_prefix / "context_" + self.language + "_" + self.engine + ".csv"
+        return self.path_prefix + os.sep + "context_" + self.language + "_" + self.engine + ".csv"

@@ -1,4 +1,4 @@
-_from talon import Module, Context, actions
+from talon import Module, Context, actions
 from typing import Union
 import re
 from .snippet_types import Snippet

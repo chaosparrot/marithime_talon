@@ -274,6 +274,16 @@ class InputMutator:
 mutator = InputMutator()
 ui.register("win_focus", mutator.focus_changed)
 ui.register("win_close", mutator.window_closed)
+def update_engine(language: str, engine: str):
+    if language == "":
+        language = settings.get("speech.language", "en")
+
+    language = language.split("_")[0]
+    engine = settings.get("speech.engine") if engine == "" else engine
+    mutator.fixer.load_fixes(language, engine)
+settings.register("speech.language", lambda language: update_engine(language, ""))
+settings.register("speech.engine", lambda engine: update_engine("", engine))
+update_engine("", "")
 
 @mod.action_class
 class Actions:

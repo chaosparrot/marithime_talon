@@ -9,6 +9,8 @@ from talon import resource
 #   community/knausj folder.
 SETTINGS_DIR = Path(__file__).parents[1] / "settings"
 SETTINGS_DIR.mkdir(exist_ok=True)
+SETTINGS_CACHE_DIR = SETTINGS_DIR / "cache"
+SETTINGS_CACHE_DIR.mkdir(exist_ok=True)
 
 CallbackT = Callable[[Dict[str, str]], None]
 DecoratorT = Callable[[CallbackT], CallbackT]

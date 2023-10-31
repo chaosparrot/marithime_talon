@@ -41,6 +41,8 @@ class InputMatcher:
 
             if current_index[0] != -1 and current_index[1] != -1:
                 earliest_index_for_look_behind = max(0, current_index[0] - len(phrases))
+                index_offset = 1 if current_index[0] - len(phrases) > 0 else 0
+                #print( current_index[0], len(phrases), earliest_index_for_look_behind)
                 events_behind = input_history.input_history[earliest_index_for_look_behind:current_index[0] + 1]
 
                 # We consider punctuations as statements that the user cannot match with
@@ -53,20 +55,22 @@ class InputMatcher:
 
                 if len(events_from_last_punctuation) > 0:
                     matches = self.find_matches_by_phrases(events_from_last_punctuation, phrases, 1, 'most_direct_matches')
+                    starting_offset = index_offset + max(0, current_index[0] - len(events_from_last_punctuation))
 
                     # Get the match with the most matches, closest to the end
                     # Make sure we adhere to 'reasonable' self repair of about 5 words back max
                     for best_match in matches:
 
                         # Make sure we normalize the index to our best knowledge
-                        index_offset = earliest_index_for_look_behind
-                        best_match.starts += index_offset
-                        best_match.indices = [index_offset + index for index in best_match.indices]
+                        best_match.starts += starting_offset
+                        best_match.indices = [index + starting_offset for index in best_match.indices]
 
-                        #print( best_match )
+                        #print(best_match, starting_offset, index_offset)
 
                         # When the final index does not align with the current index, it won't be a self repair replacement
-                        if best_match.indices[-1] != current_index[0]:
+                        #last_index = current_index[0] if current_index[1] <= 0 else current_index[0] - 1
+                        #print( best_match, best_match.indices[-1], current_index)
+                        if best_match.indices[-1] < current_index[0]:
                             #print( "NOT CONNECTED TO END")
                             continue
                             
@@ -82,6 +86,8 @@ class InputMatcher:
 
                         else:
                             return best_match
+                    #if len(matches) == 0:
+                    #    print( "NO MATCHES FOUND!")
         
         return None
     

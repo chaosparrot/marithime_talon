@@ -176,9 +176,11 @@ class PhoneticSearch:
 
                 # Compare homophone score to phonetics score
                 homophone_levenshtein = levenshtein(homophone_a, homophone_b)
-                homophone_dist = 0
+                homophone_score = 0
                 if homophone_levenshtein < len(word_a):
-                    homophone_dist = (homophone_levenshtein / len(word_a))
+                    homophone_score = (homophone_levenshtein / len(word_a))
+                elif homophone_levenshtein < len(word_b):
+                    homophone_score = (homophone_levenshtein / len(word_b))
 
                 levenshtein_dist = levenshtein(phonetic_a, phonetic_b)
                 phonetics_score = 0
@@ -189,7 +191,7 @@ class PhoneticSearch:
                 elif levenshtein_dist < len(word_b):
                     phonetics_score =  1 - (levenshtein_dist / len(word_b))
 
-                if homophone_dist > 0 and homophone_dist < phonetics_score:
-                    return homophone_dist
+                if homophone_score > 0 and homophone_score < phonetics_score:
+                    return ( homophone_score + phonetics_score ) / 2
                 else:
                     return phonetics_score

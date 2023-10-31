@@ -71,3 +71,6 @@ print( "        Should result in self repair", ihm.detect_self_repair(["formulat
 print( "    Inserting 'do fixes all the time' after 'want to'")
 ihm = get_filled_ihm_with_examples(["want", "to"])
 print( "        Should not result in self repair", ihm.detect_self_repair(["do", "fixes", "all", "the", "time"]) == False)
+ihm = get_filled_ihm_with_examples(["when", "we", "make", "mistakes,", "we", "tend", "to", "repeat", "ourselves"])
+print( "    Inserting 'we tend to repeat the words' after 'when we make mistakes, we tend to repeat ourselves'")
+print( "        Should result in self repair", ihm.detect_self_repair(["we", "tend", "to", "repeat", "the", "words"]) == True)

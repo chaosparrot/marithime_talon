@@ -9,7 +9,7 @@ input_history.insert_input_events(input_history.text_to_input_history_events("ne
 input_history.insert_input_events(input_history.text_to_input_history_events("word.", "word"))
 
 print( "Navigating between input events on a single line")
-print( "    Navigating to the end of the first event...") 
+print( "    Navigating to the end of the first event...")
 keys = input_history.go_phrase("insert")
 print( "        Expect history length to stay the same (4)", len(input_history.input_history) == 4)
 cursor_index = input_history.cursor_position_tracker.get_cursor_index()
@@ -18,7 +18,7 @@ print( "        Expect cursor character index to be the end of the first word", 
 print( "    Navigating to the start of the first event...") 
 keys = input_history.go_phrase("insert", "start") 
 print( "        Expect left to be pressed 7 times", keys[0] == "left:7")
-cursor_index = input_history.cursor_position_tracker.get_cursor_index() 
+cursor_index = input_history.cursor_position_tracker.get_cursor_index()
 print( "        Expect cursor line index to be 0", cursor_index[0] == 0)
 print( "        Expect cursor character index to be the start of the first word", cursor_index[1] == 18)
 print( "    Navigating to the start of the third event...")

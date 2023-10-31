@@ -79,5 +79,5 @@ print( "        Should move to the left until we have reached the word 'new'", k
 print( "        Should move to the right until we have reached the end of the word 'new'", keys[2] == "right:4")
 print( "    Repeating the search for 'new' again...")
 keys = input_history.select_phrase("new")
-print( "        Should move to the left until we have reached the second occurrence", keys[1] == "left:29", keys)  
+print( "        Should move to the left until we have reached the second occurrence", keys[1] == "left:29", keys)
 print( "        Should move to the right until we have reached the end of the word 'new'", keys[3] == "right:4")

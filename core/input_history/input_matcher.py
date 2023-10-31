@@ -26,7 +26,7 @@ class InputMatcher:
         score = 0
         for event in input_history.input_history:
             score = self.phonetic_search.phonetic_similarity_score(phrase, event.phrase)
-            if score >= 1:
+            if score >= 0.8:
                 return True
 
         return False

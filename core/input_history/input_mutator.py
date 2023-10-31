@@ -1,8 +1,9 @@
-from talon import Module, Context, actions, settings, ui
+from talon import Module, Context, actions, settings, ui, speech_system
 from .input_context_manager import InputContextManager
 from .input_fixer import InputFixer
 from typing import List, Union
 import json
+import re
 
 mod = Module()
 
@@ -171,7 +172,6 @@ class InputMutator:
                                 insert = " ".join(insert.split()[index:])
                                 break
                     
-                    print( self_repair_match )
                     if replacement_index >= 0:
                         start_index = self_repair_match.indices[replacement_index]
                         end_index = self_repair_match.indices[-1]
@@ -291,16 +291,21 @@ class InputMutator:
 mutator = InputMutator()
 ui.register("win_focus", mutator.focus_changed)
 ui.register("win_close", mutator.window_closed)
-def update_engine(language: str, engine: str):
+def update_language(language: str):
     if language == "":
         language = settings.get("speech.language", "en")
-
     language = language.split("_")[0]
-    engine = settings.get("speech.engine") if engine == "" else engine
-    mutator.fixer.load_fixes(language, engine)
-settings.register("speech.language", lambda language: update_engine(language, ""))
-settings.register("speech.engine", lambda engine: update_engine("", engine))
-update_engine("", "")
+    engine_description = settings.get("speech.engine")
+    try:
+        if speech_system.engine.engine:
+            engine_description = re.sub(r"[^\w\d]", '', str(speech_system.engine.engine)).lower().strip()
+    except:
+        pass
+    mutator.fixer.load_fixes(language, engine_description)
+
+settings.register("speech.language", lambda language: update_language(language))
+settings.register("speech.engine", lambda _: update_language(""))
+update_language("")
 
 @mod.action_class
 class Actions:

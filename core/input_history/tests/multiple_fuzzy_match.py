@@ -32,4 +32,3 @@ print( "        Should go left until the word 'to' is found", keys[0] == "left:1
 keys = input_history.go_phrase("wil", 'end')
 print( "    Searching for 'wil', which isn't available directly...") 
 print( "        Should go left until the word 'will' is found", keys[0] == "left:24" )
-  

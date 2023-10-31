@@ -118,4 +118,4 @@ print( "        Should have the text 'insert ' selected", input_history.cursor_p
 print( "        Should deselect the previous selection", keys[0] in ["left", "right"])
 print( "        Should go right 3 times to go to the start of 'insert'", keys[1] == "right:3")
 print( "        Should then hold down shift", keys[2] == "shift:down")
-print( "        And then go right until 'insert ' is selected", keys[3] == "right:7") 
+print( "        And then go right until 'insert ' is selected", keys[3] == "right:7")

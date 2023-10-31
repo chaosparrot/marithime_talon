@@ -44,4 +44,4 @@ print( "        Should have the text 'Insert a new sentence.' selected", input_h
 print( "        Should go left once to go to the start of 'a '", keys[0] == "left")
 print( "        Should go left 7 times to go to the start of 'Insert '", keys[1] == "left:7")
 print( "        Should then hold down shift", keys[2] == "shift:down")
-print( "        Should then go right 22 times to go to the end of 'sentence'", keys[3] == "right:22" ) 
+print( "        Should then go right 22 times to go to the end of 'sentence'", keys[3] == "right:22" )

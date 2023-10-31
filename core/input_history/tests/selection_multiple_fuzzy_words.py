@@ -37,5 +37,4 @@ print( "    Starting from the current selection and searching for 'a nyou senten
 print( "        Should have the text 'a new sentence.' selected", input_history.cursor_position_tracker.get_selection_text() == 'a new sentence.')
 print( "        Should go left once to go to the start of 'a '", keys[0] == "left")
 print( "        Should then hold down shift", keys[1] == "shift:down")
-print( "        Should then go right 15 times to go to the end of 'sentence'", keys[2] == "right:15" ) 
- 
+print( "        Should then go right 15 times to go to the end of 'sentence'", keys[2] == "right:15" )

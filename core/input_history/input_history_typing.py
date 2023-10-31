@@ -20,6 +20,7 @@ class InputContext:
 class InputEventMatch:
     starts: int
     indices: List[int]
+    comparisons: List[List[str]]
     score: float
     scores: List[float]
     distance: float = 0.0

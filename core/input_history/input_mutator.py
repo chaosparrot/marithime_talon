@@ -125,6 +125,8 @@ class InputMutator:
 
         # Allow the user to do self repair in speech
         correction_insertion = self.is_selecting()
+        previous_selection = "" if not correction_insertion else ihm.cursor_position_tracker.get_selection_text()
+        current_insertion = ""
         if enable_self_repair:
             
             # Remove stutters / repeats in the same phrase
@@ -177,6 +179,8 @@ class InputMutator:
                         input_history = ihm.input_history
                         if start_index < len(input_history) and end_index < len(input_history):
                             repair_keys.extend( ihm.select_event_range(input_history[start_index], input_history[end_index]) )
+                            previous_selection = ihm.cursor_position_tracker.get_selection_text()
+                            current_insertion = " ".join(insert.split()[:end_index - start_index])
 
                             repair_keys.append("backspace")
                             self.manager.apply_key("backspace")
@@ -208,6 +212,7 @@ class InputMutator:
             words = formatter.words_to_format(insert.split(), previous_text, next_text)
         
         # Do automatic fixing for non-correction text
+        before_auto_correction = "".join(words)
         if not correction_insertion:
             replaced_words = []
             previous_word = previous_text.split(" ")[-1]
@@ -218,7 +223,19 @@ class InputMutator:
                 replaced_words.append(self.fixer.automatic_fix(word, previous, next))
             
             words = replaced_words
-        # TODO - For correction text, keep track of 'fixes'
+
+        # If there was a fix, keep track of it here
+        if previous_selection:
+            if not current_insertion:
+                current_insertion = "".join(words)
+
+                # Do not track automatic fixes - Still need to find a proper way to do this if we want to keep one of them
+                if current_insertion == before_auto_correction:
+                    self.fixer.track_fix(previous_selection, current_insertion, previous_text, next_text)
+
+                # Track self repair corrections
+            else:
+                self.fixer.track_fix(previous_selection, current_insertion, previous_text, next_text)
         
         return ("".join(words), repair_keys)
 
@@ -471,4 +488,9 @@ class Actions:
             })
         actions.insert(json.dumps(events))
         actions.key("enter")
+        actions.key("enter")
+
+        actions.insert(json.dumps(list(mutator.fixer.done_fixes.keys())))
+        actions.key("enter")
+
         mutator.enable_tracking("DUMP")

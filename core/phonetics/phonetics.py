@@ -2,7 +2,6 @@ from typing import List, Callable
 from .detection import detect_phonetic_fix_type, phonetic_normalize, levenshtein
 from pathlib import Path
 
-# TODO - REMEMBER PRIORITIZATION SOMEHOW?
 class PhoneticSearch:    
 
     # The file content and callbacks, - Separated from talon bindings for easier testing
@@ -175,12 +174,22 @@ class PhoneticSearch:
                 phonetic_a = phonetic_normalize(word_a, False, self.language)
                 phonetic_b = phonetic_normalize(word_b, False, self.language)
 
+                # Compare homophone score to phonetics score
+                homophone_levenshtein = levenshtein(homophone_a, homophone_b)
+                homophone_dist = 0
+                if homophone_levenshtein < len(word_a):
+                    homophone_dist = (homophone_levenshtein / len(word_a))
+
                 levenshtein_dist = levenshtein(phonetic_a, phonetic_b)
+                phonetics_score = 0
                 if levenshtein_dist == 0:
-                    return 1
+                    phonetics_score = 1
                 elif levenshtein_dist < len(word_a):
-                    return 1 - (levenshtein_dist / len(word_a))
+                    phonetics_score = 1 - (levenshtein_dist / len(word_a))
                 elif levenshtein_dist < len(word_b):
-                    return 1 - (levenshtein_dist / len(word_b))                    
+                    phonetics_score =  1 - (levenshtein_dist / len(word_b))
+
+                if homophone_dist > 0 and homophone_dist < phonetics_score:
+                    return homophone_dist
                 else:
-                    return 0
+                    return phonetics_score

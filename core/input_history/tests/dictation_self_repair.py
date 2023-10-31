@@ -15,6 +15,12 @@ def get_filled_ihm():
     input_history.insert_input_events(input_history.text_to_input_history_events("paragraph", "paragraph"))
     return input_history
 
+def get_filled_ihm_with_examples(examples):
+    input_history = InputHistoryManager()
+    for index, example in enumerate(examples):
+        input_history.insert_input_events(input_history.text_to_input_history_events(example + " " if index < len(examples) - 1 else example, example))
+    return input_history
+
 input_history = get_filled_ihm()
 print( "With a filled input history, testing self repair in dictation")
 print( "    Repetition")
@@ -45,3 +51,23 @@ print( "           Should result in a detected self repair", input_history.detec
 print( "    Insertion and appending")
 print( "        Inserting the words 'a new word paragraph insert'... ")
 print( "           Should result in a detected self repair", input_history.detect_self_repair(["a", "new", "word", "paragraph", "insert"]) == True )
+
+print( "With a input history filled with examples of wrong self repair")
+print( "    Inserting 'forget what we want to say' after 'when we'")
+ihm = get_filled_ihm_with_examples(["when", "we"])
+print( "        Should not result in self repair", ihm.detect_self_repair(["forget", "what", "we", "want", "to", "say"]) == False)
+print( "    Inserting 'that would give us' after 'that is a fact'")
+ihm = get_filled_ihm_with_examples(["that", "is", "a", "fact"])
+print( "        Should not result in self repair", ihm.detect_self_repair(["that", "would", "give", "us"]) == False)
+print( "    Inserting 'is it a' after 'is it a problem'")
+ihm = get_filled_ihm_with_examples(["is", "it", "a", "problem"])
+print( "        Should not result in self repair", ihm.detect_self_repair(["is", "it", "a"]) == False)
+print( "    Inserting 'this is the test' after 'this is a test'")
+ihm = get_filled_ihm_with_examples(["this", "is", "a", "test"])
+print( "        Should result in self repair", ihm.detect_self_repair(["this", "is", "the", "test"]) == True)
+print( "    Inserting 'formulate a paragraph' after 'formulate a sentence'")
+ihm = get_filled_ihm_with_examples(["formulate", "a", "sentence"])
+print( "        Should result in self repair", ihm.detect_self_repair(["formulate", "a", "paragraph"]) == True)
+print( "    Inserting 'do fixes all the time' after 'want to'")
+ihm = get_filled_ihm_with_examples(["want", "to"])
+print( "        Should not result in self repair", ihm.detect_self_repair(["do", "fixes", "all", "the", "time"]) == False)

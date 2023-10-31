@@ -6,14 +6,17 @@ import os
 import csv
 from pathlib import Path
 from dataclasses import fields
+from ..phonetics.actions import PhoneticSearch, phonetic_search
+from talon import actions
 
 # Thresholds when a fix should be done automatically
-CONTEXT_THRESHOLD_MOST = 2
-CONTEXT_THRESHOLD_SINGLE = 4
+CONTEXT_THRESHOLD_MOST = 1
+CONTEXT_THRESHOLD_SINGLE = 3
 CONTEXT_THRESHOLD_NONE = 6
 
 # Class to automatically fix words depending on the context and previous fixes
 class InputFixer:
+    phonetic_search: PhoneticSearch
     path_prefix: str = ""
     language: str = "en"
     done_fixes: Dict[str, List[InputFix]] = {}
@@ -25,6 +28,7 @@ class InputFixer:
         self.path_prefix = path_prefix
         self.done_fixes = {}
         self.known_fixes = {}
+        self.phonetic_search = phonetic_search
         self.load_fixes(language, engine)
 
     def load_fixes(self, language: str, engine: str):
@@ -46,10 +50,10 @@ class InputFixer:
                 file = csv.DictReader(fix_file, delimiter=";", quoting=csv.QUOTE_ALL, lineterminator="\n")
                 for row in file:
                     if "from_text" in row:
-                        if row["from_text"] not in self.known_fixes:
+                        if row["from_text"].lower() not in self.known_fixes:
                             self.known_fixes[row["from_text"]] = []
                         known_fix = InputFix(self.get_key(row["from_text"], row["to_text"]), row["from_text"], row["to_text"], row["amount"], row["previous"], row["next"])
-                        self.known_fixes[row["from_text"]].append(known_fix)
+                        self.known_fixes[row["from_text"].lower()].append(known_fix)
 
     def automatic_fix(self, text: str, previous: str, next: str) -> str:
         fix = self.find_fix(text, previous, next)
@@ -195,6 +199,7 @@ class InputFixer:
         return most_likey_fix
 
     def flush_done_fixes(self):
+        actions.user.hud_add_log("success", "Flushing fixes!")
         new_keys = []
 
         for new_fix_list in self.done_fixes.values():
@@ -240,9 +245,9 @@ class InputFixer:
             for fix_list in self.known_fixes.values():
                 for fix in fix_list:
                     row = {}
-                    for field in field(InputFix):
-                        if field.name != "key":
-                            row[field.name] = getattr(fix, field.name)
+                    for f in fields(InputFix):
+                        if f.name != "key":
+                            row[f.name] = getattr(fix, f.name)
                     rows.append(row)
 
             with open(self.get_current_fix_file_path(), 'w') as output_file:
@@ -252,12 +257,44 @@ class InputFixer:
 
     def get_key(self, from_text: str, to_text: str) -> str:
         return from_text.lower() + "-->" + to_text.lower()
+    
+    def track_fix(self, from_text: str, to_text: str, previous: str, next: str) -> bool:
+        previous_word = "" if previous == "" else previous.split()[-1]
+        next_word = "" if next == "" else next.split()[0]
+
+        # Can only do direct replacements right now, need to find out a way to do two words -> single word replacements
+        # Like 'et cetera' -> 'etc' and 'attest' -> 'a test'
+        from_words = from_text.split()
+        to_words = to_text.split()
+        to_words_index = 0
+        for index, from_word in enumerate(from_words):
+            if to_words_index >= len(to_words):
+                break
+            else:
+                # Single word replacements
+                to_word = to_words[to_words_index]
+                
+                # Only flush fixes which include anything other than raw punctuation
+                if re.sub(r"[^\w\s]", '', from_word) != re.sub(r"[^\w\s]", '', to_word):
+                    similarity_score = self.phonetic_search.phonetic_similarity_score(from_word, to_word)
+
+                    # Automatically find and persist homophones
+                    if (similarity_score >= 1 and similarity_score <= 2) and to_word.lower() not in self.phonetic_search.find_homophones(from_word):
+                        self.phonetic_search.add_homophone(from_word, to_word)
+
+                    # Check if the similarity score is above the fix threshold
+                    if similarity_score < 3 and similarity_score > min(0.6, 1 - (1 / len(to_word))):
+                        previous_word = previous_word if to_words_index == 0 else to_words[to_words_index - 1]
+                        next_word = next_word if to_words_index + 1 >= len(to_words) else to_words[to_words_index + 1]
+                        self.add_fix(from_word, to_word, previous_word, next_word)
+                        actions.user.hud_add_log("warning", "TRACKING FIX: " + from_word + " -> " + to_word)
+            to_words_index += 1
 
     def can_activate_fix(self, fix: InputFix, amount = None) -> bool:
         context_threshold = CONTEXT_THRESHOLD_NONE
-        if fix.from_text != "" and fix.to_text != "":
+        if fix.previous != "" and fix.next != "":
             context_threshold = CONTEXT_THRESHOLD_MOST
-        elif fix.from_text != "" or fix.to_text != "":
+        elif fix.previous != "" or fix.next != "":
             context_threshold = CONTEXT_THRESHOLD_SINGLE
         
         amount = amount if amount is not None else fix.amount

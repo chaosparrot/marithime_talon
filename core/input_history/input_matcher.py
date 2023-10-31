@@ -34,7 +34,6 @@ class InputMatcher:
     def find_self_repair_match(self, input_history, phrases: List[str]) -> InputEventMatch:
         # Do not allow punctuation to activate self repair
         phrases = [phrase for phrase in phrases if not phrase.replace(" ", "").endswith((",", ".", "!", "?"))]
-        print( "DETERMINING SELF REPAIR", phrases )
 
         # We don't do any self repair checking with selected text, only in free-flow text
         if not input_history.is_selecting():
@@ -47,7 +46,7 @@ class InputMatcher:
                 # We consider punctuations as statements that the user cannot match with
                 events_from_last_punctuation = []
                 for event in events_behind:
-                    if not event.text.replace("\n", ".").replace(" ", "").endswith((".", "!", "?")):
+                    if not event.text.replace("\n", ".").replace(" ", "").endswith((",", ".", "!", "?")):
                         events_from_last_punctuation.append(event)
                     else:
                         events_from_last_punctuation = []
@@ -64,18 +63,24 @@ class InputMatcher:
                         best_match.starts += index_offset
                         best_match.indices = [index_offset + index for index in best_match.indices]
 
+                        #print( best_match )
+
                         # When the final index does not align with the current index, it won't be a self repair replacement
-                        if best_match.indices[-1] < current_index[0] - 1:
-                            print( "NOT ALIGNED WITH END ", best_match, current_index)
+                        if best_match.indices[-1] != current_index[0]:
+                            #print( "NOT CONNECTED TO END")
+                            continue
+                            
+                        # When we have unmatched new words coming before the match, it won't be a self repair replacement
+                        elif best_match.starts - index_offset - best_match.indices[-1] > 0:
+                            #print( "NOT CONNECTED TO START OF PHRASE")
                             continue
 
                         # If the average score of all the matching parts is lower than 1, we can assume we haven't had a proper match for self repair                        
                         elif best_match.score / len(best_match.indices) + best_match.distance < 1:
-                            print( "INSUFFICIENT SCORE ", best_match, best_match.score / len(best_match.indices) + best_match.distance)                            
+                            #print( "BAD SCORE")
                             continue
 
                         else:
-                            print( "MATCH!", phrases, best_match)
                             return best_match
         
         return None
@@ -132,7 +137,7 @@ class InputMatcher:
                     continue
 
                 if score >= match_threshold:
-                    current_match = InputEventMatch(phrase_index, [index], score, [score])
+                    current_match = InputEventMatch(phrase_index, [index], [[phrase], [input_history_events[index].text]], score, [score])
 
                     # Keep a list of used indexes to know which to skip for future passes
                     used_indices[str(phrase_index)][index] = 1
@@ -140,6 +145,8 @@ class InputMatcher:
 
                     current_word_index = index
                     current_phrase_index = phrase_index
+                    missing_end_indices = []
+                    last_matching_index = -1
                     while(current_phrase_index + 1 < len(phrases)):                        
                         tokens_left = len(phrases) - current_phrase_index - 1
                         current_word_index += 1
@@ -153,16 +160,20 @@ class InputMatcher:
                             
                         next_index = self.match_next_in_phrases(matrix, current_word_index, phrases, current_phrase_index, min_threshold_to_meet_average)
                         if next_index[0] != -1:
+                            last_matching_index = next_index[0]
+                            current_match.comparisons[0].append(phrases[current_phrase_index - missed_phrase_length])
+                            current_match.comparisons[1].append(input_history_events[next_index[0]].phrase)
                             current_match.distance += next_index[0] - current_word_index
 
                             # Add the score of the missed phrases in between the matches
                             while missed_phrase_length > 0:
-
                                 # Make sure we only count item scores in between words rather than skipped words entirely
                                 if next_index[0] - missed_phrase_length > current_match.indices[-1]:
                                     current_match.distance -= 1
                                     current_match.indices.append(next_index[0] - missed_phrase_length)
                                     added_score = matrix[phrases[current_phrase_index - missed_phrase_length]][next_index[0] - missed_phrase_length]
+                                    current_match.comparisons[0].append(phrases[current_phrase_index - missed_phrase_length])
+                                    current_match.comparisons[1].append(input_history_events[next_index[0]].phrase)
                                     current_match.score += added_score
                                     current_match.scores.append( added_score )
 
@@ -176,27 +187,48 @@ class InputMatcher:
                             # Keep a list of used indexes to know which to skip for future passes
                             used_indices[str(current_phrase_index)][next_index[0]] = 1
                             missed_phrase_length = 0
+                            missing_end_indices = []
                         else:
                             missed_phrase_length += 1
+                            missing_end_indices.append(current_phrase_index)
 
                     # Do a simple look back without another search
                     if current_match != None and phrase_index > 0:
                         previous_indices = []
                         previous_score = 0
                         current_phrase_index = phrase_index
-                        prepend_index = 0
+                        prepend_index = -1
                         for previous_phrase_index in range(0 - phrase_index, 0):
                             if index + previous_phrase_index >= 0:
                                 previous_indices.append(index + previous_phrase_index)
                                 previous_phrase = phrases[phrase_index + previous_phrase_index]
                                 new_previous_score = matrix[previous_phrase][index + previous_phrase_index]
                                 previous_score += new_previous_score
+                                current_match.comparisons[0].insert(prepend_index, previous_phrase)
+                                current_match.comparisons[1].insert(prepend_index, input_history_events[index + previous_phrase_index].phrase)
                                 current_match.scores.insert(prepend_index, new_previous_score)
                             prepend_index += 1
                         
                         previous_indices.extend(current_match.indices)
                         current_match.indices = previous_indices
                         current_match.score += previous_score
+
+                    # Add score of missing matches at the end
+                    if current_match != None and last_matching_index > -1 and len(missing_end_indices) > 0:
+                        next_score = 0
+                        next_indices = []
+                        for next_index in missing_end_indices:
+                            last_matching_index += 1
+                            if last_matching_index < len(input_history_events):
+                                next_phrase = phrases[next_index]
+                                next_indices.append(next_index)
+                                new_next_score = matrix[next_phrase][last_matching_index]
+                                next_score += new_next_score
+                                current_match.scores.append(new_next_score)
+                                current_match.comparisons[0].append(next_phrase)
+                                current_match.comparisons[1].append(input_history_events[last_matching_index].phrase)
+                        current_match.indices.extend(next_indices)
+                        current_match.score += next_score
 
                 # Prune out matches below the average score threshold
                 # And with a distance between words that is larger than forgetting a word in between every word

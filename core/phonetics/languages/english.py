@@ -12,6 +12,7 @@ def homophone_normalize(text: str, strict = False) -> str:
     text = text.replace("lve", "lf").replace("ce", "se")
     text = text.replace("cks", "x").replace("ks", "x")
     text = text.replace("wh", "w")
+    text = text.replace("kn", "n")
     text = text.replace("wr", "r")
 
     # Very rough normalization ( unvoiced to voiced, slurred etc. )

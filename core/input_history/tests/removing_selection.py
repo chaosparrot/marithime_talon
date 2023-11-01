@@ -8,8 +8,8 @@ def test_remove_selecting_single_events(assertion):
     input_history.insert_input_events(input_history.text_to_input_history_events("Insert a second sentence. \n", "insert a second sentence"))
     input_history.insert_input_events(input_history.text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
     input_history.cursor_position_tracker.text_history = """Insert a new sentence. 
-    Insert a second """ + _CURSOR_MARKER + """sentence. 
-    Insert a third sentence."""
+Insert a second """ + _CURSOR_MARKER + """sentence. 
+Insert a third sentence."""
 
     assertion( "    Selecting a single character to the left and remove it...")
     input_history.apply_key("shift:down left shift:up backspace")
@@ -59,7 +59,8 @@ def test_remove_selecting_multiple_events_left(assertion):
     assertion( "    Selecting characters until the left side of the event is reached and removing it...")
     input_history.apply_key("shift:down left:7 shift:up backspace")
     assertion( "        Expect history length to be one less (3)", len(input_history.input_history) == 3)
-    cursor_index = input_history.cursor_position_tracker.get_cursor_index() 
+    assertion( input_history.input_history )
+    cursor_index = input_history.cursor_position_tracker.get_cursor_index()
     assertion( "        Expect cursor line index to be 0", cursor_index[0] == 0)
     assertion( "        Expect cursor character index to be the same as before (3)", cursor_index[1] == 3)
     assertion( "        Expect no selection detected", input_history.is_selecting() == False)
@@ -106,3 +107,4 @@ suite = create_test_suite("Removing selected text")
 suite.add_test(test_remove_selecting_single_events)
 suite.add_test(test_remove_selecting_multiple_events_left)
 suite.add_test(test_remove_selecting_multiple_events_right)
+suite.run()

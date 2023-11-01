@@ -4,7 +4,7 @@ from ..input_history_typing import InputHistoryEvent
 from ...utils.test import create_test_suite
 
 suite = create_test_suite("With a filled input history containing a full sentence")
-def fuzzy_matching_test(assertion):
+def test_fuzzy_matching(assertion):
     input_history = InputHistoryManager()
     input_history.insert_input_events(input_history.text_to_input_history_events("Insert ", "insert"))
     input_history.insert_input_events(input_history.text_to_input_history_events("an ", "an"))
@@ -19,5 +19,5 @@ def fuzzy_matching_test(assertion):
     assertion( "    Attempting to find 'apt' should not result in a match...", input_history.has_matching_phrase("apt") == False)
     assertion( "    Attempting to find 'dad' should result in a fuzzy match...", input_history.has_matching_phrase("dad") == True)
     assertion( "    Attempting to find 'and' should not result in a match...", input_history.has_matching_phrase("and") == False)
-suite.add_test(fuzzy_matching_test)
+suite.add_test(test_fuzzy_matching)
 

@@ -1,7 +1,7 @@
 from ..input_history import InputHistoryManager
 from ...utils.test import create_test_suite
 
-def exact_cursor_navigation(assertion):
+def test_single_line_exact_cursor_navigation(assertion):
     input_history = InputHistoryManager()
     input_history.insert_input_events(input_history.text_to_input_history_events("Insert ", "insert"))
     input_history.insert_input_events(input_history.text_to_input_history_events("a ", "a"))
@@ -38,6 +38,18 @@ def exact_cursor_navigation(assertion):
     assertion( "        Expect no keys to be pressed", keys is None)
     cursor_index = input_history.cursor_position_tracker.get_cursor_index() 
     assertion( "        Expect cursor index to be the same", cursor_index == (0, 0))
+
+def test_multi_line_exact_cursor_navigation(assertion):
+    input_history = InputHistoryManager()
+    input_history.insert_input_events(input_history.text_to_input_history_events("Insert ", "insert"))
+    input_history.insert_input_events(input_history.text_to_input_history_events("a ", "a"))
+    input_history.insert_input_events(input_history.text_to_input_history_events("new ", "new"))
+    input_history.insert_input_events(input_history.text_to_input_history_events("word.", "word"))
+    input_history.go_phrase("insert")
+    input_history.go_phrase("insert", "start") 
+    input_history.go_phrase("new", "start")
+    input_history.go_phrase("word", "end")
+    input_history.go_phrase("bee", "end")
 
     input_history.insert_input_events(input_history.text_to_input_history_events("\n", ""))
     input_history.insert_input_events(input_history.text_to_input_history_events("Append ", "append"))
@@ -85,4 +97,5 @@ def exact_cursor_navigation(assertion):
     assertion( "        Expect cursor index to be the same", cursor_index == (2, 5))
 
 suite = create_test_suite("Exact cursor navigation")
-suite.add_test(exact_cursor_navigation)
+suite.add_test(test_single_line_exact_cursor_navigation)
+suite.add_test(test_multi_line_exact_cursor_navigation)

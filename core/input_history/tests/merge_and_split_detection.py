@@ -43,7 +43,7 @@ def test_detect_merge_in_middle_of_events(assertion):
     assertion( "    Should merge with the first event if the event can be merged from both sides", first_merge_middle == (-1, 1, -1))
     current_merge_middle = get_filled_ihm().detect_merge_strategy(1, 1, InputHistoryEvent("ask", "ask", ""))
     assertion( "    Should merge with the current event if the event can be merged from both sides", current_merge_middle == (-1, 1, -1))
-    final_merge_middle = get_filled_ihm().detect_merge_strategy(4, 1, InputHistoryEvent("ask", "ask", ""))
+    final_merge_middle = get_filled_ihm().detect_merge_strategy(4, 2, InputHistoryEvent("ask", "ask", ""))
     assertion( "    Should merge with the final event if the event can be merged from both sides", final_merge_middle == (-1, 1, -1))
     first_split_left = get_filled_ihm().detect_merge_strategy(0, 1, InputHistoryEvent(" ask", "ask", ""))
     assertion( "    Should split left of the first event if the event can only be merged from the right", first_split_left == (-1, 2, -1))

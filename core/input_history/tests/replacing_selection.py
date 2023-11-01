@@ -2,15 +2,15 @@ from ..cursor_position_tracker import _CURSOR_MARKER
 from ..input_history import InputHistoryManager
 from ...utils.test import create_test_suite
 
-input_history = InputHistoryManager()
-input_history.insert_input_events(input_history.text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
-input_history.insert_input_events(input_history.text_to_input_history_events("Insert a second sentence. \n", "insert a second sentence"))
-input_history.insert_input_events(input_history.text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
-input_history.cursor_position_tracker.text_history = """Insert a new sentence. 
+def test_single_event_replacement(assertion):
+    input_history = InputHistoryManager()
+    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
+    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a second sentence. \n", "insert a second sentence"))
+    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
+    input_history.cursor_position_tracker.text_history = """Insert a new sentence. 
 Insert a second """ + _CURSOR_MARKER + """sentence. 
 Insert a third sentence."""
 
-def test_single_event_replacement(assertion):
     assertion( "    Selecting a single character to the left and replace it...")
     input_history.apply_key("shift:down left shift:up")
     input_history.insert_input_events(input_history.text_to_input_history_events("G"))
@@ -40,7 +40,7 @@ def test_single_event_replacement(assertion):
     assertion( "        Expect cursor character index to be the start of the next sentence (24)", cursor_index[1] == 24)
     assertion( "        Expect no selection detected", input_history.is_selecting() == False)
     assertion( "    Selecting left beyond the line break and replace the selection...")
-    input_history.apply_key("shift:down left:5 left:17 shift:up")
+    input_history.apply_key("shift:down left:5 left:18 shift:up")
     input_history.insert_input_events(input_history.text_to_input_history_events("But also... "))
     assertion( "        Expect history length to be the one less than before (3)", len(input_history.input_history) == 3)
     cursor_index = input_history.cursor_position_tracker.get_cursor_index()

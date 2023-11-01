@@ -332,11 +332,11 @@ class InputHistoryManager:
                     # Split event, remember the first event from the selection
                     elif event_index == start_index[0]:
                         text = text[:start_index[1]]
-                        if start_index[1] == len(event.text.replace('\n', '')):
+                        should_detect_merge = not re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").endswith(" ")
+                        if start_index[1] == len(event.text.replace('\n', '')) and not should_detect_merge:
                             events.append(event)
                         elif start_index[1] > 0:
                             merge_event = InputHistoryEvent(text, text_to_phrase(text), "", event.line_index)
-                            should_detect_merge = not re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").endswith(" ")
                     # Split event, attempt to merge the first event with the current event
                     elif event_index == end_index[0]:
                         text = text[end_index[1]:]
@@ -425,6 +425,7 @@ class InputHistoryManager:
         if self.is_selecting() and backspace_count > 0:
             if self.remove_selection():
                 backspace_count -= 1
+            self.last_action_type = "remove"
 
         if backspace_count <= 0:
             return

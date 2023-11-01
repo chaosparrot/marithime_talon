@@ -8,8 +8,8 @@ def test_selection_tracking(assertion):
     input_history.insert_input_events(input_history.text_to_input_history_events("Insert a second sentence. \n", "insert a second sentence"))
     input_history.insert_input_events(input_history.text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
     input_history.cursor_position_tracker.text_history = """Insert a new sentence. 
-    Insert a second """ + _CURSOR_MARKER + """sentence. 
-    Insert a third sentence."""
+Insert a second """ + _CURSOR_MARKER + """sentence. 
+Insert a third sentence."""
 
     assertion( "Selecting characters in the input history")
     assertion( "    Selecting a single character to the left...")

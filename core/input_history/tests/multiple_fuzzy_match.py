@@ -1,6 +1,5 @@
-from ..cursor_position_tracker import CursorPositionTracker, _CURSOR_MARKER
 from ..input_history import InputHistoryManager
-from ..input_history_typing import InputHistoryEvent
+from ...utils.test import create_test_suite
 
 def get_filled_ihm():
     ihm = InputHistoryManager()
@@ -21,14 +20,17 @@ def get_filled_ihm():
     ihm.insert_input_events(ihm.text_to_input_history_events("sentences.", "sentences"))
     return ihm
 
-input_history = get_filled_ihm()
-print( "Using a filled input history which contains homophones of certain words")
-print( "    Moving from the end of the word 'sentences' searching for 'to'...") 
-keys = input_history.go_phrase("to", 'start')
-print( "        Should go left until the word 'two' is found", keys[0] == "left:14" )
-print( "    Searching for 'to' again...") 
-keys = input_history.go_phrase("to", 'start')
-print( "        Should go left until the word 'to' is found", keys[0] == "left:16" )
-keys = input_history.go_phrase("wil", 'end')
-print( "    Searching for 'wil', which isn't available directly...") 
-print( "        Should go left until the word 'will' is found", keys[0] == "left:24" )
+def test_multiple_fuzzy_matching(assertion):
+    input_history = get_filled_ihm()
+    assertion( "    Moving from the end of the word 'sentences' searching for 'to'...") 
+    keys = input_history.go_phrase("to", 'start')
+    assertion( "        Should go left until the word 'two' is found", keys[0] == "left:14" )
+    assertion( "    Searching for 'to' again...") 
+    keys = input_history.go_phrase("to", 'start')
+    assertion( "        Should go left until the word 'to' is found", keys[0] == "left:16" )
+    keys = input_history.go_phrase("wil", 'end')
+    assertion( "    Searching for 'wil', which isn't available directly...") 
+    assertion( "        Should go left until the word 'will' is found", keys[0] == "left:24" )
+
+suite = create_test_suite("Using a filled input history which contains homophones of certain words")
+suite.add_test(test_multiple_fuzzy_matching)

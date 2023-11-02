@@ -1,5 +1,7 @@
+from .text_converter import TextConverter
+
 # Class that is used to transform the content of text to another text
-class IConverter:
+class IConverter(TextConverter):
 
     tokens = {
         "i've": "I've",
@@ -12,5 +14,5 @@ class IConverter:
     def match_text(self, text: str, previous: str = "", next = "") -> bool:
         return text in self.tokens
     
-    def convert(self, text: str) -> str:
+    def convert_text(self, text: str) -> str:
         return self.tokens[text]

@@ -28,9 +28,12 @@ class CapitalizationFormatter(SeparatorFormatter):
     # Transform words into the given format
     def words_to_format(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
         capitalized_words = []
-        is_first_word = previous == "" or (not previous.endswith(self.separator) or not previous[-1].isalnum())
+        is_first_word = previous == "" or not (previous.endswith(self.separator) or previous[-1].isalnum())
         if not is_first_word:
-            is_first_word = not self.matches_strategy(previous, self.first_word)
+            if not self.separator:
+                is_first_word = not (self.matches_strategy(previous, self.first_word) and previous[-1].isalnum())
+            else:
+                is_first_word = not self.matches_strategy(previous, self.first_word)
 
         first_strategy = self.first_word if is_first_word else self.after_first
 

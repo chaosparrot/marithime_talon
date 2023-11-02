@@ -1,5 +1,7 @@
+from .text_converter import TextConverter
+
 # Class that is used to transform the content of text to another text
-class DayConverter:
+class DayConverter(TextConverter):
 
     days = [
         "Monday",
@@ -21,5 +23,5 @@ class DayConverter:
     def match_text(self, text: str, previous: str = "", next = "") -> bool:
         return text.capitalize() in self.days
     
-    def convert(self, text: str) -> str:
+    def convert_text(self, text: str) -> str:
         return text.capitalize()

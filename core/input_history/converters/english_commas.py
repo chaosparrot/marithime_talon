@@ -1,4 +1,5 @@
 from typing import List
+from .text_converter import TextConverter
 
 def flatten(lists) -> List[str]:
     list_of_items = []
@@ -17,7 +18,7 @@ pronouns = ["i", "you", "he", "she", "they", "we"]
 articles = ["the", "a", "an", "this", "that", "these", "those"]
 
 # Class that is used to transform the content of text to another text
-class EnglishCommaPrependingConverter:
+class EnglishCommaPrependingConverter(TextConverter):
     conjunctions = ["however", "although", "therefore", "thus", "accordingly"]
 
     but_postfixes = []
@@ -53,10 +54,10 @@ class EnglishCommaPrependingConverter:
 
         return False
 
-    def convert(self, text: str) -> str:
+    def convert_text(self, text: str) -> str:
         return ", " + text
 
-class EnglishCommaAppendingConverter:
+class EnglishCommaAppendingConverter(TextConverter):
 
     def match_text(self, text: str, previous: str = "", next = "") -> bool:
         return self.comma_appending(text, previous, next)
@@ -80,5 +81,5 @@ class EnglishCommaAppendingConverter:
 
         return False
 
-    def convert(self, text: str) -> str:
+    def convert_text(self, text: str) -> str:
         return text + ","

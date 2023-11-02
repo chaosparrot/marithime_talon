@@ -1,5 +1,7 @@
+from .text_converter import TextConverter
+
 # Class that is used to transform the content of text to another text
-class MonthConverter:
+class MonthConverter(TextConverter):
 
     context_months = [
         "March",
@@ -26,5 +28,5 @@ class MonthConverter:
             return previous.lower().replace(" ", "").endswith(("on", "at", "this", "next", "of")) or next.lower().replace(" ", "").startswith(("1", "2", "3", "4", "5", "6", "7", "8", "9"))
         return False
     
-    def convert(self, text: str) -> str:
+    def convert_text(self, text: str) -> str:
         return text.capitalize()

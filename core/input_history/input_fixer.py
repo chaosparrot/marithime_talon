@@ -67,20 +67,20 @@ class InputFixer:
             if index in used_indices:
                 continue
 
-            previous_word = "" if previous == "" else new_words[-1] if len(new_words) > 0 else previous.strip().split()[-1]
+            previous_word = new_words[-1] if len(new_words) > 0 else previous.strip().split()[-1] if previous != "" else ""
             next_combine_word = words[index + 1] if index + 1 < len(words) else None
-            next_word = "" if next == "" else next_combine_word if next_combine_word is not None else next.strip().split()[0]
+            next_word = next_combine_word if next_combine_word is not None else next.strip().split()[0] if next != "" else ""
             follow_up_word = words[index + 2] if index + 2 < len(words) else ""
 
             # Use the fix but do not keep track of the automatic fixes as it would give too much weight over time
-            two_words_fix = None if next_combine_word is None else self.find_find(word + " " + next_combine_word, previous_word, follow_up_word)
+            two_words_fix = None if next_combine_word is None else self.find_fix(word + " " + next_combine_word, previous_word, follow_up_word)
             if two_words_fix:
                 # Use the fix to replace two words into one word
                 new_words.extend(two_words_fix.to_text.split())
                 used_indices.append(index)
                 used_indices.append(index + 1)
             else:
-                # Use the fix to replace one word into one or more words                
+                # Use the fix to replace one word into one or more words
                 single_word_fix = self.find_fix(word, previous_word, next_word)
                 if single_word_fix:
                     new_words.extend(single_word_fix.to_text.split())

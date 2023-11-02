@@ -27,3 +27,4 @@ DICTATION_FORMATTERS = {
     'EN': DictationFormatter('english', englishLanguage),
     'NL': DictationFormatter('dutch', dutchLanguage)
 }
+

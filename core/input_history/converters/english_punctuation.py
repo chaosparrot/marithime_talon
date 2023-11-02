@@ -15,8 +15,9 @@ class PunctuationConverter(TextConverter):
     }
 
     # Some cases in which it is illegal to make a punctuation because they occupy words
-    unformatted_prefix_words = ["some", "a", "the", "this", "that"]
-    unformatted_postfix_words = ["of", "in", "this"]
+    unformatted_prefix_words_space = ["a", "the", "some", "this", "that", "no", "of", "my", "your", "his", "her", "our", "their", "its"]
+    unformatted_prefix_words = ["a", "the"]
+    unformatted_postfix_words = ["of", "in", "to"]
 
     def match_words(self, words: List[str], previous: str = "", next: str = "") -> bool:
         word_string = " ".join(words).lower()
@@ -39,7 +40,8 @@ class PunctuationConverter(TextConverter):
             next_word = words[index + 1] if index + 1 < len(words) else "" if next == "" else next.split()[0]
             
             # For stuff like 'a period' we do not want to convert period to '.'
-            if previous_word in self.unformatted_prefix_words or next_word in self.unformatted_postfix_words:
+            if ( word == "space" and (previous_word in self.unformatted_prefix_words_space or next_word in self.unformatted_postfix_words)) or \
+                ( word in self.punctuation and ( previous_word in self.unformatted_prefix_words or next_word in self.unformatted_postfix_words) ):
                 converted_words.extend(matching_token_words)
                 matching_token_words = []
 

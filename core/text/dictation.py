@@ -41,7 +41,6 @@ def spell(m) -> str:
 
 text_rule_parts = [
     "{user.vocabulary}",
-    "{user.key_punctuation}",
     "<user.abbreviation>",
     "<user.spell>",
     "<user.number_dd>",
@@ -49,15 +48,17 @@ text_rule_parts = [
     "<phrase>",
 ]
 
+text_rule_punctuation_parts = ["{user.key_punctuation}"]
+text_rule_punctuation_parts.extend(text_rule_parts)
 text_rule = f"({'|'.join(text_rule_parts)})+"
+text_rule_with_punctuation = f"({'|'.join(text_rule_punctuation_parts)})+"
 
-
-@mod.capture(rule=text_rule)
+@mod.capture(rule=text_rule_with_punctuation)
 def text(m) -> str:
     """Mixed words, numbers and punctuation, including user-defined vocabulary, abbreviations and spelling."""
     return format_phrase(m)
 
-@mod.capture(rule=text_rule.replace("{user.key_punctuation}", "{user.key_punctuation_code}"))
+@mod.capture(rule=text_rule_with_punctuation.replace("{user.key_punctuation}", "{user.key_punctuation_code}"))
 def text_code(m) -> str:
     """Same as <user.text>, but with fewer punctuations"""
     return format_phrase(m)
@@ -73,7 +74,7 @@ def prose(m) -> str:
     return text
 
 @mod.capture(
-    rule="({user.vocabulary} | {user.punctuation} | {user.prose_snippets} | <phrase> | <user.prose_number>)+"
+    rule="({user.vocabulary} | {user.prose_snippets} | <phrase> | <user.prose_number>)+"
 )
 def raw_prose(m) -> str:
     """Mixed words and punctuation, auto-spaced & capitalized, without quote straightening and commands (for use in dictation mode)."""

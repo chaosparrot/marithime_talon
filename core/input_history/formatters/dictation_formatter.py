@@ -1,6 +1,7 @@
 from typing import List
 from .text_formatter import TextFormatter
 from .languages.english import englishLanguage
+from .languages.dutch import dutchLanguage
 from .languages.language import Language
 
 class DictationFormatter(TextFormatter):
@@ -23,5 +24,6 @@ class DictationFormatter(TextFormatter):
         return self.language.determine_correction_keys(words, previous, next)
 
 DICTATION_FORMATTERS = {
-    'EN': DictationFormatter('english', englishLanguage)
+    'EN': DictationFormatter('english', englishLanguage),
+    'NL': DictationFormatter('dutch', dutchLanguage)
 }

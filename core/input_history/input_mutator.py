@@ -185,7 +185,7 @@ class InputMutator:
                             repair_keys.append("backspace")
                             self.manager.apply_key("backspace")
                             correction_insertion = True
-        
+
         # Determine formatter
         previous_text = ""
         next_text = ""
@@ -200,8 +200,13 @@ class InputMutator:
         else:
             formatter = self.manager.get_formatter()
 
-        # Format text 
+        # Do automatic fixing for non-correction text
         words = insert.split()
+        before_auto_correction = " ".join(words)
+        if not correction_insertion:
+            words = self.fixer.automatic_fix_list(words, previous_text, next_text)
+
+        # Format text 
         if formatter is not None:
             actions.user.hud_add_log("warning", ihm.cursor_position_tracker.text_history )
             formatter_repair_keys = formatter.determine_correction_keys(insert.split(), previous_text, next_text)
@@ -211,32 +216,19 @@ class InputMutator:
             repair_keys.extend(formatter_repair_keys)
             words = formatter.words_to_format(insert.split(), previous_text, next_text)
         
-        # Do automatic fixing for non-correction text
-        before_auto_correction = "".join(words)
-        if not correction_insertion:
-            replaced_words = []
-            previous_word = previous_text.split(" ")[-1]
-            next_word = next_text.split(" ")[-1]
-            for index, word in enumerate(words):
-                previous = previous_word if index == 0 else words[index - 1]
-                next = next_word if index == len(words) - 1 else words[index + 1]
-                replaced_words.append(self.fixer.automatic_fix(word, previous, next))
-            
-            words = replaced_words
-
         # If there was a fix, keep track of it here
-        if previous_selection:
-            if not current_insertion:
-                current_insertion = "".join(words)
+        #if previous_selection:
+        #    if not current_insertion:
+        #        current_insertion = "".join(words)
+        #
+        #        # Do not track automatic fixes - Still need to find a proper way to do this if we want to keep one of them
+        #        if current_insertion == before_auto_correction:
+        #            self.fixer.track_fix(previous_selection, current_insertion, previous_text, next_text)
+        #
+        #        # Track self repair corrections
+        #    else:
+        #        self.fixer.track_fix(previous_selection, current_insertion, previous_text, next_text)
 
-                # Do not track automatic fixes - Still need to find a proper way to do this if we want to keep one of them
-                if current_insertion == before_auto_correction:
-                    self.fixer.track_fix(previous_selection, current_insertion, previous_text, next_text)
-
-                # Track self repair corrections
-            else:
-                self.fixer.track_fix(previous_selection, current_insertion, previous_text, next_text)
-        
         return ("".join(words), repair_keys)
 
     def clear_keys(self, backwards = True) -> List[str]:

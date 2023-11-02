@@ -2,6 +2,7 @@ from ..phonetics.phonetics import PhoneticSearch
 from .input_history_typing import InputHistoryEvent, InputEventMatch
 import re
 from typing import List, Dict
+import math
 
 def normalize_text(text: str) -> str:
     return re.sub(r"[^\w\s]", ' ', text).replace("\n", " ")
@@ -65,11 +66,10 @@ class InputMatcher:
                         best_match.starts += starting_offset
                         best_match.indices = [index + starting_offset for index in best_match.indices]
 
-                        #print(best_match, starting_offset, index_offset)
+                        avg_score = best_match.score / (len(best_match.indices) + best_match.distance)
+                        standard_deviation = math.sqrt(sum(pow(score - avg_score, 2) for score in best_match.scores) / (len(best_match.indices) + best_match.distance))
 
                         # When the final index does not align with the current index, it won't be a self repair replacement
-                        #last_index = current_index[0] if current_index[1] <= 0 else current_index[0] - 1
-                        #print( best_match, best_match.indices[-1], current_index)
                         if best_match.indices[-1] < current_index[0]:
                             #print( "NOT CONNECTED TO END")
                             continue
@@ -79,13 +79,14 @@ class InputMatcher:
                             #print( "NOT CONNECTED TO START OF PHRASE")
                             continue
 
-                        # If the average score of all the matching parts is lower than 1, we can assume we haven't had a proper match for self repair                        
-                        elif best_match.score / len(best_match.indices) + best_match.distance < 1:
-                            #print( "BAD SCORE")
+                        # If the average score minus half the std is smaller than one, we do not have a match
+                        elif avg_score - ( standard_deviation / 2 ) < 1:
+                            #print( "BAD SCORE", best_match, avg_score - standard_deviation / 2 )
                             continue
 
                         else:
                             return best_match
+
                     #if len(matches) == 0:
                     #    print( "NO MATCHES FOUND!")
         

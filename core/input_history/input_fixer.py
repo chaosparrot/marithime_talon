@@ -55,6 +55,41 @@ class InputFixer:
                         known_fix = InputFix(self.get_key(row["from_text"], row["to_text"]), row["from_text"], row["to_text"], row["amount"], row["previous"], row["next"])
                         self.known_fixes[row["from_text"].lower()].append(known_fix)
 
+    # Find fixes for lists of words
+    # Can replace
+    # - One word into one word
+    # - Two words into a single word
+    # - One word into multiple words
+    def automatic_fix_list(self, words: List[str], previous: str, next: str) -> List[str]:
+        used_indices = []
+        new_words = []
+        for index, word in enumerate(words):
+            if index in used_indices:
+                continue
+
+            previous_word = "" if previous == "" else new_words[-1] if len(new_words) > 0 else previous.strip().split()[-1]
+            next_combine_word = words[index + 1] if index + 1 < len(words) else None
+            next_word = "" if next == "" else next_combine_word if next_combine_word is not None else next.strip().split()[0]
+            follow_up_word = words[index + 2] if index + 2 < len(words) else ""
+
+            # Use the fix but do not keep track of the automatic fixes as it would give too much weight over time
+            two_words_fix = None if next_combine_word is None else self.find_find(word + " " + next_combine_word, previous_word, follow_up_word)
+            if two_words_fix:
+                # Use the fix to replace two words into one word
+                new_words.extend(two_words_fix.to_text.split())
+                used_indices.append(index)
+                used_indices.append(index + 1)
+            else:
+                # Use the fix to replace one word into one or more words                
+                single_word_fix = self.find_fix(word, previous_word, next_word)
+                if single_word_fix:
+                    new_words.extend(single_word_fix.to_text.split())
+                # No known fixes - Keep the same
+                else:
+                    new_words.append(word)
+                used_indices.append(index)
+        return new_words
+
     def automatic_fix(self, text: str, previous: str, next: str) -> str:
         fix = self.find_fix(text, previous, next)
         if fix:

@@ -49,7 +49,7 @@ def test_detect_self_repair(assertion):
     assertion( "        Inserting the words 'a new word paragraph'... ")
     assertion( "           Should result in a detected self repair", input_history.detect_self_repair(["a", "new", "word", "paragraph"]) == True )
     assertion( "    Insertion and appending")
-    assertion( "        Inserting the words 'a new word paragraph insert'... ")
+    assertion( "        Inserting the words 'an old paragraph insert'... ")
     assertion( "           Should result in a detected self repair", input_history.detect_self_repair(["a", "new", "word", "paragraph", "insert"]) == True )
 
 def test_add_known_self_repair_examples(assertion):

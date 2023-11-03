@@ -173,25 +173,18 @@ class PhoneticSearch:
                 # Do fuzzy phonetic matching
                 phonetic_a = phonetic_normalize(word_a, False, self.language)
                 phonetic_b = phonetic_normalize(word_b, False, self.language)
+                phonetics_distance = levenshtein(phonetic_a, phonetic_b)
+                longest_phonetics_length = max(len(phonetic_a), len(phonetic_b))
+                                                   
+                homophone_distance = levenshtein(homophone_a, homophone_b)
+                longest_homophone_length = max(len(homophone_a), len(homophone_b))
 
-                # Compare homophone score to phonetics score
-                homophone_levenshtein = min(levenshtein(homophone_a, homophone_b), levenshtein(homophone_b, homophone_a))
-                homophone_score = 0
-                if homophone_levenshtein < len(word_a):
-                    homophone_score = (homophone_levenshtein / len(word_a))
-                elif homophone_levenshtein < len(word_b):
-                    homophone_score = (homophone_levenshtein / len(word_b))
-
-                levenshtein_dist = min(levenshtein(phonetic_a, phonetic_b), levenshtein(phonetic_b, phonetic_a))
                 phonetics_score = 0
-                if levenshtein_dist == 0:
-                    phonetics_score = 1
-                elif levenshtein_dist < len(word_a):
-                    phonetics_score = 1 - (levenshtein_dist / len(word_a))
-                elif levenshtein_dist < len(word_b):
-                    phonetics_score =  1 - (levenshtein_dist / len(word_b))
+                if phonetics_distance < longest_phonetics_length:
+                    phonetics_score = (longest_phonetics_length - phonetics_distance) / longest_phonetics_length
 
-                if homophone_score > 0 and homophone_score < phonetics_score:
-                    return ( homophone_score + phonetics_score ) / 2
-                else:
-                    return phonetics_score
+                homophone_score = 0
+                if homophone_distance < longest_homophone_length:
+                    homophone_score = (longest_homophone_length - homophone_distance ) / longest_homophone_length
+
+                return (phonetics_score + homophone_score ) / 2

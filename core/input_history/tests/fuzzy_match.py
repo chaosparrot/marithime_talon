@@ -1,6 +1,4 @@
-from ..cursor_position_tracker import CursorPositionTracker, _CURSOR_MARKER
 from ..input_history import InputHistoryManager
-from ..input_history_typing import InputHistoryEvent
 from ...utils.test import create_test_suite
 
 suite = create_test_suite("With a filled input history containing a full sentence")
@@ -18,6 +16,7 @@ def test_fuzzy_matching(assertion):
     assertion( "    Attempting to find 'add' should result in a fuzzy match...", input_history.has_matching_phrase("add") == True)
     assertion( "    Attempting to find 'apt' should not result in a match...", input_history.has_matching_phrase("apt") == False)
     assertion( "    Attempting to find 'dad' should result in a fuzzy match...", input_history.has_matching_phrase("dad") == True)
-    assertion( "    Attempting to find 'and' should not result in a match...", input_history.has_matching_phrase("and") == False)
-suite.add_test(test_fuzzy_matching)
+    assertion( "    Attempting to find 'and' should result in a match...", input_history.has_matching_phrase("and") == True)
+    assertion( "    Attempting to find 'end' should not result in a match...", input_history.has_matching_phrase("end") == False)
 
+suite.add_test(test_fuzzy_matching)

@@ -27,7 +27,7 @@ class InputMatcher:
         score = 0
         for event in input_history.input_history:
             score = self.phonetic_search.phonetic_similarity_score(phrase, event.phrase)
-            if score >= 0.8:
+            if score >= 0.6:
                 return True
 
         return False
@@ -43,7 +43,6 @@ class InputMatcher:
             if current_index[0] != -1 and current_index[1] != -1:
                 earliest_index_for_look_behind = max(0, current_index[0] - len(phrases))
                 index_offset = 1 if current_index[0] - len(phrases) > 0 else 0
-                #print( current_index[0], len(phrases), earliest_index_for_look_behind)
                 events_behind = input_history.input_history[earliest_index_for_look_behind:current_index[0] + 1]
 
                 # We consider punctuations as statements that the user cannot match with
@@ -71,24 +70,18 @@ class InputMatcher:
 
                         # When the final index does not align with the current index, it won't be a self repair replacement
                         if best_match.indices[-1] < current_index[0]:
-                            #print( "NOT CONNECTED TO END")
                             continue
                             
                         # When we have unmatched new words coming before the match, it won't be a self repair replacement
                         elif best_match.starts - index_offset - best_match.indices[-1] > 0:
-                            #print( "NOT CONNECTED TO START OF PHRASE")
                             continue
 
                         # If the average score minus half the std is smaller than one, we do not have a match
                         elif avg_score - ( standard_deviation / 2 ) < 1:
-                            #print( "BAD SCORE", best_match, avg_score - standard_deviation / 2 )
                             continue
 
                         else:
                             return best_match
-
-                    #if len(matches) == 0:
-                    #    print( "NO MATCHES FOUND!")
         
         return None
     
@@ -228,7 +221,7 @@ class InputMatcher:
                             last_matching_index += 1
                             if last_matching_index < len(input_history_events):
                                 next_phrase = phrases[next_index]
-                                next_indices.append(next_index)
+                                next_indices.append(last_matching_index)
                                 new_next_score = matrix[next_phrase][last_matching_index]
                                 next_score += new_next_score
                                 current_match.scores.append(new_next_score)
@@ -247,11 +240,11 @@ class InputMatcher:
                     current_match = None
 
         if strategy == 'highest_score':
-            matches = sorted(matches, key=lambda match: match.score, reverse=True)
+            matches = sorted(matches, key=lambda match: match.score - (match.distance / len(match.indices)), reverse=True)
 
         # Place the highest direct matches on top
         elif strategy == 'most_direct_matches':
-            matches = sorted(matches, key=lambda match: len(list(filter(lambda x: x >= 1, match.scores))), reverse=True)
+            matches = sorted(matches, key=lambda match: len(list(filter(lambda x: x >= 0.8, match.scores))) - (match.distance / len(match.indices)), reverse=True)
         return matches
     
     def match_next_in_phrases(self, matrix, matrix_index: int, phrases: List[str], phrase_index: int, match_threshold: float):

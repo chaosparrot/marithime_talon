@@ -69,13 +69,14 @@ class InputFixer:
             if index in used_indices:
                 continue
 
-            previous_word = new_words[-1] if len(new_words) > 0 else previous.strip().split()[-1] if previous != "" else ""
-            next_combine_word = words[index + 1] if index + 1 < len(words) else None
-            next_word = next_combine_word if next_combine_word is not None else next.strip().split()[0] if next != "" else ""
-            follow_up_word = words[index + 2] if index + 2 < len(words) else ""
+            previous_word = new_words[-1] if len(new_words) > 0 else re.sub(r"[^\w]", '', previous.strip().split()[-1]) if previous != "" else ""
+            next_combine_word = re.sub(r"[^\w]", '', words[index + 1]).lower() if index + 1 < len(words) else None
+            next_word = next_combine_word if next_combine_word is not None else re.sub(r"[^\w]", '', next.strip().split()[0]) if next != "" else ""
+            follow_up_word = re.sub(r"[^\w]", '', words[index + 2]).lower() if index + 2 < len(words) else ""
+            unformatted_word = re.sub(r"[^\w]", '', word).lower()
 
             # Use the fix but do not keep track of the automatic fixes as it would give too much weight over time
-            two_words_fix = None if next_combine_word is None else self.find_fix(word + " " + next_combine_word, previous_word, follow_up_word)
+            two_words_fix = None if next_combine_word is None else self.find_fix(unformatted_word + " " + next_combine_word, previous_word, follow_up_word)
             if two_words_fix:
                 # Use the fix to replace two words into one word
                 new_words.extend(two_words_fix.to_text.split())
@@ -142,8 +143,9 @@ class InputFixer:
 
     def find_fix(self, text: str, previous: str, next: str) -> InputFix:
         found_fix = None
-        if text in self.known_fixes:
-            known_fixes = self.known_fixes[text.lower()]
+        letters_only_text = re.sub(r"[^\w\s]", '', text).lower()
+        if letters_only_text in self.known_fixes:
+            known_fixes = self.known_fixes[letters_only_text]
 
             # The more context is available, the higher the weight of the fix
             context_fixes = []
@@ -342,6 +344,7 @@ class InputFixer:
                         no_format_two_words = no_format_from_word + " " + re.sub(r"[^\w]", '', from_words[index + 1]).lower()
                         two_to_one_similarity_score = self.phonetic_search.phonetic_similarity_score(no_format_two_words, to_word)
                     if to_words_index + 1 < len(to_words):
+                        two_to_words = to_word + " " + to_words[to_words_index + 1]
                         no_format_to_two_words = no_format_to_word + " " + re.sub(r"[^\w]", '', to_words[to_words_index + 1]).lower()
                         one_to_two_similarity_score = self.phonetic_search.phonetic_similarity_score(no_format_from_word, no_format_to_two_words)
 
@@ -379,7 +382,7 @@ class InputFixer:
                             if one_to_two_similarity_score >= min(0.5, 1 - (1 / len(no_format_to_two_words))):
                                 previous_word = first_previous_word if to_words_index == 0 else to_words[to_words_index - 1]
                                 next_word = first_next_word if to_words_index + 2 >= len(to_words) else to_words[to_words_index + 2]
-                                self.add_fix(no_format_from_word, no_format_to_two_words, previous_word, next_word)
+                                self.add_fix(no_format_from_word, two_to_words, previous_word, next_word)
                                 to_words_index += 1
                     to_words_index += 1
 

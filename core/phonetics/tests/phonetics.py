@@ -44,6 +44,15 @@ def test_updating_fixes(assertion):
     phonetic_search.update_fix('ad', 'blue')
     assertion("    After fixing a couple of words ( add -> at, ad -> at, add -> blue), should find only at as a similarity", phonetic_search.get_known_fixes("ad") == ['add', 'at'])
 
+def test_similarity_scores(assertion):
+    phonetic_search = PhoneticSearch()
+    phonetic_search.set_homophones(homophone_contents)
+    assertion("Phonetic scores")
+    assertion("    should be able to detect 'that's', and 'that' as a similar word", phonetic_search.phonetic_similarity_score("that", "thats") > 0.5)
+    assertion( phonetic_search.phonetic_similarity_score("that's", "that") )
+
 suite = create_test_suite("Phonetic similarity state")
 suite.add_test(test_detect_fixes)
 suite.add_test(test_updating_fixes)
+suite.add_test(test_similarity_scores)
+suite.run()

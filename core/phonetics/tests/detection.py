@@ -18,6 +18,7 @@ def test_phonetic_similarity_detection(assertion):
     assertion("    should match if we replace add with at", detect_phonetic_fix_type("add", "at") == "phonetic")
     assertion("    should match if we replace bear with pear", detect_phonetic_fix_type("bear", "pear") == "phonetic")
     assertion("    should match if we replace chase with pace", detect_phonetic_fix_type("chase", "pace") == "phonetic")
+    assertion("    should match if we replace that's with that", detect_phonetic_fix_type("that's", "that") == "phonetic")
 
 suite = create_test_suite("Phonetic detection")
 suite.add_test(test_homophone_detection)

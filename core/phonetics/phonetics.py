@@ -175,14 +175,14 @@ class PhoneticSearch:
                 phonetic_b = phonetic_normalize(word_b, False, self.language)
 
                 # Compare homophone score to phonetics score
-                homophone_levenshtein = levenshtein(homophone_a, homophone_b)
+                homophone_levenshtein = min(levenshtein(homophone_a, homophone_b), levenshtein(homophone_b, homophone_a))
                 homophone_score = 0
                 if homophone_levenshtein < len(word_a):
                     homophone_score = (homophone_levenshtein / len(word_a))
                 elif homophone_levenshtein < len(word_b):
                     homophone_score = (homophone_levenshtein / len(word_b))
 
-                levenshtein_dist = levenshtein(phonetic_a, phonetic_b)
+                levenshtein_dist = min(levenshtein(phonetic_a, phonetic_b), levenshtein(phonetic_b, phonetic_a))
                 phonetics_score = 0
                 if levenshtein_dist == 0:
                     phonetics_score = 1

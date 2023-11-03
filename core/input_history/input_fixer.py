@@ -21,14 +21,16 @@ class InputFixer:
     language: str = "en"
     done_fixes: Dict[str, List[InputFix]] = {}
     known_fixes: Dict[str, List[InputFix]] = {}
+    verbose: bool = False
 
-    def __init__(self, language: str = "en", engine: str = "", path_prefix: str = str(Path(SETTINGS_DIR) / "cache")):
+    def __init__(self, language: str = "en", engine: str = "", path_prefix: str = str(Path(SETTINGS_DIR) / "cache"), verbose = False):
         self.language = language
         self.engine = engine
         self.path_prefix = path_prefix
         self.done_fixes = {}
         self.known_fixes = {}
         self.phonetic_search = phonetic_search
+        self.verbose = verbose
         self.load_fixes(language, engine)
 
     def load_fixes(self, language: str, engine: str):
@@ -101,6 +103,8 @@ class InputFixer:
         
     def add_fix(self, from_text: str, to_text: str, previous: str, next: str, weight: int = 1):
         fix_key = self.get_key(from_text, to_text)
+        if self.verbose:
+            actions.user.hud_add_log("warning", "TRACKING FIX: " + from_text + " -> " + to_text)
 
         # Add fixes for every type of context
         if not fix_key in self.done_fixes:
@@ -173,7 +177,7 @@ class InputFixer:
         most_likey_fix = None
         if len(fixes) > 0:
             fix_list = []
-            for fix in fixes:                
+            for fix in fixes:
                 # Determine the amount of context for the found fix
                 fix_context_score = 0
                 if ( fix.previous == "" and fix.next == next ) or \
@@ -234,7 +238,8 @@ class InputFixer:
         return most_likey_fix
 
     def flush_done_fixes(self):
-        actions.user.hud_add_log("success", "Flushing fixes!")
+        if self.verbose:
+            actions.user.hud_add_log("success", "Flushing fixes!")
         new_keys = []
 
         for new_fix_list in self.done_fixes.values():
@@ -292,38 +297,91 @@ class InputFixer:
 
     def get_key(self, from_text: str, to_text: str) -> str:
         return from_text.lower() + "-->" + to_text.lower()
-    
-    def track_fix(self, from_text: str, to_text: str, previous: str, next: str) -> bool:
-        previous_word = "" if previous == "" else previous.split()[-1]
-        next_word = "" if next == "" else next.split()[0]
 
-        # Can only do direct replacements right now, need to find out a way to do two words -> single word replacements
-        # Like 'et cetera' -> 'etc' and 'attest' -> 'a test'
+    def track_fix(self, from_text: str, to_text: str, previous: str, next: str):
+        previous_word = "" if previous == "" else previous.strip().split()[-1]
+        next_word = "" if next == "" else next.strip().split()[0]
+        
         from_words = from_text.split()
         to_words = to_text.split()
+        self.track_fix_list(from_words, to_words, previous_word, next_word)
+
+    def track_fix_list(self, from_words: List[str], to_words: List[str], previous: str, next: str):
         to_words_index = 0
+
+        first_previous_word = "" if previous == "" else re.sub(r"[^\w]", '', previous.strip().split()[-1]).lower()
+        first_next_word = "" if next == "" else re.sub(r"[^\w]", '', next.strip().split()[0]).lower()
+        used_from_indices = []
         for index, from_word in enumerate(from_words):
+            # Skip over words we have already used for detecting fixes
+            if index in used_from_indices:
+                continue
+            else:
+                used_from_indices.append(index)
+
+            # No more replacements can be found
             if to_words_index >= len(to_words):
                 break
             else:
                 # Single word replacements
                 to_word = to_words[to_words_index]
+
+                no_format_from_word = re.sub(r"[^\w]", '', from_word).lower()
+                no_format_to_word = re.sub(r"[^\w]", '', to_word).lower()
+                one_to_one_similarity_score = self.phonetic_search.phonetic_similarity_score(no_format_from_word, no_format_to_word)
                 
-                # Only flush fixes which include anything other than raw punctuation
-                if re.sub(r"[^\w\s]", '', from_word) != re.sub(r"[^\w\s]", '', to_word):
-                    similarity_score = self.phonetic_search.phonetic_similarity_score(from_word, to_word)
+                # If the letters are the same even if there is different punctuation or capitalization, we do not need to track changes
+                if one_to_one_similarity_score == 3:
+                    to_words_index += 1
+                    continue
+                else:
+                    # Determine whether we need to replace 2 words with 1, 1 word with 2, or 1 word with 1 word
+                    two_to_one_similarity_score = 0
+                    one_to_two_similarity_score = 0
+                    if index + 1 < len(from_words):
+                        no_format_two_words = no_format_from_word + " " + re.sub(r"[^\w]", '', from_words[index + 1]).lower()
+                        two_to_one_similarity_score = self.phonetic_search.phonetic_similarity_score(no_format_two_words, to_word)
+                    if to_words_index + 1 < len(to_words):
+                        no_format_to_two_words = no_format_to_word + " " + re.sub(r"[^\w]", '', to_words[to_words_index + 1]).lower()
+                        one_to_two_similarity_score = self.phonetic_search.phonetic_similarity_score(no_format_from_word, no_format_to_two_words)
 
-                    # Automatically find and persist homophones
-                    if (similarity_score >= 1 and similarity_score <= 2) and to_word.lower() not in self.phonetic_search.find_homophones(from_word):
-                        self.phonetic_search.add_homophone(from_word, to_word)
+                    biggest_score = max(one_to_one_similarity_score, two_to_one_similarity_score, one_to_two_similarity_score)
 
-                    # Check if the similarity score is above the fix threshold
-                    if similarity_score < 3 and similarity_score > min(0.6, 1 - (1 / len(to_word))):
-                        previous_word = previous_word if to_words_index == 0 else to_words[to_words_index - 1]
-                        next_word = next_word if to_words_index + 1 >= len(to_words) else to_words[to_words_index + 1]
-                        self.add_fix(from_word, to_word, previous_word, next_word)
-                        actions.user.hud_add_log("warning", "TRACKING FIX: " + from_word + " -> " + to_word)
-            to_words_index += 1
+                    # Determine if we have hit a similarity threshold that we can determine a possible fix from
+                    # Words that are too dissimilar aren't misinterpretations of the speech engine, but rather the user replacing one word for another
+                    if biggest_score < 3 and biggest_score >= 0.5:
+
+                        # Automatically find and persist homophones
+                        if (one_to_one_similarity_score >= 1 and one_to_one_similarity_score <= 2) and to_word.lower() not in self.phonetic_search.find_homophones(from_word):
+                            self.phonetic_search.add_homophone(from_word.lower(), to_word.lower())
+                        
+                        # If one to one word replacement is more likely, add a fix for that
+                        if one_to_one_similarity_score >= two_to_one_similarity_score and one_to_one_similarity_score >= one_to_two_similarity_score:
+                            if one_to_one_similarity_score >= min(0.5, 1 - (1 / len(to_word))):
+                                previous_word = first_previous_word if to_words_index == 0 else to_words[to_words_index - 1]
+                                next_word = first_next_word if to_words_index + 1 >= len(to_words) else to_words[to_words_index + 1]
+                                self.add_fix(no_format_from_word, to_word, previous_word, next_word)
+                        
+                        # If the two to one word replacement is more likely, add a fix for that
+                        elif two_to_one_similarity_score >= one_to_one_similarity_score and two_to_one_similarity_score >= one_to_two_similarity_score:
+
+                            if two_to_one_similarity_score >= min(0.5, 1 - (1 / len(to_word))):
+                                # Skip the next from word checking
+                                used_from_indices.append(index + 1)
+
+                                previous_word = first_previous_word if to_words_index == 0 else to_words[to_words_index - 1]
+                                next_word = first_next_word if to_words_index + 1 >= len(to_words) else to_words[to_words_index + 1]
+                                self.add_fix(no_format_two_words, to_word, previous_word, next_word)
+
+                        # If the one to two word replacement is more likely, add a fix for that
+                        elif one_to_two_similarity_score >= one_to_one_similarity_score and one_to_two_similarity_score >= two_to_one_similarity_score:
+
+                            if one_to_two_similarity_score >= min(0.5, 1 - (1 / len(no_format_to_two_words))):
+                                previous_word = first_previous_word if to_words_index == 0 else to_words[to_words_index - 1]
+                                next_word = first_next_word if to_words_index + 2 >= len(to_words) else to_words[to_words_index + 2]
+                                self.add_fix(no_format_from_word, no_format_to_two_words, previous_word, next_word)
+                                to_words_index += 1
+                    to_words_index += 1
 
     def can_activate_fix(self, fix: InputFix, amount = None) -> bool:
         context_threshold = CONTEXT_THRESHOLD_NONE

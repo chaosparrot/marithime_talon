@@ -44,6 +44,7 @@ class InputMutator:
     def __init__(self):
         self.manager = InputContextManager()
         self.fixer = InputFixer()
+        self.fixer.verbose = True
 
     def clear_context(self):
         for context in self.manager.contexts:
@@ -202,6 +203,7 @@ class InputMutator:
 
         # Do automatic fixing for non-correction text
         words = insert.split()
+
         before_auto_correction = " ".join(words)
         if not correction_insertion:
             words = self.fixer.automatic_fix_list(words, previous_text, next_text)
@@ -217,17 +219,17 @@ class InputMutator:
             words = formatter.words_to_format(insert.split(), previous_text, next_text)
         
         # If there was a fix, keep track of it here
-        #if previous_selection:
-        #    if not current_insertion:
-        #        current_insertion = "".join(words)
-        #
-        #        # Do not track automatic fixes - Still need to find a proper way to do this if we want to keep one of them
-        #        if current_insertion == before_auto_correction:
-        #            self.fixer.track_fix(previous_selection, current_insertion, previous_text, next_text)
-        #
-        #        # Track self repair corrections
-        #    else:
-        #        self.fixer.track_fix(previous_selection, current_insertion, previous_text, next_text)
+        if previous_selection:
+            if not current_insertion:
+                current_insertion = " ".join(words)
+        
+                # Do not track automatic fixes - Still need to find a proper way to do this if we want to keep a fix in between the automatic fixes
+                if current_insertion == before_auto_correction:
+                    self.fixer.track_fix_list(previous_selection.split(), words, previous_text, next_text)
+        
+                # Track self repair corrections
+            else:
+                self.fixer.track_fix_list(previous_selection.split(), words, previous_text, next_text)
 
         return ("".join(words), repair_keys)
 

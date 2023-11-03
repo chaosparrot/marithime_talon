@@ -341,7 +341,7 @@ class InputHistoryManager:
                     elif event_index == end_index[0]:
                         text = text[end_index[1]:]
 
-                        if should_detect_merge and not re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").startswith(" "):
+                        if merge_event is not None and should_detect_merge and not re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").startswith(" "):
                             text = merge_event.text + text
                         elif merge_event is not None:
                             events.append(merge_event)

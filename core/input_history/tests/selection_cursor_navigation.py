@@ -1,12 +1,13 @@
 from ..input_history import InputHistoryManager
+from ..input_indexer import text_to_input_history_events
 from ...utils.test import create_test_suite
 
 def test_track_selection_cursor(assertion):
     input_history = InputHistoryManager()
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert ", "insert"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("a ", "a"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("new ", "new"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("sentence.", "sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert ", "insert"))
+    input_history.insert_input_events(text_to_input_history_events("a ", "a"))
+    input_history.insert_input_events(text_to_input_history_events("new ", "new"))
+    input_history.insert_input_events(text_to_input_history_events("sentence.", "sentence"))
 
     assertion( "Selecting characters in the input history")
     assertion( "    Selecting a single character to the left and then moving to the first character...")

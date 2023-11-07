@@ -1,18 +1,19 @@
 from ..cursor_position_tracker import _CURSOR_MARKER
+from ..input_indexer import text_to_input_history_events
 from ..input_history import InputHistoryManager
 from ...utils.test import create_test_suite
 
 def test_merging_and_splitting(assertion):
     input_history = InputHistoryManager() 
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a second sentence. \n", "insert a second sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a second sentence. \n", "insert a second sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
     input_history.cursor_position_tracker.text_history = """Insert a new sentence.
 Insert a second """ + _CURSOR_MARKER + """sentence. 
 Insert a third sentence."""
         
     assertion( "    Inserting unmergable text into a filled input history...")
-    input_history.insert_input_events(input_history.text_to_input_history_events("important ", "important")) 
+    input_history.insert_input_events(text_to_input_history_events("important ", "important")) 
     assertion( "        Expect history length to increase by two (5)", len(input_history.input_history) == 5)
     cursor_index = input_history.cursor_position_tracker.get_cursor_index()
     assertion( "        Expect cursor line index to be 1", cursor_index[0] == 1)
@@ -25,7 +26,7 @@ Insert a third sentence."""
     assertion( "        Expect the previous event text to be split into an after section", input_history.input_history[3].text == "sentence. \n" )
     assertion( "        Expect the previous event phrase to be split into an after section", input_history.input_history[3].phrase == "sentence" )
     assertion( "    Inserting mergable text...")
-    input_history.insert_input_events(input_history.text_to_input_history_events("end", "end")) 
+    input_history.insert_input_events(text_to_input_history_events("end", "end")) 
     assertion( "        Expect history length to not increase (5)", len(input_history.input_history) == 5)
     cursor_index = input_history.cursor_position_tracker.get_cursor_index()
     assertion( "        Expect cursor line index to be 1", cursor_index[0] == 1)
@@ -36,7 +37,7 @@ Insert a third sentence."""
     assertion( "        Expect the next event text to be merged", input_history.input_history[3].text == "endsentence. \n" )
     assertion( "        Expect the next event phrase to be merged", input_history.input_history[3].phrase == "endsentence" )
     assertion( "    Inserting a mergable character...")    
-    input_history.insert_input_events(input_history.text_to_input_history_events("i", "i")) 
+    input_history.insert_input_events(text_to_input_history_events("i", "i")) 
     assertion( "        Expect history length to not increase (5)", len(input_history.input_history) == 5)
     cursor_index = input_history.cursor_position_tracker.get_cursor_index()
     assertion( "        Expect cursor line index to be 1", cursor_index[0] == 1)
@@ -47,7 +48,7 @@ Insert a third sentence."""
     assertion( "        Expect the current event text to be merged", input_history.input_history[3].text == "endisentence. \n" )
     assertion( "        Expect the current event phrase to be merged", input_history.input_history[3].phrase == "endisentence" )
     assertion( "    Inserting left-mergable text...")    
-    input_history.insert_input_events(input_history.text_to_input_history_events("ng ", "ng")) 
+    input_history.insert_input_events(text_to_input_history_events("ng ", "ng")) 
     assertion( "        Expect history length to increase (6)", len(input_history.input_history) == 6)
     cursor_index = input_history.cursor_position_tracker.get_cursor_index()
     assertion( "        Expect cursor line index to be 1", cursor_index[0] == 1)
@@ -60,8 +61,8 @@ Insert a third sentence."""
     assertion( "        Expect the next event text to be split from the previous event", input_history.input_history[4].text == "sentence. \n" )
     assertion( "        Expect the next event phrase to be split from the previous event", input_history.input_history[4].phrase == "sentence" )
     assertion( "    Inserting right-mergable text...")
-    input_history.insert_input_events(input_history.text_to_input_history_events("of", "of"))
-    input_history.insert_input_events(input_history.text_to_input_history_events(" the", "the")) 
+    input_history.insert_input_events(text_to_input_history_events("of", "of"))
+    input_history.insert_input_events(text_to_input_history_events(" the", "the")) 
     assertion( "        Expect history length to increase (7)", len(input_history.input_history) == 7)
     cursor_index = input_history.cursor_position_tracker.get_cursor_index()
     assertion( "        Expect cursor line index to be 1", cursor_index[0] == 1)

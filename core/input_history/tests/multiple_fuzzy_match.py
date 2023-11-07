@@ -1,23 +1,24 @@
 from ..input_history import InputHistoryManager
+from ..input_indexer import text_to_input_history_events
 from ...utils.test import create_test_suite
 
 def get_filled_ihm():
     ihm = InputHistoryManager()
-    ihm.insert_input_events(ihm.text_to_input_history_events("Insert ", "insert"))
-    ihm.insert_input_events(ihm.text_to_input_history_events("a ", "a"))
-    ihm.insert_input_events(ihm.text_to_input_history_events("new ", "new"))
-    ihm.insert_input_events(ihm.text_to_input_history_events("sentence, ", "sentence"))
-    ihm.insert_input_events(ihm.text_to_input_history_events("that ", "that"))
-    ihm.insert_input_events(ihm.text_to_input_history_events("will ", "will"))
-    ihm.insert_input_events(ihm.text_to_input_history_events("have ", "have"))
-    ihm.insert_input_events(ihm.text_to_input_history_events("new ", "new"))
-    ihm.insert_input_events(ihm.text_to_input_history_events("words ", "words"))
-    ihm.insert_input_events(ihm.text_to_input_history_events("compared ", "compared"))
-    ihm.insert_input_events(ihm.text_to_input_history_events("to ", "to"))
-    ihm.insert_input_events(ihm.text_to_input_history_events("the ", "the"))
-    ihm.insert_input_events(ihm.text_to_input_history_events("previous ", "previous"))
-    ihm.insert_input_events(ihm.text_to_input_history_events("two ", "two"))
-    ihm.insert_input_events(ihm.text_to_input_history_events("sentences.", "sentences"))
+    ihm.insert_input_events(text_to_input_history_events("Insert ", "insert"))
+    ihm.insert_input_events(text_to_input_history_events("a ", "a"))
+    ihm.insert_input_events(text_to_input_history_events("new ", "new"))
+    ihm.insert_input_events(text_to_input_history_events("sentence, ", "sentence"))
+    ihm.insert_input_events(text_to_input_history_events("that ", "that"))
+    ihm.insert_input_events(text_to_input_history_events("will ", "will"))
+    ihm.insert_input_events(text_to_input_history_events("have ", "have"))
+    ihm.insert_input_events(text_to_input_history_events("new ", "new"))
+    ihm.insert_input_events(text_to_input_history_events("words ", "words"))
+    ihm.insert_input_events(text_to_input_history_events("compared ", "compared"))
+    ihm.insert_input_events(text_to_input_history_events("to ", "to"))
+    ihm.insert_input_events(text_to_input_history_events("the ", "the"))
+    ihm.insert_input_events(text_to_input_history_events("previous ", "previous"))
+    ihm.insert_input_events(text_to_input_history_events("two ", "two"))
+    ihm.insert_input_events(text_to_input_history_events("sentences.", "sentences"))
     return ihm
 
 def test_multiple_fuzzy_matching(assertion):

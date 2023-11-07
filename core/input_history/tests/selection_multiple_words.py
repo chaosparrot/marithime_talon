@@ -1,13 +1,14 @@
 from ..input_history import InputHistoryManager
+from ..input_indexer import text_to_input_history_events
 from ...utils.test import create_test_suite
 
 def test_select_multiple_words(assertion):
     input_history = InputHistoryManager()
     input_events = []
-    input_events.extend(input_history.text_to_input_history_events("Insert ", "insert"))
-    input_events.extend(input_history.text_to_input_history_events("a ", "a"))
-    input_events.extend(input_history.text_to_input_history_events("new ", "new"))
-    input_events.extend(input_history.text_to_input_history_events("sentence.", "sentence"))
+    input_events.extend(text_to_input_history_events("Insert ", "insert"))
+    input_events.extend(text_to_input_history_events("a ", "a"))
+    input_events.extend(text_to_input_history_events("new ", "new"))
+    input_events.extend(text_to_input_history_events("sentence.", "sentence"))
 
     input_history.insert_input_events(input_events)
 

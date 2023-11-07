@@ -1,18 +1,13 @@
-from talon import Module, Context, actions, settings, clip
+from talon import Module, Context
 from .input_history_typing import InputHistoryEvent, InputContext
 from .input_matcher import InputMatcher
 from typing import List, Dict
 from .cursor_position_tracker import CursorPositionTracker
 from ..phonetics.actions import phonetic_search
+from .input_indexer import text_to_phrase, normalize_text, reindex_events
 import re
 mod = Module()
 ctx = Context()
-
-def text_to_phrase(text: str) -> str:
-    return " ".join(re.sub(r"[^\w\s]", ' ', text.replace("'", "").replace("’", "")).lower().split()).strip()
-
-def normalize_text(text: str) -> str:
-    return re.sub(r"[^\w\s]", ' ', text).replace("\n", " ")
 
 MERGE_STRATEGY_IGNORE = -1
 MERGE_STRATEGY_APPEND_AFTER = 0
@@ -270,26 +265,6 @@ class InputHistoryManager:
                     self.input_history[input_index].index_from_line_end = 0
             else:
                 self.append_event_after(input_index + index - 1, new_event)
-
-    def text_to_input_history_events(self, text: str, phrase: str = None, format: str = None) -> InputHistoryEvent:
-        lines = text.splitlines()
-        if text.endswith("\n"):
-            lines.append("")
-        events = []
-        if len(lines) == 1:
-            event = InputHistoryEvent(text, "", "" if format is None else format)
-            if phrase is not None:
-                event.phrase = phrase
-            else:
-                event.phrase = text_to_phrase(text)
-            return [event]
-            # If there are line endings, split them up properly
-        else:
-            for line_index, line in enumerate(lines):
-                event = InputHistoryEvent(line + "\n" if line_index < len(lines) - 1 else line, "", "" if format is None else format)
-                event.phrase = text_to_phrase(line)
-                events.append(event)
-            return events
         
     def remove_selection(self) -> bool:
         selection_indexes = self.cursor_position_tracker.remove_selection()
@@ -484,34 +459,7 @@ class InputHistoryManager:
         self.last_action_type = "remove"
 
     def reformat_events(self):
-        length = len(self.input_history)
-        if length == 0:
-            return
-
-        # First sync the line counts
-        line_index = 0
-        previous_line_index = self.input_history[0].line_index
-        new_events = []
-        for index, event in enumerate(self.input_history):
-            event.line_index = line_index
-            new_events.append(event)
-            if event.text.endswith("\n"):
-                line_index += 1
-
-        # Then sync the character count
-        previous_line_index = new_events[-1].line_index
-        previous_line_end_count = 0
-        for index, event in enumerate(reversed(new_events)):
-            true_index = length - 1 - index
-            if event.line_index == previous_line_index:
-                new_events[true_index].index_from_line_end = previous_line_end_count
-            else:
-                previous_line_end_count = 0
-                new_events[true_index].index_from_line_end = 0
-                previous_line_index = event.line_index
-            previous_line_end_count += len(event.text.replace("\n", ""))
-
-        self.input_history = new_events
+        self.input_history = reindex_events(self.input_history)
 
     def apply_key(self, keystring: str):
         keys = keystring.lower().split(" ")

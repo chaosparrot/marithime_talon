@@ -1,12 +1,13 @@
 from ..cursor_position_tracker import _CURSOR_MARKER
 from ..input_history import InputHistoryManager
+from ..input_indexer import text_to_input_history_events
 from ...utils.test import create_test_suite
 
 def coarse_cursor_tracker_splitting(assertion):
     input_history = InputHistoryManager()
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a second sentence. \n", "insert a second sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a second sentence. \n", "insert a second sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
     input_history.cursor_position_tracker.text_history = """Insert a new sentence. 
     Insert a second """ + _CURSOR_MARKER + """sentence. 
     Insert a third sentence."""
@@ -31,9 +32,9 @@ def coarse_cursor_tracker_splitting(assertion):
 
 def coarse_cursor_tracking_single_line(assertion):
     input_history = InputHistoryManager()
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a second sentence. \n", "insert a second sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a second sentence. \n", "insert a second sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
     input_history.cursor_position_tracker.text_history = """Insert a new sentence. 
     Insert a second """ + _CURSOR_MARKER + """sentence. 
     Insert a third sentence."""
@@ -80,9 +81,9 @@ def coarse_cursor_tracking_single_line(assertion):
  
 def coarse_cursor_tracking_multi_line(assertion):
     input_history = InputHistoryManager()
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a second sentence. \n", "insert a second sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a second sentence. \n", "insert a second sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
     input_history.cursor_position_tracker.text_history = """Insert a new sentence. 
 Insert a second """ + _CURSOR_MARKER + """sentence. 
 Insert a third sentence."""

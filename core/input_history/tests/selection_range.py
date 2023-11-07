@@ -1,12 +1,13 @@
 from ..input_history import InputHistoryManager
+from ..input_indexer import text_to_input_history_events
 from ...utils.test import create_test_suite
 
 def test_select_single_word_and_extending(assertion):
     input_history = InputHistoryManager()
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert ", "insert"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("a ", "a"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("new ", "new"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("sentence.", "sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert ", "insert"))
+    input_history.insert_input_events(text_to_input_history_events("a ", "a"))
+    input_history.insert_input_events(text_to_input_history_events("new ", "new"))
+    input_history.insert_input_events(text_to_input_history_events("sentence.", "sentence"))
 
     assertion( "    Selecting a single character to the left and then selecting 'Insert a'...")
     input_history.apply_key("shift:down left shift:up")
@@ -43,15 +44,15 @@ def test_select_single_word_and_extending(assertion):
 
 def test_selecting_multiple_phrases_with_duplicates(assertion):
     input_history = InputHistoryManager()
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert ", "insert"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("a ", "a"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("new ", "new"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("sentence ", "sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("or ", "or"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("insert ", "insert"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("a ", "a"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("new ", "new"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("paragraph.", "paragraph"))
+    input_history.insert_input_events(text_to_input_history_events("Insert ", "insert"))
+    input_history.insert_input_events(text_to_input_history_events("a ", "a"))
+    input_history.insert_input_events(text_to_input_history_events("new ", "new"))
+    input_history.insert_input_events(text_to_input_history_events("sentence ", "sentence"))
+    input_history.insert_input_events(text_to_input_history_events("or ", "or"))
+    input_history.insert_input_events(text_to_input_history_events("insert ", "insert"))
+    input_history.insert_input_events(text_to_input_history_events("a ", "a"))
+    input_history.insert_input_events(text_to_input_history_events("new ", "new"))
+    input_history.insert_input_events(text_to_input_history_events("paragraph.", "paragraph"))
     assertion( "    Selecting a single character to the left and then selecting 'insert a'...")
     input_history.apply_key("shift:down left shift:up")
     input_history.select_phrase("insert")
@@ -99,15 +100,15 @@ def test_selecting_multiple_phrases_with_duplicates(assertion):
 
 def test_select_phrase_inside_selection_with_duplicates(assertion):
     input_history = InputHistoryManager()
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert ", "insert"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("a ", "a"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("new ", "new"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("sentence ", "sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("or ", "or"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("insert ", "insert"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("a ", "a"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("new ", "new"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("paragraph.", "paragraph"))
+    input_history.insert_input_events(text_to_input_history_events("Insert ", "insert"))
+    input_history.insert_input_events(text_to_input_history_events("a ", "a"))
+    input_history.insert_input_events(text_to_input_history_events("new ", "new"))
+    input_history.insert_input_events(text_to_input_history_events("sentence ", "sentence"))
+    input_history.insert_input_events(text_to_input_history_events("or ", "or"))
+    input_history.insert_input_events(text_to_input_history_events("insert ", "insert"))
+    input_history.insert_input_events(text_to_input_history_events("a ", "a"))
+    input_history.insert_input_events(text_to_input_history_events("new ", "new"))
+    input_history.insert_input_events(text_to_input_history_events("paragraph.", "paragraph"))
     assertion( "    Selecting 'or insert a ' and then selecting 'insert'...")
     input_history.select_phrase("or")
     input_history.select_phrase("insert", True)

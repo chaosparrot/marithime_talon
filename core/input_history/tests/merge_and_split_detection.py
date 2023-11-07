@@ -1,4 +1,5 @@
 from ..input_history import InputHistoryManager
+from ..input_indexer import text_to_input_history_events
 from ..input_history_typing import InputHistoryEvent
 from ...utils.test import create_test_suite
 
@@ -7,11 +8,11 @@ def get_empty_ihm() -> InputHistoryManager:
 
 def get_filled_ihm() -> InputHistoryManager:
     input_history = get_empty_ihm()
-    input_history.insert_input_events(input_history.text_to_input_history_events("This ", "This"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("is ", "is"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("a ", "a"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("test", "test"))
-    input_history.insert_input_events(input_history.text_to_input_history_events(".or", "or"))    
+    input_history.insert_input_events(text_to_input_history_events("This ", "This"))
+    input_history.insert_input_events(text_to_input_history_events("is ", "is"))
+    input_history.insert_input_events(text_to_input_history_events("a ", "a"))
+    input_history.insert_input_events(text_to_input_history_events("test", "test"))
+    input_history.insert_input_events(text_to_input_history_events(".or", "or"))    
     return input_history
 
 def test_detect_merge_in_between_events(assertion):

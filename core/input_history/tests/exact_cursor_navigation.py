@@ -1,12 +1,13 @@
 from ..input_history import InputHistoryManager
 from ...utils.test import create_test_suite
+from ..input_indexer import text_to_input_history_events
 
 def test_single_line_exact_cursor_navigation(assertion):
     input_history = InputHistoryManager()
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert ", "insert"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("a ", "a"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("new ", "new"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("word.", "word"))
+    input_history.insert_input_events(text_to_input_history_events("Insert ", "insert"))
+    input_history.insert_input_events(text_to_input_history_events("a ", "a"))
+    input_history.insert_input_events(text_to_input_history_events("new ", "new"))
+    input_history.insert_input_events(text_to_input_history_events("word.", "word"))
 
     assertion( "Navigating between input events on a single line")
     assertion( "    Navigating to the end of the first event...")
@@ -41,26 +42,26 @@ def test_single_line_exact_cursor_navigation(assertion):
 
 def test_multi_line_exact_cursor_navigation(assertion):
     input_history = InputHistoryManager()
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert ", "insert"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("a ", "a"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("new ", "new"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("word.", "word"))
+    input_history.insert_input_events(text_to_input_history_events("Insert ", "insert"))
+    input_history.insert_input_events(text_to_input_history_events("a ", "a"))
+    input_history.insert_input_events(text_to_input_history_events("new ", "new"))
+    input_history.insert_input_events(text_to_input_history_events("word.", "word"))
     input_history.go_phrase("insert")
     input_history.go_phrase("insert", "start") 
     input_history.go_phrase("new", "start")
     input_history.go_phrase("word", "end")
     input_history.go_phrase("bee", "end")
 
-    input_history.insert_input_events(input_history.text_to_input_history_events("\n", ""))
-    input_history.insert_input_events(input_history.text_to_input_history_events("Append ", "append"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("a ", "a"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("new ", "new"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("sentence.", "sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("\n", ""))
-    input_history.insert_input_events(input_history.text_to_input_history_events("Add ", "add"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("a ", "a"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("final ", "final"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("line.", "line"))
+    input_history.insert_input_events(text_to_input_history_events("\n", ""))
+    input_history.insert_input_events(text_to_input_history_events("Append ", "append"))
+    input_history.insert_input_events(text_to_input_history_events("a ", "a"))
+    input_history.insert_input_events(text_to_input_history_events("new ", "new"))
+    input_history.insert_input_events(text_to_input_history_events("sentence.", "sentence"))
+    input_history.insert_input_events(text_to_input_history_events("\n", ""))
+    input_history.insert_input_events(text_to_input_history_events("Add ", "add"))
+    input_history.insert_input_events(text_to_input_history_events("a ", "a"))
+    input_history.insert_input_events(text_to_input_history_events("final ", "final"))
+    input_history.insert_input_events(text_to_input_history_events("line.", "line"))
     assertion( "Navigating between input events on multiple lines")
     assertion( "    Navigating to the end of the second sentence...")
     keys = input_history.go_phrase("sentence") 

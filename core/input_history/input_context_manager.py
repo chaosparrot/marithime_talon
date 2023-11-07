@@ -1,13 +1,16 @@
 from talon import ui
 from .input_context import InputContext
+from .input_indexer import InputIndexer
 import time
 from typing import List
 from .formatters.text_formatter import TextFormatter
 from .formatters.formatters import FORMATTERS_LIST
+from .input_indexer import text_to_input_history_events
 
 # Class keeping track of all the different contexts available
 class InputContextManager:
 
+    indexer: InputIndexer = None
     current_context: InputContext = None
     contexts = None
     last_clear_check = time.perf_counter()
@@ -19,6 +22,7 @@ class InputContextManager:
     last_pid: int = -1
 
     def __init__(self):
+        self.indexer = InputIndexer(FORMATTERS_LIST.values())
         self.contexts = []
         self.active_formatters = []
         self.formatter_names = []
@@ -42,6 +46,7 @@ class InputContextManager:
     def set_formatter(self, formatter_name: str):
         if formatter_name in FORMATTERS_LIST:
             self.active_formatters = [FORMATTERS_LIST[formatter_name]]
+            self.indexer.set_default_formatter(FORMATTERS_LIST[formatter_name])
             self.formatter_names = [formatter_name]
             self.should_use_last_formatter(True)
 
@@ -71,9 +76,9 @@ class InputContextManager:
                 if index < len(inserts) - 1:
                     text += " "
                 
-                input_events.extend(ihm.text_to_input_history_events(text, None, "|".join(formatters)))
+                input_events.extend(text_to_input_history_events(text, None, "|".join(formatters)))
         else:
-            input_events = ihm.text_to_input_history_events(insert, phrase, "|".join(formatters))
+            input_events = text_to_input_history_events(insert, phrase, "|".join(formatters))
         ihm.insert_input_events(input_events)
 
     def get_window_context(self, window) -> (str, int):

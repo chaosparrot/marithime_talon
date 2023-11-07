@@ -1,12 +1,13 @@
 from ..cursor_position_tracker import _CURSOR_MARKER
 from ..input_history import InputHistoryManager
+from ..input_indexer import text_to_input_history_events
 from ...utils.test import create_test_suite
 
 def test_remove_selecting_single_events(assertion):
     input_history = InputHistoryManager()
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a second sentence. \n", "insert a second sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a second sentence. \n", "insert a second sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
     input_history.cursor_position_tracker.text_history = """Insert a new sentence. 
 Insert a second """ + _CURSOR_MARKER + """sentence. 
 Insert a third sentence."""
@@ -50,10 +51,10 @@ Insert a third sentence."""
 
 def test_remove_selecting_multiple_events_left(assertion):
     input_history = InputHistoryManager()
-    input_history.insert_input_events(input_history.text_to_input_history_events("Suggest", "suggest"))
-    input_history.insert_input_events(input_history.text_to_input_history_events(" create", "create"))
-    input_history.insert_input_events(input_history.text_to_input_history_events(" delete", "delete"))
-    input_history.insert_input_events(input_history.text_to_input_history_events(" insertion", "insertion"))
+    input_history.insert_input_events(text_to_input_history_events("Suggest", "suggest"))
+    input_history.insert_input_events(text_to_input_history_events(" create", "create"))
+    input_history.insert_input_events(text_to_input_history_events(" delete", "delete"))
+    input_history.insert_input_events(text_to_input_history_events(" insertion", "insertion"))
     input_history.cursor_position_tracker.text_history = "Suggest create delete insert" + _CURSOR_MARKER + "ion"
 
     assertion( "    Selecting characters until the left side of the event is reached and removing it...")
@@ -78,10 +79,10 @@ def test_remove_selecting_multiple_events_left(assertion):
 
 def test_remove_selecting_multiple_events_right(assertion):
     input_history = InputHistoryManager()
-    input_history.insert_input_events(input_history.text_to_input_history_events("Suggest ", "suggest"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("create ", "create"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("delete ", "delete"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("insertion", "insertion"))
+    input_history.insert_input_events(text_to_input_history_events("Suggest ", "suggest"))
+    input_history.insert_input_events(text_to_input_history_events("create ", "create"))
+    input_history.insert_input_events(text_to_input_history_events("delete ", "delete"))
+    input_history.insert_input_events(text_to_input_history_events("insertion", "insertion"))
     input_history.cursor_position_tracker.text_history = "Suggest" + _CURSOR_MARKER + " create delete insertion"
     assertion( "With a filled input history")
     assertion( "    Selecting characters until the right side of the event is reached and removing it...")

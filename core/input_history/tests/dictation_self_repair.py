@@ -1,23 +1,24 @@
 from ..input_history import InputHistoryManager
+from ..input_indexer import text_to_input_history_events
 from ...utils.test import create_test_suite
 
 def get_filled_ihm():
     input_history = InputHistoryManager()
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert ", "insert"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("a ", "a"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("new ", "new"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("sentence ", "sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("or ", "or"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("insert ", "insert"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("a ", "a"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("new ", "new"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("paragraph", "paragraph"))
+    input_history.insert_input_events(text_to_input_history_events("Insert ", "insert"))
+    input_history.insert_input_events(text_to_input_history_events("a ", "a"))
+    input_history.insert_input_events(text_to_input_history_events("new ", "new"))
+    input_history.insert_input_events(text_to_input_history_events("sentence ", "sentence"))
+    input_history.insert_input_events(text_to_input_history_events("or ", "or"))
+    input_history.insert_input_events(text_to_input_history_events("insert ", "insert"))
+    input_history.insert_input_events(text_to_input_history_events("a ", "a"))
+    input_history.insert_input_events(text_to_input_history_events("new ", "new"))
+    input_history.insert_input_events(text_to_input_history_events("paragraph", "paragraph"))
     return input_history
 
 def get_filled_ihm_with_examples(examples):
     input_history = InputHistoryManager()
     for index, example in enumerate(examples):
-        input_history.insert_input_events(input_history.text_to_input_history_events(example + " " if index < len(examples) - 1 else example, example))
+        input_history.insert_input_events(text_to_input_history_events(example + " " if index < len(examples) - 1 else example, example))
     return input_history
 
 def test_detect_self_repair(assertion):

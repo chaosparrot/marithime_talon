@@ -1,12 +1,13 @@
 from ..cursor_position_tracker import _CURSOR_MARKER
 from ..input_history import InputHistoryManager
+from ..input_indexer import text_to_input_history_events
 from ...utils.test import create_test_suite
 
 def test_removing_characters(assertion):
     input_history = InputHistoryManager()
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a second sentence. \n", "insert a second sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a second sentence. \n", "insert a second sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
     input_history.cursor_position_tracker.text_history = """Insert a new sentence. 
 Insert a second """ + _CURSOR_MARKER + """sentence. 
 Insert a third sentence."""
@@ -63,10 +64,10 @@ Insert a third sentence."""
     assertion( "        Expect input index to be 0", input_index[0] == 0)
     assertion( "        Expect input character index to be the length of the sentence minus the word sentence (21)", input_index[1] == 21 )
     assertion( "    Removing more than an input event...")
-    input_history.insert_input_events(input_history.text_to_input_history_events("\n", ""))
-    input_history.insert_input_events(input_history.text_to_input_history_events(" test ", "test"))
-    input_history.insert_input_events(input_history.text_to_input_history_events(" two ", "two"))
-    input_history.insert_input_events(input_history.text_to_input_history_events(" three ", "three"))
+    input_history.insert_input_events(text_to_input_history_events("\n", ""))
+    input_history.insert_input_events(text_to_input_history_events(" test ", "test"))
+    input_history.insert_input_events(text_to_input_history_events(" two ", "two"))
+    input_history.insert_input_events(text_to_input_history_events(" three ", "three"))
     input_history.apply_key("backspace:15")
     assertion( "        Expect history length be one more (3)", len(input_history.input_history) == 3)
     cursor_index = input_history.cursor_position_tracker.get_cursor_index()
@@ -96,10 +97,10 @@ Insert a third sentence."""
     assertion( "        Expect input event text to be smaller", input_history.input_history[input_index[0]].text == " te\n" )
     assertion( "        Expect input event phrase to be smaller", input_history.input_history[input_index[0]].phrase == "te" )
     input_history.apply_key("right")
-    input_history.insert_input_events(input_history.text_to_input_history_events(" test ", "test"))
-    input_history.insert_input_events(input_history.text_to_input_history_events(" two ", "two"))
-    input_history.insert_input_events(input_history.text_to_input_history_events(" three ", "three"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("\n", ""))
+    input_history.insert_input_events(text_to_input_history_events(" test ", "test"))
+    input_history.insert_input_events(text_to_input_history_events(" two ", "two"))
+    input_history.insert_input_events(text_to_input_history_events(" three ", "three"))
+    input_history.insert_input_events(text_to_input_history_events("\n", ""))
     input_history.apply_key("left:8 left:5 left:1")
     assertion("     Pressing delete until two events are merged")
     input_history.apply_key("delete:2")
@@ -125,10 +126,10 @@ Insert a third sentence."""
 
 def test_remove_single_line_ending_remaining(assertion):
     input_history = InputHistoryManager()
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a second sentence", "insert a second sentence"))
-    input_history.insert_input_events(input_history.text_to_input_history_events(". \n", ""))
-    input_history.insert_input_events(input_history.text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a new sentence. \n", "insert a new sentence"))
+    input_history.insert_input_events(text_to_input_history_events("Insert a second sentence", "insert a second sentence"))
+    input_history.insert_input_events(text_to_input_history_events(". \n", ""))
+    input_history.insert_input_events(text_to_input_history_events("Insert a third sentence.", "insert a third sentence"))
     input_history.cursor_position_tracker.text_history = """Insert a new sentence. 
     Insert a second sentence. """ + _CURSOR_MARKER + """
     Insert a third sentence."""

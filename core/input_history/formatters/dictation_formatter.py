@@ -1,4 +1,5 @@
 from typing import List
+import re
 from .text_formatter import TextFormatter
 from .languages.english import englishLanguage
 from .languages.dutch import dutchLanguage
@@ -13,7 +14,7 @@ class DictationFormatter(TextFormatter):
 
     # Transform formatted text into separate words
     def format_to_words(self, text: str) -> List[str]:
-        return text.split()
+        return self.language.format_to_words(text)
 
     # Transform words into the given format
     def words_to_format(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
@@ -27,4 +28,3 @@ DICTATION_FORMATTERS = {
     'EN': DictationFormatter('english', englishLanguage),
     'NL': DictationFormatter('dutch', dutchLanguage)
 }
-

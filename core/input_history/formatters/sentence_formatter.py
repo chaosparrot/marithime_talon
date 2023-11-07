@@ -28,17 +28,18 @@ def needs_space_between(before: str, after: str) -> bool:
 
 # This formatter capitalizes sentences and ensures proper spacing
 class SentenceFormatter(TextFormatter):
-    casing_converters = []
 
     def __init__(self, name: str):
         super().__init__(name)
 
-    def add_casing_converters(self, casing_converters):
-        self.casing_converters = casing_converters
-
     # Transform formatted text into separate words
     def format_to_words(self, text: str) -> List[str]:
-        return text.split()
+        new_words = []
+        for word in text.split():
+            if word:
+                new_words.append(word.lower())
+        
+        return new_words
     
     # Transform words into the given format
     def words_to_format(self, words: List[str], previous: str = "", next: str = "") -> str:        

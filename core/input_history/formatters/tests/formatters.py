@@ -9,6 +9,8 @@ def test_dot_separator(assertion):
     assertion( "    should add the separator after the first word", dot_separator.words_to_format(["This", "Thing"]) == ["This.", "Thing"])
     assertion( "    should add the separator separately if the previous word lacks it", dot_separator.words_to_format(["This", "Thing"], "After") == [".", "This.", "Thing"])
     assertion( "    should not add the separator if only one word is given", dot_separator.words_to_format(["This"], "After") == [".", "This"])
+    assertion( "    should not add the separators between digits", dot_separator.words_to_format(["86"], "9") == ["86"])
+    assertion( "    should not add the separators between special characters", dot_separator.words_to_format([" this", "thing"], ".") == [" this.", "thing"])
 
 def test_large_separator_formatter(assertion):
     large_separator = SeparatorFormatter("large", "-=-")
@@ -67,7 +69,6 @@ def test_mixed_case_formatters(assertion):
     assertion( "    should keep the next titlecase word title case", mixed_case_formatting.words_to_format(["this", "Thing"]) == ["this_", "Thing"])
     assertion( "    should make the next uppercase word title case", mixed_case_formatting.words_to_format(["this", "THING"]) == ["this_", "Thing"])
     assertion( "    should make the first lowercase word title case if it had a lowercase word before it", mixed_case_formatting.words_to_format(["this", "thing"], "after_") == ["This_", "Thing"])
-    assertion( mixed_case_formatting.words_to_format(["this", "thing"], "after_") )
     assertion( "    should make the first uppercase word title case if it had a lowercase word before it", mixed_case_formatting.words_to_format(["THIS", "thing"], "after_") == ["This_", "Thing"])
     assertion( "    should keep the first titlecase word title case if it had a lowercase word before it", mixed_case_formatting.words_to_format(["This", "thing"], "after_") == ["This_", "Thing"])
     assertion( "    should keep the first lowercase word if it had a non-alphanumeric character before it", mixed_case_formatting.words_to_format(["this", "thing"], "after ") == ["this_", "Thing"])

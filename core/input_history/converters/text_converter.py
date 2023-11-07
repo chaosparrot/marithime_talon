@@ -1,4 +1,5 @@
 from typing import List
+import re
 
 # Class that is used to transform the content of text to another text
 class TextConverter:
@@ -26,7 +27,7 @@ class TextConverter:
 
         return converted_words
 
-    def match_text(self, text: str, previous: str = "", next = "") -> bool:
+    def match_text(self, text: str, previous: str = "", next: str = "") -> bool:
         return False
     
     def convert_text(self, text: str) -> str:

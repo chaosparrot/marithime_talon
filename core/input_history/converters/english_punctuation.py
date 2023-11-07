@@ -11,7 +11,9 @@ class PunctuationConverter(TextConverter):
         "space": " ",
         "period": ".",
         "question mark": "?",
-        "exclamation mark": "!"
+        "exclamation mark": "!",
+        "underscore": "_",
+        "under score": "_"
     }
 
     # Some cases in which it is illegal to make a punctuation because they occupy words

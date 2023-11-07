@@ -1,4 +1,5 @@
 from typing import List
+import re
 from ..sentence_formatter import SentenceFormatter
 from .language import Language
 from ...converters.english_I import IConverter
@@ -19,6 +20,30 @@ class EnglishLanguage(Language):
         EnglishCommaPrependingConverter(),
         EnglishCommaAppendingConverter(),
     ]
+
+    def format_to_words(self, text: str) -> List[str]:
+        sentence_separated_words = self.sentence_formatter.format_to_words(text)
+        total_words = []
+        for separated_word in sentence_separated_words:
+            if separated_word.isalnum():
+                total_words.append(separated_word)
+            else:
+                # Split non-alphanumeric characters in separate buckets
+                new_word = ""
+                new_words = []
+                for char in separated_word:
+                    if char.isalnum() or char in ("'", "-"):
+                        new_word += char
+                    else:
+                        if new_word:
+                            new_words.append(new_word)
+                            new_word = ""
+                        new_words.append(char)
+                if new_word:
+                    new_words.append(new_word)
+                
+                total_words.extend(new_words)
+        return total_words
 
     def dictation_format(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
         converted_words = words

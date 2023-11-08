@@ -35,9 +35,9 @@ class SentenceFormatter(TextFormatter):
     # Transform formatted text into separate words
     def format_to_words(self, text: str) -> List[str]:
         new_words = []
-        for word in text.split():
+        for word in text.split(" "):
             if word:
-                new_words.append(word.lower())
+                new_words.append(word if word == "" else word.lower())
         
         return new_words
     
@@ -50,10 +50,17 @@ class SentenceFormatter(TextFormatter):
             formatted_words.append(" ")
 
         for index, word in enumerate(words):
+            if not word:
+                continue
+            
             if word.islower():
-                if index == 0 and self.detect_end_sentence(previous):
-                    formatted_words.append(word.capitalize())
-                elif index > 0 and self.detect_end_sentence(words[index - 1]):
+                previous_words = previous
+                if index > 1:
+                    previous_words += words[index - 2] + words[index - 1]
+                elif index > 0:
+                    previous_words += words[index - 1]
+
+                if self.detect_end_sentence(previous_words):
                     formatted_words.append(word.capitalize())
                 else:
                     formatted_words.append(word)
@@ -70,7 +77,7 @@ class SentenceFormatter(TextFormatter):
         return formatted_words
 
     def detect_end_sentence(self, previous: str) -> bool:
-        return previous == "" or "".join(previous.split()).endswith(("?", ".", "!"))
+        return previous == "" or "".join(previous.replace("\n", "").split()).endswith(("?", ".", "!"))
     
     def determine_correction_keys(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
         # Remove a space if we are adding punctiation

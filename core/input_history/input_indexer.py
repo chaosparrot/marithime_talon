@@ -43,8 +43,8 @@ def reindex_events(input_history_events: List[InputHistoryEvent]) -> List[InputH
     previous_line_index = input_history_events[0].line_index
     new_events = []
     for index, event in enumerate(input_history_events):
-        event.line_index = line_index
-        new_events.append(event)
+        new_events.append(InputHistoryEvent(event.text, event.phrase, event.format, line_index, event.index_from_line_end))
+
         if event.text.endswith("\n"):
             line_index += 1
 
@@ -90,20 +90,21 @@ class InputIndexer:
             new_events = text_to_input_history_events(word, None, self.default_formatter.name)
             for event in new_events:
                 if len(input_history_events) == 0:
-                    print( "APPENDING BECAUSE EMPTY!")
                     input_history_events.append(event)
                 else:
                     event_text = normalize_text(event.text)
                     previous_event_text = normalize_text(input_history_events[-1].text)
-                    print( previous_event_text, "->", event_text )
-                    if not event_text.startswith(" ") and not previous_event_text.endswith(" "):
-                        print( "MERGING!" )
+
+                    # All the different cases in which we need to do merging
+                    is_only_line_ending = event.text == "\n"
+                    is_line_ending_word = event.text.endswith("\n") and len(event_text.replace(" ", "")) > 0
+                    is_punctuation_only = event_text.replace(" ", "") == ""
+                    can_merge_letters = not event_text.startswith(" ") and not previous_event_text.endswith(" ")
+                    
+                    if (is_only_line_ending and not is_line_ending_word) or is_punctuation_only or can_merge_letters:
                         input_history_events[-1].text += event.text
                         input_history_events[-1].phrase = text_to_phrase(input_history_events[-1].text)
                     else:
-                        print( "APPENDING")
                         input_history_events.append(event)
                 
-            input_history_events.extend(text_to_input_history_events(word, None, self.default_formatter.name))
-
         return reindex_events(input_history_events)

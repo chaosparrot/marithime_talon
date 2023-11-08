@@ -66,7 +66,7 @@ class EnglishCommaAppendingConverter(TextConverter):
         previous_word = "" if len(previous.lower().split()) == 0 else previous.lower().split()[-1]
         if next and not next.replace(" ", "").startswith((",", "!", ".", "?")):
             words = text.lower().split()
-            starting_word = words[0]
+            starting_word = words[0] if len(words) > 0 else ""
             if starting_word.replace(" ", "").endswith((",", ".", "!", "?")):
                 return False
 

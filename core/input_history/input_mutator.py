@@ -271,6 +271,7 @@ class InputMutator:
         if input_index[0] > -1 and input_index[1] > -1:
             event = ihm.input_history[input_index[0]]
             # TODO APPLY FLOW TAGS DEPENDING ON WORDS
+            # TODO APPLY FORMATTERS DEPENDING ON POSITION ? 
         ctx.tags = tags
 
     def focus_changed(self, event):
@@ -470,10 +471,10 @@ class Actions:
         mutator.disable_tracking("DUMP")
         actions.insert("Available contexts:" )
         for context in mutator.manager.contexts:
-            actions.insert( "    " + context.key_matching + " - PID - " + str(context.pid))
+            actions.insert( "    " + context.app_name + " - " + context.title + " - PID - " + str(context.pid))
 
         actions.key("enter")
-        actions.insert("Using " + mutator.manager.get_current_context().key_matching + " - PID " + str(mutator.manager.get_current_context().pid ))
+        actions.insert("Using " + mutator.manager.get_current_context().title + " - PID " + str(mutator.manager.get_current_context().pid ))
         actions.key("enter")        
         actions.insert(mutator.manager.get_current_context().input_history_manager.cursor_position_tracker.text_history)
         actions.key("enter:2")

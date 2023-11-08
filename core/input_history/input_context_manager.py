@@ -1,4 +1,4 @@
-from talon import ui
+from talon import ui, actions
 from .input_context import InputContext
 from .input_indexer import InputIndexer
 import time
@@ -6,13 +6,14 @@ from typing import List
 from .formatters.text_formatter import TextFormatter
 from .formatters.formatters import FORMATTERS_LIST
 from .input_indexer import text_to_input_history_events
+from ..utils.levenshtein import levenshtein
 
-# Class keeping track of all the different contexts available
+# Class keeping track of all the different contexts availa ble
 class InputContextManager:
 
     indexer: InputIndexer = None
     current_context: InputContext = None
-    contexts = None
+    contexts: List[InputContext] = None
     last_clear_check = time.perf_counter()
     use_last_set_formatter = False
     active_formatters: List[TextFormatter]
@@ -29,15 +30,31 @@ class InputContextManager:
         self.switch_context(ui.active_window())
 
     def switch_context(self, window) -> bool:
-        title, pid = self.get_window_context(window)
+        name, title, pid = self.get_window_context(window)
 
-        if title and pid != -1:
+        actions.user.hud_add_log("warning", name + title + str(pid) + " SWITCHING!")
+        if name and title and pid != -1:
             context_to_switch_to = None
             for context in self.contexts:
-                if context.match_pattern(title, pid):
+                if context.match_pattern(name, title, pid):
                     context_to_switch_to = context
-                    print( "SWITCHING TO CONTEXT", context.key_matching, context.pid )
+                    print( "SWITCHING TO CONTEXT", context.title, context.name, context.pid )
                     break
+                elif context.coarse_match_pattern(name, title, pid):
+                    print( "ROUGH MATCH!" )
+                    accessible_content = self.index_accessible_value()
+                    context.input_history_manager.cursor_position_tracker.text_history
+
+                    normalized_accessible_content = "".join(accessible_content.lower().split())
+                    normalized_context = "".join(context.input_history_manager.cursor_position_tracker.text_history.lower().split())
+                    comparison = levenshtein(normalized_accessible_content, normalized_context)
+                    print( "TEST!" + normalized_accessible_content )
+
+                    if (len(normalized_context) - comparison) > len(normalized_context) * 0.9:
+                        print( "UPDATING CONTEXT BECAUSE OF A11Y CHECK", context.title, context.app_name, context.pid )                        
+                        context.update_pattern(name, title, pid)
+                        context_to_switch_to = context
+                        break
 
             self.current_context = context_to_switch_to
             return self.current_context is not None
@@ -81,9 +98,11 @@ class InputContextManager:
             input_events = text_to_input_history_events(insert, phrase, "|".join(formatters))
         ihm.insert_input_events(input_events)
 
-    def get_window_context(self, window) -> (str, int):
+    def get_window_context(self, window) -> (str, str, int):
         pid = -1
         title = ""
+        app_name = ""
+        print( window )
         # We only decide on a valid PID and Title if
         # 1 - The app is enabled
         # 2 - The app is visible
@@ -93,23 +112,26 @@ class InputContextManager:
         if window.app and window.enabled and not window.app.background and not window.hidden and window.rect:
             # Detect whether or not the window is in the current screen
             if window.rect.width * window.rect.height > 0 and \
-                window.rect.x >= window.screen.x and \
-                window.rect.y >= window.screen.y and \
-                window.rect.x <= window.screen.x + window.screen.width and \
-                window.rect.y <= window.screen.y + window.screen.height:
+                ( window.rect.x >= window.screen.x or \
+                window.rect.x <= window.screen.x + window.screen.width ) and \
+                ( window.rect.y >= window.screen.y or \
+                window.rect.y <= window.screen.y + window.screen.height ):
 
                 pid = window.app.pid
+                app_name = window.app.name
                 title = window.title
+                actions.user.hud_add_log("warning", "FOUND CONTEXT " + app_name + title + " " + str(pid))
         
         self.clear_stale_contexts()
 
         self.last_pid = pid
+        self.last_app_name = app_name
         self.last_title = title
-        return (title, pid)
+        return (app_name, title, pid)
     
     def create_context(self):
-        print( "CREATING CONTEXT " + self.last_title, self.last_pid)
-        self.current_context = InputContext(self.last_title, self.last_pid)
+        print( "CREATING CONTEXT " + self.last_title, self.last_app_name, self.last_pid)
+        self.current_context = InputContext(self.last_app_name, self.last_title, self.last_pid)
         self.contexts.append(self.current_context)
     
     def clear_stale_contexts(self):
@@ -131,6 +153,9 @@ class InputContextManager:
 
     def get_current_context(self) -> InputContext:
         if self.current_context:
+            if self.current_context.pid == -1:
+                self.switch_context(ui.active_window())
+
             self.current_context.update_modified_at()
             self.clear_stale_contexts()
         else:
@@ -140,12 +165,13 @@ class InputContextManager:
 
     def close_context(self, window):
         title = window.title
+        name = "" if window.app is None else window.app.name
         pid = -1 if window.app is None else window.app.pid
 
         if title and pid > -1:
             contexts_to_clear = []
             for index, context in enumerate(self.contexts):
-                if context.match_pattern(title, pid):
+                if context.match_pattern(title, name, pid):
                     contexts_to_clear.append(index)
 
             should_clear_context = len(contexts_to_clear) > 0
@@ -156,7 +182,7 @@ class InputContextManager:
                     del self.contexts[remove_index]
                     del contexts_to_clear[-1]
 
-                print( "CLOSING! " + title, pid)
+                    print( "----- CLOSING " + title, pid )
 
                 self.clear_stale_contexts()
 
@@ -165,8 +191,10 @@ class InputContextManager:
 
     def index_accessible_value(self):
         value = ""
+        print( "----- CHECKING ACCESSIBLE TEXT" )
         try:
             element = ui.focused_element()
             value = element.value_pattern.value
         except: # Windows sometimes throws a success error, otherwise ui.UIErr
             pass
+        return value

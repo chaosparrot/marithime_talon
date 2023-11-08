@@ -298,7 +298,7 @@ class InputFixer:
                 csv_writer.writerows(rows)
 
     def get_key(self, from_text: str, to_text: str) -> str:
-        return from_text.lower() + "-->" + to_text.lower()
+        return str(from_text).lower() + "-->" + str(to_text).lower()
 
     def track_fix(self, from_text: str, to_text: str, previous: str, next: str):
         previous_word = "" if previous == "" else previous.strip().split()[-1]

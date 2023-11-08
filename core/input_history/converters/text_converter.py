@@ -21,7 +21,7 @@ class TextConverter:
             previous_word = words[index - 1] if index > 0 else "" if previous == "" else previous.strip().split()[-1]
             next_word = words[index + 1] if index + 1 < len(words) else "" if next == "" else next.strip().split()[0]
             if self.match_text(word, previous_word, next_word):
-                converted_words.append(self.convert_text(word, previous_word, next_word))
+                converted_words.append(self.convert_text(word))
             else:
                 converted_words.append(word)
 

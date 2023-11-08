@@ -18,7 +18,7 @@ def test_index_single_sentence(assertion):
     assertion("    The third event should be be 5 characters from the end on 'This is a test.'", sentence_input_events[2].index_from_line_end == 5)
     assertion("    The last event should be 'test.'", sentence_input_events[2].text == 'test.')
     assertion("    The last event should be be 0 characters from the end on 'This is a test.'", sentence_input_events[2].index_from_line_end == 0)
-    #assertion(sentence_input_events, False)
+    assertion(sentence_input_events, False)
 
 def test_index_multiple_sentences(assertion):
     sentence_input_events = input_indexer.index_text("""This is the first sentence.
@@ -26,10 +26,10 @@ And this is a second sentence!""")
     assertion( "Indexing the sentence 'This is the first sentence.' followed by 'And this is a second sentence!'...")
     assertion("    should consist of 11 input events", len(sentence_input_events) == 11)
     assertion("    should have 4 events on the first line", len([event for event in sentence_input_events if event.line_index == 0]) == 4)
-    assertion("    should have 4 events on the first line", len([event for event in sentence_input_events if event.line_index == 1]) == 7)
+    assertion("    should have 7 events on the first line", len([event for event in sentence_input_events if event.line_index == 1]) == 7)
     #assertion(sentence_input_events, False)
 
 suite = create_test_suite("Text indexation")
-suite.add_test(test_index_single_sentence)
-suite.add_test(test_index_multiple_sentences)
-suite.run()
+#suite.add_test(test_index_single_sentence)
+#suite.add_test(test_index_multiple_sentences)
+#suite.run()

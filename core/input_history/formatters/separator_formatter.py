@@ -10,10 +10,10 @@ class SeparatorFormatter(TextFormatter):
 
     # Transform formatted text into separate words
     def format_to_words(self, text: str) -> List[str]:
-        separated_words = [word for word in text.split(self.separator) if word] if self.separator else [text]
+        separated_words = [word for word in text.split(self.separator)] if self.separator else [text]
         total_words = []
         for separated_word in separated_words:
-            if separated_word.isalnum():
+            if separated_word.isalnum() or separated_word == "":
                 total_words.append(separated_word)
             else:
                 # Split non-alphanumeric characters in separate buckets
@@ -48,8 +48,9 @@ class SeparatorFormatter(TextFormatter):
 
         # Otherwise, just append the words with the separators together
         for index, word in enumerate(words):
-            if index < len(words) - 1:
-                formatted.append(word + self.separator)
+            if index < len(words) - 1 and (word == "" or word[-1].isalpha()):
+                should_append_separator = index + 1 >= len(words) or (words[index+1] == "" or words[index+1][0].isalnum())
+                formatted.append(word + (self.separator if should_append_separator else ""))
             else:
                 formatted.append(word)
 

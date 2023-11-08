@@ -87,6 +87,23 @@ class InputIndexer:
         
         input_history_events = []
         for word in words:
+            new_events = text_to_input_history_events(word, None, self.default_formatter.name)
+            for event in new_events:
+                if len(input_history_events) == 0:
+                    print( "APPENDING BECAUSE EMPTY!")
+                    input_history_events.append(event)
+                else:
+                    event_text = normalize_text(event.text)
+                    previous_event_text = normalize_text(input_history_events[-1].text)
+                    print( previous_event_text, "->", event_text )
+                    if not event_text.startswith(" ") and not previous_event_text.endswith(" "):
+                        print( "MERGING!" )
+                        input_history_events[-1].text += event.text
+                        input_history_events[-1].phrase = text_to_phrase(input_history_events[-1].text)
+                    else:
+                        print( "APPENDING")
+                        input_history_events.append(event)
+                
             input_history_events.extend(text_to_input_history_events(word, None, self.default_formatter.name))
 
         return reindex_events(input_history_events)

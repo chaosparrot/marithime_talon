@@ -55,6 +55,10 @@ class CapitalizationFormatter(SeparatorFormatter):
                 else:
                     split_out_words.append(current_word)
             
+            # Keep empty separators as well to ensure the separation process is as lossless as possible
+            if word == "":
+                split_out_words.append(word)
+
             unformatted_words.extend(split_out_words)
                 
         return unformatted_words

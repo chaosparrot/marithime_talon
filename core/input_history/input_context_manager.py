@@ -97,7 +97,7 @@ class InputContextManager:
         pid = -1
         title = ""
         app_name = ""
-        print( window )
+        #print( window )
         # We only decide on a valid PID and Title if
         # 1 - The app is enabled
         # 2 - The app is visible

@@ -113,6 +113,7 @@ class InputIndexer:
     def determine_diverges_from(self, previous_text: str, current_text: str, inserted: str = "") -> (int, int):
         line_index = -1
         from_end_of_line = -1
+        normalized_inserted = inserted.replace("\r\n", "\n").replace("\r", "\n")
 
         # If everything is deleted - We estimate that we are at position 0, 0
         if current_text == "" and inserted == "":
@@ -120,7 +121,9 @@ class InputIndexer:
         elif current_text != "":
             is_deletion = inserted == "" and len(current_text) < len(previous_text)
             is_insertion = inserted != "" and len(current_text) - len(inserted) == len(previous_text)
-            is_replacement = inserted != "" and not is_insertion
+
+            current_text = current_text.replace("\r\n", "\n")
+            previous_text = previous_text.replace("\r\n", "\n")
 
             # Find the location where are are diverging from the text
             line_count = 1
@@ -141,8 +144,13 @@ class InputIndexer:
                             if previous_text[previous_index] == current_text[divergence_index] and current_text[divergence_index:] == previous_text[previous_index:]:
                                 convergence_index = previous_index
 
+                                # Not sure why this fixes the multiline indexation but we'll take it
+                                if line_count > 1:
+                                    character_in_line_index -= 1
+
                                 # If we are deleting some text and the text following the deletion is the same, we do not know the exact location
                                 removed_text = previous_text[divergence_index:convergence_index]
+                                current_text_lines = ""
                                 if ( previous_index + 1 < len(previous_text) and previous_text[previous_index + 1:].startswith(removed_text) ) or \
                                     current_text[:char_index].endswith(removed_text):
                                     return (line_count - 1, -1)
@@ -150,15 +158,15 @@ class InputIndexer:
 
                         break
                     else:
-                        insertion_length = len(inserted)
+                        insertion_length = len(normalized_inserted)
                         start_substring = max(0, divergence_index - insertion_length)
                         substring_range = current_text[start_substring:divergence_index + insertion_length]
-                        found_index = substring_range.find(inserted)
+                        found_index = substring_range.find(normalized_inserted)
                         while found_index > -1:
                             if found_index <= insertion_length:
                                 character_in_line_index = start_substring + found_index
                                 break
-                            found_index = substring_range.find(inserted, found_index + 1)
+                            found_index = substring_range.find(normalized_inserted, found_index + 1)
 
                         # If the substring of the inserted text does not appear in the area where we are changing
                         if found_index == -1:
@@ -170,39 +178,33 @@ class InputIndexer:
                     break
                 character_in_line_index += 1
 
-            print( is_insertion, is_replacement, inserted )
-
             # When we are appending to the text, we can assume the final line count as well as the character location being the last of the sentence
             if divergence_index == -1 and is_insertion and current_text.startswith(previous_text):
                 return (line_count - 1, 0)
 
             # If characters are deleted from the end of the selection, we know it is at the end of the current text
             if is_deletion and divergence_index == -1:
-                line_index = len(current_text.splitlines()) -1
+                line_index = len(current_text.split("\n")) -1
                 from_end_of_line = 0
 
             elif divergence_index >= 0:
-                line_index = line_count - 1 + max(0, len(inserted.splitlines()) - 1)
-                current_text_lines = current_text.splitlines()
+                line_index = line_count - 1 + max(0, len(normalized_inserted.split("\n")) - 1)
+                current_text_lines = current_text.split("\n")
                 line = current_text_lines[line_index] if line_index < len(current_text_lines) else current_text_lines[-1]
 
                 if is_deletion:
                     from_end_of_line = len(line) - character_in_line_index
                 else:                    
-                    inserted_text_lines = inserted.splitlines()
+                    inserted_text_lines = normalized_inserted.split("\n")
 
                     # For multiline insertions, make sure that the character index of the insertion is used
                     # Instead of the found character index
                     character_in_line_index = 0 if len(inserted_text_lines) > 1 else character_in_line_index
-                    print( inserted_text_lines )
                     if len(inserted_text_lines) > 1:
                         character_in_line_index = len(inserted_text_lines[-1])
                         from_end_of_line = len(line) - character_in_line_index
-                        #line_index += len(inserted_text_lines) - 1
                     else:
-                        from_end_of_line = len(line) - (character_in_line_index + len(inserted))
-                    #print( inserted, "'" + line + "'", character_in_line_index, "'" + line[character_in_line_index:] + "'", from_end_of_line )
-        print( is_replacement, inserted )
+                        from_end_of_line = len(line) - (character_in_line_index + len(normalized_inserted))
 
         return (line_index, from_end_of_line)
 

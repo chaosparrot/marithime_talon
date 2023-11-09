@@ -1,4 +1,4 @@
-from talon import ui, actions
+from talon import ui
 from .input_context import InputContext
 from .input_indexer import InputIndexer
 import time
@@ -32,26 +32,21 @@ class InputContextManager:
     def switch_context(self, window) -> bool:
         name, title, pid = self.get_window_context(window)
 
-        #actions.user.hud_add_log("warning", name + title + str(pid) + " SWITCHING!")
         if name and title and pid != -1:
             context_to_switch_to = None
             for context in self.contexts:
                 if context.match_pattern(name, title, pid):
                     context_to_switch_to = context
-                    print( "SWITCHING TO CONTEXT", context.title, context.name, context.pid )
                     break
                 elif context.coarse_match_pattern(name, title, pid):
-                    print( "ROUGH MATCH!" )
                     accessible_content = self.index_accessible_value()
                     context.input_history_manager.cursor_position_tracker.text_history
 
                     normalized_accessible_content = "".join(accessible_content.lower().split())
                     normalized_context = "".join(context.input_history_manager.cursor_position_tracker.text_history.lower().split())
                     comparison = levenshtein(normalized_accessible_content, normalized_context)
-                    print( "TEST!" + normalized_accessible_content )
 
                     if (len(normalized_context) - comparison) > len(normalized_context) * 0.9:
-                        print( "UPDATING CONTEXT BECAUSE OF A11Y CHECK", context.title, context.app_name, context.pid )                        
                         context.update_pattern(name, title, pid)
                         context_to_switch_to = context
                         break
@@ -120,7 +115,6 @@ class InputContextManager:
                 pid = window.app.pid
                 app_name = window.app.name
                 title = window.title
-                #actions.user.hud_add_log("warning", "FOUND CONTEXT " + app_name + title + " " + str(pid))
         
         self.clear_stale_contexts()
 
@@ -130,7 +124,6 @@ class InputContextManager:
         return (app_name, title, pid)
     
     def create_context(self):
-        print( "CREATING CONTEXT " + self.last_title, self.last_app_name, self.last_pid)
         self.current_context = InputContext(self.last_app_name, self.last_title, self.last_pid)
         self.contexts.append(self.current_context)
     

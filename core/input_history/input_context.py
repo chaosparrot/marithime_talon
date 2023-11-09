@@ -21,7 +21,7 @@ class InputContext:
         self.modified_at = time.perf_counter()
 
     def update_pattern(self, app_name: str = "", title: str = "", pid: int = -1):
-        print( self.app_name, app_name, self.title, title, self.pid, pid)
+        #print( self.app_name, app_name, self.title, title, self.pid, pid)
         if app_name != "":
             self.app_name = app_name
         if title != "":

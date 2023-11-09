@@ -32,7 +32,7 @@ class InputContextManager:
     def switch_context(self, window) -> bool:
         name, title, pid = self.get_window_context(window)
 
-        actions.user.hud_add_log("warning", name + title + str(pid) + " SWITCHING!")
+        #actions.user.hud_add_log("warning", name + title + str(pid) + " SWITCHING!")
         if name and title and pid != -1:
             context_to_switch_to = None
             for context in self.contexts:
@@ -120,7 +120,7 @@ class InputContextManager:
                 pid = window.app.pid
                 app_name = window.app.name
                 title = window.title
-                actions.user.hud_add_log("warning", "FOUND CONTEXT " + app_name + title + " " + str(pid))
+                #actions.user.hud_add_log("warning", "FOUND CONTEXT " + app_name + title + " " + str(pid))
         
         self.clear_stale_contexts()
 

@@ -108,3 +108,98 @@ class InputIndexer:
                         input_history_events.append(event)
                 
         return reindex_events(input_history_events)
+
+    def determine_diverges_from(self, previous_text: str, current_text: str, inserted: str = "") -> (int, int):
+        line_index = -1
+        from_end_of_line = -1
+
+        # If everything is deleted - We estimate that we are at position 0, 0
+        if current_text == "" and inserted == "":
+            return (0, 0)
+        elif current_text != "":
+            is_deletion = inserted == "" and len(current_text) < len(previous_text)
+            is_insertion = inserted != "" and len(current_text) - len(inserted) == len(previous_text)
+            is_replacement = inserted != "" and not is_insertion
+
+            # Find the location where are are diverging from the text
+            line_count = 1
+            character_in_line_index = 0
+            divergence_index = -1
+            convergence_index = -1
+            for char_index, char in enumerate(current_text):
+                if char_index < len(previous_text) and char != previous_text[char_index]:
+                    divergence_index = char_index
+
+                # Detect if and where are are converging again
+                #elif divergence_index >= 0 and char_index < len(previous_text) and current_text[divergence_index + 1]:
+
+
+                if divergence_index >= 0 and convergence_index >= 0:
+                    break
+            convergence_index = len(current_text) - 1 if convergence_index == -1 else convergence_index
+
+            # If characters are deleted from the end of the selection, we know it is at the end of the current text
+            if is_deletion and divergence_index == -1:
+                line_index = len(current_text.splitlines()) -1
+                from_end_of_line = 0
+
+            elif divergence_index >= 0:
+                line_index = line_count - 1 + max(0, len(inserted.splitlines()) - 1)
+                line = current_text.splitlines()[line_index]
+
+                if is_deletion:
+                    from_end_of_line = len(line) - character_in_line_index - (convergence_index - divergence_index)
+                # TODO INSERTION / REPLACEMENT !!!
+                else:
+                    line_index = line_count - 1 + len(inserted.splitlines()) - 1
+                    from_end_of_line = 0
+
+        return (line_index, from_end_of_line)
+
+    # Find the end of the needle inside the haystack
+    def determine_cursor_position(self, needle: str, haystack: str) -> (int, int):
+        line_index = -1
+        from_end_of_line = -1
+
+        normalized_needle = " ".join(needle.split(" "))
+        normalized_haystack = " ".join(haystack.split(" "))
+
+        occurrences_count = normalized_haystack.count(normalized_needle)
+        if occurrences_count == 1 and needle != "" and haystack != "":
+            from_end_of_line = -1
+            needle_index = normalized_haystack.find(normalized_needle)
+            if needle_index > -1:
+                line_count = 1
+                for char_index, char in enumerate(normalized_haystack):
+                    if char_index == needle_index:
+                        line_index = line_count - 1
+                        break
+
+                    if char == "\n":
+                        line_count += 1
+
+                # Find exact character location within line
+                if line_index >= 0:
+                    needle_lines = needle.splitlines()
+                    last_needle_line = needle_lines[-1]
+                    haystack_line = haystack.splitlines()[line_index + len(needle_lines) - 1]
+
+                    character_index = haystack_line.find(last_needle_line)
+                    if character_index >= 0:
+                        line_index += len(needle_lines) - 1
+                        from_end_of_line = len(haystack_line) - character_index - len(last_needle_line)
+                    # TODO Do fuzzier matching based on whitespace etc
+                    else:
+                        line_index = -1
+
+        # For counts higher than 1 we are certain that we have matches, but they are too uncertain to match exactly
+        elif occurrences_count > 1 and needle != "":
+            line_index = -2
+            from_end_of_line = -2
+
+        # For counts lower than 1, we output -1, -1 to indicate none was found
+        else:
+            line_index = -1
+            from_end_of_line = -1
+
+        return (line_index, from_end_of_line)

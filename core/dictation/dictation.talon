@@ -4,8 +4,13 @@ mode: dictation
 ^quill <user.word>$:
     user.input_core_insert(word)
 ^quill <user.word> <user.raw_prose>:
-    user.input_core_insert(word)
-    user.input_core_insert(raw_prose)
+    user.input_core_insert(word + " " + raw_prose)
+
+^before {user.indexed_words}:
+    user.input_core_move_cursor(indexed_words, 0)
+
+^after {user.indexed_words}:
+    user.input_core_move_cursor(indexed_words, -1)
 
 # Spelling
 ^<user.direct_spelling>:

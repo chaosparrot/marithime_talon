@@ -51,7 +51,6 @@ This adds"""
 
     location = input_indexer.determine_cursor_position(multiline_needle_this, multiline_haystack)
     assertion("Within the sentence 'This is a sentence.' followed by 'This adds to the sentence and turns it into a small paragraph.'...")
-    assertion( location )
     assertion("    The sequence 'sentence.<newline>This' should be found at line 1, 58 characters away from the end", location == (1, 58))
     location = input_indexer.determine_cursor_position(multiline_needle_this_adds, multiline_haystack)
     assertion("    The sequence '<newline>This adds' should be found at line 1, 53 characters away from the end", location == (1, 53))

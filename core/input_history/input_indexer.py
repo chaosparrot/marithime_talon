@@ -3,7 +3,7 @@ from .formatters.text_formatter import TextFormatter
 import re
 from typing import List
 from .formatters.formatters import DICTATION_FORMATTERS
-from .cursor_position_tracker import _CURSOR_MARKER
+from .cursor_position_tracker import _CURSOR_MARKER, _COARSE_MARKER
 
 def text_to_phrase(text: str) -> str:
     return " ".join(re.sub(r"[^\w\s]", ' ', text.replace("'", "").replace("’", "")).lower().split()).strip()
@@ -79,7 +79,7 @@ class InputIndexer:
 
     # Split raw (multi-line) text to input history events
     def index_text(self, text: str) -> List[InputHistoryEvent]:
-        text = text.replace(_CURSOR_MARKER, '')
+        text = text.replace(_CURSOR_MARKER, '').replace(_COARSE_MARKER, '')
 
         # TODO - Do index matching based on if we are dealing with a regular or a programming language
         # We are now just using the default formatter instead
@@ -134,6 +134,10 @@ class InputIndexer:
                 if char == "\n":
                     line_count += 1
                     character_in_line_index = 0
+                    
+                    # Divergence at newline, make sure we do not increment the line index
+                    if char_index < len(previous_text) and (char != previous_text[char_index]):
+                        line_count -= 1
 
                 if char_index < len(previous_text) and (char != previous_text[char_index]):
                     divergence_index = char_index
@@ -164,7 +168,10 @@ class InputIndexer:
                         found_index = substring_range.find(normalized_inserted)
                         while found_index > -1:
                             if found_index <= insertion_length:
-                                character_in_line_index = start_substring + found_index
+                                start_substring_in_line = character_in_line_index - (char_index - start_substring)
+                                character_in_line_index = start_substring_in_line + found_index
+                                if line_count > 1:
+                                    character_in_line_index -= 1                                
                                 break
                             found_index = substring_range.find(normalized_inserted, found_index + 1)
 

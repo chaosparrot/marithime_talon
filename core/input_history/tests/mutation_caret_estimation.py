@@ -38,16 +38,25 @@ This adds to the sentence and turns it into a small paragraph."""
     multiline_add_but = """This is a sentence.
 This adds to the sentence and turns it into a small paragraph. But"""
 
+    multiline_add_newline = """This is 
+a sentence.
+This adds to the sentence and turns it into a small paragraph."""
+
     assertion("Within the sentence 'This is a sentence.' followed by 'This adds to the sentence and turns it into a small paragraph.'...")
     location = input_indexer.determine_diverges_from(multiline_haystack, multiline_add_and, " And")
     assertion("    Adding the text ' And' to the end of the first sentence")
     assertion("        should give line 0, 0 characters from end upon inspection", location == (0, 0))
     location = input_indexer.determine_diverges_from(multiline_haystack, multiline_add_but, " But")
     assertion("    Adding the text ' But' to the end of the second sentence")
-    assertion("        should give line 1, 0 characters from end upon inspection", location == (1, 0))
+    assertion("        should give line 1, 0 characters from end upon inspection", location == (1, 0))    
     location = input_indexer.determine_diverges_from(multiline_haystack, multiline_add_very, "very ")
     assertion("    Adding the text 'very ' in between the second sentence")
     assertion("        should give line 1, 16 characters from end upon inspection", location == (1, 16))
+    assertion( "YEET!!!" + multiline_add_very.splitlines()[1][-location[1]:] )
+    location = input_indexer.determine_diverges_from(multiline_haystack, multiline_add_newline, """
+""")
+    assertion("    Adding a new line in the middle of the first sentence")
+    assertion("        should give line 1, 11 characters from end upon inspection", location == (1, 11))
     assertion( location )
 
 def test_replacing_within_single_line(assertion):
@@ -69,6 +78,34 @@ def test_replacing_within_single_line(assertion):
     location = input_indexer.determine_diverges_from('This is a test.', """This is a sentence.
 """, "sentence.\n")
     assertion("    should give line 1, 0 characters from end upon inspection", location == (1, 0))
+
+def test_replacing_within_multiline(assertion):
+    input_indexer = InputIndexer()
+    multiline_haystack = """This is a sentence.
+This adds to the sentence and turns it into a small paragraph."""
+
+    multiline_replace_that_was = """That was a sentence.
+This adds to the sentence and turns it into a small paragraph."""
+
+    multiline_single_sentence_that = """This is a single sentence.
+That adds to the sentence and turns it into a small paragraph."""
+
+    multiline_single_sentence_newline = """This is a single sentence.
+
+This adds to the sentence and turns it into a small paragraph."""
+
+    assertion("Within the sentence 'This is a sentence.' followed by 'This adds to the sentence and turns it into a small paragraph.'...")
+    location = input_indexer.determine_diverges_from(multiline_haystack, multiline_replace_that_was, "That was ")
+    assertion("    Replacing the text 'This is ' to 'That was '")
+    assertion("        should give line 0, 11 characters from end upon inspection", location == (0, 11))
+    location = input_indexer.determine_diverges_from(multiline_haystack, multiline_single_sentence_that, "single sentence.\nThat")
+    assertion("    Replacing the text 'sentence.<newline>This' to 'single sentence.<newline>That")
+    assertion("        should give line 1, 58 characters from end upon inspection", location == (1, 58))
+
+    location = input_indexer.determine_diverges_from(multiline_haystack, multiline_single_sentence_newline, "single sentence.\n")
+    assertion("    Replacing the text 'sentence.' to 'single sentence.<newline><newline>")
+    assertion("        should give line 1, 0 characters from end upon inspection", location == (1, 0))
+
 
 def test_deleting_within_single_line(assertion):
     input_indexer = InputIndexer()
@@ -113,11 +150,8 @@ This adds and turns it into a small paragraph."""
     assertion("    Removing the second word 'This'")
     location = input_indexer.determine_diverges_from(multiline_haystack, multiline_remove_second_this)
     assertion("        should give line 1, 42 characters from end upon inspection", location == (1, 57))
-    assertion( multiline_remove_second_this[-location[1]:])
-    assertion( location )
     assertion("    Removing the words 'to the sentence' from the second line")
     location = input_indexer.determine_diverges_from(multiline_haystack, multiline_remove_to_the_sentence)
-    assertion( multiline_remove_to_the_sentence[-location[1]:])
     assertion("        should give line 1, 36 characters from end upon inspection", location == (1, 36))
     assertion("    Removing the word 'paragraph.'")
     location = input_indexer.determine_diverges_from(multiline_haystack, multiline_remove_paragraph)
@@ -126,11 +160,10 @@ This adds and turns it into a small paragraph."""
     location = input_indexer.determine_diverges_from(multiline_haystack, multiline_remove_linebreak)
     assertion("        should give line 0, 62 characters from end upon inspection", location == (0, 62))
 
-
 suite = create_test_suite("Caret position estimation based on new insertions, replacements or deletions")
 suite.add_test(test_inserting_to_single_line)
 suite.add_test(test_inserting_to_multiline)
 suite.add_test(test_replacing_within_single_line)
+suite.add_test(test_replacing_within_multiline)
 suite.add_test(test_deleting_within_single_line)
 suite.add_test(test_deleting_within_multiline)
-suite.run()

@@ -274,6 +274,11 @@ class InputMutator:
             # TODO APPLY FORMATTERS DEPENDING ON POSITION ? 
         ctx.tags = tags
 
+    def index_textarea(self):
+        self.disable_tracking()
+        self.manager.index_textarea()
+        self.enable_tracking()
+
     def focus_changed(self, event):
         context_switched = self.manager.switch_context(event)
         if context_switched:
@@ -281,7 +286,6 @@ class InputMutator:
 
     def window_closed(self, event):
         self.manager.close_context(event)
-
 
 mutator = InputMutator()
 ui.register("win_focus", mutator.focus_changed)
@@ -464,6 +468,11 @@ class Actions:
             match_dictionary[phrase] += 1
         
         return max(match_dictionary, key=match_dictionary.get)
+    
+    def input_core_index_textarea():
+        """Select the index area and update the internal state completely"""
+        global mutator
+        mutator.index_textarea()
     
     def input_core_dump():
         """Dump the current state of the input history for debugging purposes"""

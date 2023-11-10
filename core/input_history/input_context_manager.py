@@ -1,6 +1,7 @@
-from talon import ui
+from talon import ui, actions, clip
 from .input_context import InputContext
 from .input_indexer import InputIndexer
+from .cursor_position_tracker import _CURSOR_MARKER
 import time
 from typing import List
 from .formatters.text_formatter import TextFormatter
@@ -191,3 +192,67 @@ class InputContextManager:
         except: # Windows sometimes throws a success error, otherwise ui.UIErr
             pass
         return value
+    
+    def index_textarea(self, forced = True):
+        total_value = self.index_accessible_value()
+        before_text = ""
+        after_text = ""
+
+        if forced:
+            # Free selection first if it exists
+            current_clipboard = ""
+            with clip.revert():
+                current_clipboard = clip.text()
+                actions.sleep("200ms")
+                
+                with clip.capture() as current_selection:
+                    actions.edit.copy()
+                actions.sleep("200ms")
+
+                try:
+                    is_selected = current_selection.text() == current_clipboard
+                except clip.NoChange:
+                    is_selected = True
+
+            if is_selected:
+                actions.key("right left")
+            
+            # Go to the start of the document and copy that text
+            actions.key("ctrl-shift-home")
+            actions.sleep("200ms")
+            with clip.revert():
+                with clip.capture() as s:
+                    actions.edit.copy()
+                try:
+                    before_text = s.text()
+                except clip.NoChange:
+                    before_text = ""
+                if before_text != "":
+                    actions.sleep("200ms")
+                    actions.key("right")
+            
+            # If we have a total value and our value starts with the current selection
+            # We can be certain that we have the right cursor position
+            if total_value != "" and before_text != "" and total_value.startswith(before_text):
+                after_text = total_value[len(before_text):]
+
+            # Otherwise we need to select until the end of the document
+            else:
+                actions.key("ctrl-shift-end")
+                actions.sleep("200ms")
+                with clip.revert():
+                    with clip.capture() as s:
+                        actions.edit.copy()
+                    try:
+                        after_text = s.text()
+                    except clip.NoChange:
+                        after_text = ""
+
+                if after_text != "":
+                    actions.sleep("200ms")                
+                    actions.key("left")
+
+        context = self.get_current_context()
+        context.input_history_manager.cursor_position_tracker.set_history(before_text, after_text)
+        events = self.indexer.index_text(context.input_history_manager.cursor_position_tracker.text_history)
+        context.input_history_manager.input_history = events

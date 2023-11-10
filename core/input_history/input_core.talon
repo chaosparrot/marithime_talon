@@ -9,12 +9,11 @@ select <user.fuzzy_indexed_word>:
 remove <user.fuzzy_indexed_word>:
     user.input_core_clear_phrase(indexed_words)
 
-^line index:
-    user.input_core_index_line()
+^document index:
+    user.input_core_index_textarea()
 
 ^clear context$:
     user.input_core_forget()
 
 ^dump context$:
     user.input_core_dump()
-    

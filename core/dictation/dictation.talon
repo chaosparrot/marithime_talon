@@ -6,10 +6,10 @@ mode: dictation
 ^quill <user.word> <user.raw_prose>:
     user.input_core_insert(word + " " + raw_prose)
 
-^before {user.indexed_words}:
+^before {user.indexed_words} [quill]:
     user.input_core_move_cursor(indexed_words, 0)
 
-^after {user.indexed_words}:
+^after {user.indexed_words} [quill]:
     user.input_core_move_cursor(indexed_words, -1)
 
 # Spelling

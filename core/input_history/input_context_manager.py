@@ -8,6 +8,7 @@ from .formatters.text_formatter import TextFormatter
 from .formatters.formatters import FORMATTERS_LIST
 from .input_indexer import text_to_input_history_events
 from ..utils.levenshtein import levenshtein
+import os
 
 # Class keeping track of all the different contexts availa ble
 class InputContextManager:
@@ -193,8 +194,23 @@ class InputContextManager:
             pass
         return value
     
-    def index_textarea(self, forced = True):
+    def index_file(self, file_path: str):
+        try:
+            if os.path.exists(file_path):
+                with open(file_path, 'r') as file:
+                    file_contents = file.read()
+            else:
+                file_contents = ""
+        except:
+            file_contents = ""
+
+        self.index_content(file_contents)
+
+    def index_textarea(self, total_value: str = "", forced = True):
         total_value = self.index_accessible_value()
+        self.index_text(total_value, forced)
+    
+    def index_content(self, total_value: str = "", forced = True):
         before_text = ""
         after_text = ""
 

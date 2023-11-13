@@ -189,6 +189,16 @@ class InputContextManager:
         print( "----- CHECKING ACCESSIBLE TEXT" )
         try:
             element = ui.focused_element()
+            if "Value" in element.patterns:
+                value = element.value_pattern.value
+            elif "Text2" in element.patterns:
+                value = element.text_pattern2.value
+            elif "Text" in element.patterns:
+                value = element.text_pattern.value
+            #print( "CARET!", element.patterns )
+            #print( "RANGE", dir(element.text_pattern2.caret_range) )
+            #print( "TEXT_PATERN!", dir(element.text_pattern2) )# element.text_pattern.value )
+            #print( "TEXT_PATERN 2!", dir(element) )            
             value = element.value_pattern.value
         except: # Windows sometimes throws a success error, otherwise ui.UIErr
             pass
@@ -207,32 +217,62 @@ class InputContextManager:
         self.index_content(file_contents)
 
     def index_textarea(self, total_value: str = "", forced = True):
+        total_value = self.index_accessible_value() if total_value == "" else total_value
+        print( "A11Y", total_value )
+        results = self.find_cursor_position(total_value, 1 if forced == True else 0)
+        print( results )
+        self.index_content(results[0], results[1], results[2])
+
+    def zero_width_space_insertion_index(self) -> (int, int):
+        zwsp = "​"
+        actions.insert(zwsp)
+        actions.sleep("50ms")
         total_value = self.index_accessible_value()
-        self.index_text(total_value, forced)
+        actions.key("backspace")
+        return self.indexer.determine_cursor_position(zwsp, total_value)
     
-    def index_content(self, total_value: str = "", forced = True):
+    def find_cursor_position(self, total_value: str, visibility_level = 0) -> (str, (int, int), (int, int)):
+        undefined_positions = (total_value, (-1, -1), (-1, -1))
         before_text = ""
         after_text = ""
 
-        if forced:
-            # Free selection first if it exists
-            current_clipboard = ""
-            with clip.revert():
-                current_clipboard = clip.text()
-                actions.sleep("200ms")
-                
-                with clip.capture() as current_selection:
-                    actions.edit.copy()
-                actions.sleep("200ms")
-
-                try:
-                    is_selected = current_selection.text() == current_clipboard
-                except clip.NoChange:
-                    is_selected = True
-
-            if is_selected:
-                actions.key("right left")
+        # Find selection first if it exists
+        current_clipboard = ""
+        selected_text = ""
+        with clip.revert():
+            current_clipboard = clip.text()
+            actions.sleep("200ms")
             
+            with clip.capture() as current_selection:
+                actions.edit.copy()
+            actions.sleep("200ms")
+
+            try:
+                selected_text = current_selection.text()
+                is_selected = current_selection.text() == current_clipboard
+            except clip.NoChange:
+                is_selected = True
+            
+            # If there is a selection, try out if our selection can be found in the total value
+            if is_selected:
+                after_position = self.indexer.determine_cursor_position(selected_text, total_value)
+                if after_position[0] >= 0 and after_position[1] >= 0:
+                    before_position = self.indexer.determine_cursor_position(selected_text, total_value, 0)
+                    return (total_value, after_position, before_position)
+                else:
+                    # Free selection if it is allowed to be visible
+                    if visibility_level > 0:
+                        actions.key("right left")
+                    else:
+                        return undefined_positions
+        
+        # Add and quickly remove a zero width space to find our current position
+        if total_value != "":
+            zwsp_position = self.zero_width_space_insertion_index()
+            if zwsp_position[0] >= -1 and zwsp_position[1] >= -1:
+                return (total_value, zwsp_position, zwsp_position)
+
+        if visibility_level > 0:
             # Go to the start of the document and copy that text
             actions.key("ctrl-shift-home")
             actions.sleep("200ms")
@@ -246,11 +286,13 @@ class InputContextManager:
                 if before_text != "":
                     actions.sleep("200ms")
                     actions.key("right")
-            
+
             # If we have a total value and our value starts with the current selection
             # We can be certain that we have the right cursor position
             if total_value != "" and before_text != "" and total_value.startswith(before_text):
-                after_text = total_value[len(before_text):]
+                top_scan_position = self.indexer.determine_cursor_position(before_text, total_value)
+                if top_scan_position[0] >= -1 and top_scan_position[1] >= -1:
+                    return (total_value, top_scan_position, top_scan_position)
 
             # Otherwise we need to select until the end of the document
             else:
@@ -265,10 +307,53 @@ class InputContextManager:
                         after_text = ""
 
                 if after_text != "":
-                    actions.sleep("200ms")                
+                    actions.sleep("200ms")
                     actions.key("left")
+                
+                total_value = before_text + after_text
+                bottom_scan_position = self.indexer.determine_cursor_position(before_text, total_value)
+                return (total_value, bottom_scan_position, bottom_scan_position)                
+        return undefined_positions
 
+    def index_content(self, total_value: str = "", first_cursor_position: (int, int) = (-1, -1), second_cursor_position: (int, int) = (-1, -1)):
         context = self.get_current_context()
-        context.input_history_manager.cursor_position_tracker.set_history(before_text, after_text)
+
+        # First, determine text history
+        if first_cursor_position[0] >= -1 and first_cursor_position[1] >= -1:
+            lines = total_value.splitlines()
+            before_lines = []
+            after_lines = []
+            add_line_before_after = False
+            for line_index, line in enumerate(lines):
+                if line_index < first_cursor_position[0]:
+                    before_lines.append( line )
+                elif line_index > first_cursor_position[0]:
+                    after_lines.append( line )
+                else:
+                    if first_cursor_position[1] == 0:
+                        add_line_before_after = True
+                    
+                    index_in_line = len(line) - first_cursor_position[1]
+                    before_char = line[:index_in_line]
+                    after_char = line[index_in_line:]
+                    before_lines.append(before_char)
+                    if after_char != "":
+                        after_lines.append(after_char)
+
+            before_text = "\n".join(before_lines)
+            after_text = "\n".join(after_lines)
+            if add_line_before_after and len(after_lines) > 0:
+                after_text = "\n" + after_text
+
+            context.input_history_manager.cursor_position_tracker.set_history(before_text, after_text)
+
+            # Set the selection correctly as well
+            if second_cursor_position[0] > -1 and second_cursor_position[1] > -1 and (first_cursor_position != second_cursor_position):
+                context.input_history_manager.cursor_position_tracker.selection_cursor_marker = second_cursor_position
+
+            # If no cursor is known - Simply set the text history - We will deal with inconsistent behavior later
+        else:
+            context.input_history_manager.cursor_position_tracker.set_history(total_value)
+        
         events = self.indexer.index_text(context.input_history_manager.cursor_position_tracker.text_history)
-        context.input_history_manager.input_history = events
+        context.input_history_manager.set_input_history(events)

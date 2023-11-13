@@ -277,6 +277,7 @@ class InputMutator:
     def index_textarea(self):
         self.disable_tracking()
         self.manager.index_textarea()
+        self.index()
         self.enable_tracking()
 
     def focus_changed(self, event):

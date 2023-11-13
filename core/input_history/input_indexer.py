@@ -216,7 +216,7 @@ class InputIndexer:
         return (line_index, from_end_of_line)
 
     # Find the end of the needle inside the haystack
-    def determine_cursor_position(self, needle: str, haystack: str) -> (int, int):
+    def determine_cursor_position(self, needle: str, haystack: str, position: int = -1) -> (int, int):
         line_index = -1
         from_end_of_line = -1
 

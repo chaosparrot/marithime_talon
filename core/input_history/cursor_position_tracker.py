@@ -167,51 +167,6 @@ class CursorPositionTracker:
                 key_used = True
         return key_used
 
-    # Select a line and index it to find where we are in the current text history
-    def search_line(self):
-        self.cursor_tracking_enabled = False
-        
-        found_line_index = -1
-        if self.text_history:
-            with clip.revert():
-                actions.edit.line_start()
-                actions.edit.extend_line_end()
-                text = actions.edit.selected_text()
-                actions.edit.right()
-
-            if text:
-                lines = self.text_history.splitlines()
-                index = -1
-                for line in lines:
-                    index += 1
-                    # NAIVE CHECK - TODO IMPROVE MATCHING IN DIFFERENT MOMENTS
-                    if line.startswith(text) or line.endswith(text):
-                        found_line_index = index
-                        break
-        
-        if found_line_index > -1:
-            index = -1
-            text_history = self.text_history.replace(_CURSOR_MARKER, "").replace(_COARSE_MARKER, "")
-            lines = text_history.splitlines()
-
-            before_cursor = []
-            after_cursor = []
-            for line in lines:
-                index += 1
-                if index <= found_line_index:
-                    before_cursor.append(line)
-                else:
-                    after_cursor.append(line)
-            
-            before_cursor_text = "\n".join(before_cursor)
-            after_cursor_text = "\n".join(after_cursor)
-            if len(after_cursor) > 0:
-                after_cursor_text = "\n" + after_cursor_text
-
-            self.set_history(before_cursor_text, after_cursor_text)
-        else:
-            self.set_history("")
-
     def mark_cursor_to_end_of_line(self):
         lines = self.text_history.splitlines()
         before_cursor = []

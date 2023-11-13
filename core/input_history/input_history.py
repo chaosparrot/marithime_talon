@@ -38,6 +38,9 @@ class InputHistoryManager:
         self.cursor_position_tracker.clear()
         self.input_history = []
 
+    def set_input_history(self, events: List[InputHistoryEvent]):
+        self.input_history = events
+
     def determine_leftmost_input_index(self):
         return self.determine_input_index(self.cursor_position_tracker.get_leftmost_cursor_index())
     

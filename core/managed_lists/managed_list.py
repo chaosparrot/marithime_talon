@@ -140,7 +140,8 @@ class ManagedList:
 
         filtered_choices = {}
         for key, value in choices.items():
-            filtered_choices[re.sub(r'[^\w\s]', '', key)] = value
+            if key is not None:
+                filtered_choices[re.sub(r'[^\w\s]', '', key)] = value
 
         try:
             self.ctx.lists[self.list_name] = choices

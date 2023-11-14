@@ -7,8 +7,10 @@ class InputContext:
 
     app_name: str = ""
     title: str = ""
+    role: str = ""
     pid = -1
     modified_at: float = 0
+    accessible_api_available = False
 
     def __init__(self, app_name: str = "", title: str = "", pid: int = -1):
         self.app_name = app_name
@@ -16,6 +18,10 @@ class InputContext:
         self.pid = pid
         self.input_history_manager = InputHistoryManager()
         self.update_modified_at()
+
+    def set_accessible_api_available(self, role:str, availability: bool):
+        self.role = role
+        self.accessible_api_available = availability
 
     def update_modified_at(self):
         self.modified_at = time.perf_counter()

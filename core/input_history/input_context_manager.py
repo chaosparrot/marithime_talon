@@ -3,15 +3,18 @@ from .input_context import InputContext
 from .input_indexer import InputIndexer
 from .cursor_position_tracker import _CURSOR_MARKER
 import time
-from typing import List
+from typing import List, Callable
 from .formatters.text_formatter import TextFormatter
 from .formatters.formatters import FORMATTERS_LIST
 from .input_indexer import text_to_input_history_events
 from ..utils.levenshtein import levenshtein
 import os
+import platform
 
 # Class keeping track of all the different contexts availa ble
 class InputContextManager:
+
+    visual_state = None
 
     indexer: InputIndexer = None
     current_context: InputContext = None
@@ -20,12 +23,25 @@ class InputContextManager:
     use_last_set_formatter = False
     active_formatters: List[TextFormatter]
     formatter_names: List[str]
+    state_callback: Callable[[str, int, int, bool], None] = None
 
     last_title: str = ""
     last_pid: int = -1
+    system = ""
 
-    def __init__(self):
+    def __init__(self, state_callback: Callable[[str, int, int, bool], None] = None):
+        self.visual_state = {
+            'scanning': True, # Whether we are scanning or not
+            'level': '', # Disabled - Typed - Accessibility
+            'caret_confidence': 0, # 0 Is no known cursor - 1 is line confidence - 2 is document confidence
+            'content_confidence': 0, # 0 is empty - 1 is some - 2 is full document
+        }
+
+        self.state_callback = state_callback
+        self.update_visual_state(scanning=False)
+
         self.indexer = InputIndexer(FORMATTERS_LIST.values())
+        self.system = platform.system()
         self.contexts = []
         self.active_formatters = []
         self.formatter_names = []
@@ -54,6 +70,16 @@ class InputContextManager:
                         break
 
             self.current_context = context_to_switch_to
+
+            # Update the visual state
+            if context_to_switch_to is not None:
+                cursor_index = context_to_switch_to.input_history_manager.cursor_position_tracker.get_cursor_index()
+                caret_confidence = 0 if cursor_index[0] == -1 else 1 if cursor_index[1] == -1 else 2
+                content_confidence = 0 if len(context_to_switch_to.input_history_manager.input_history) == 0 else 1
+                self.update_visual_state("accessibility" if context_to_switch_to.accessible_api_available else "text", caret_confidence=caret_confidence, content_confidence=content_confidence)
+            else:
+                self.update_visual_state("text", 0, 0, False)
+
             return self.current_context is not None
         return False
     
@@ -76,6 +102,11 @@ class InputContextManager:
         current_context = self.get_current_context()
         current_context.apply_key(key)
 
+        if "ctrl" in key:
+            cursor_index = current_context.input_history_manager.cursor_position_tracker.get_cursor_index()
+            caret_confidence = 0 if cursor_index[0] == -1 else 1 if cursor_index[1] == -1 else 2
+            self.update_visual_state(caret_confidence=caret_confidence)
+
     def track_insert(self, insert: str, phrase: str = None):
         ihm = self.get_current_context().input_history_manager
         input_events = []
@@ -94,6 +125,11 @@ class InputContextManager:
         else:
             input_events = text_to_input_history_events(insert, phrase, "|".join(formatters))
         ihm.insert_input_events(input_events)
+
+        if self.current_context:
+            cursor_index = ihm.cursor_position_tracker.get_cursor_index()
+            caret_confidence = 0 if cursor_index[0] == -1 else 1 if cursor_index[1] == -1 else 2
+            self.update_visual_state(caret_confidence=caret_confidence)
 
     def get_window_context(self, window) -> (str, str, int):
         pid = -1
@@ -139,7 +175,6 @@ class InputContextManager:
             
             while len(contexts_to_clear) > 0:
                 context_index = contexts_to_clear[-1]
-                print( "REMOVING STALE! " + self.contexts[context_index].key_matching, context_index )
                 self.contexts[context_index].clear_context()
                 if self.contexts[context_index] != self.current_context:
                     self.contexts[context_index].destroy()
@@ -187,21 +222,32 @@ class InputContextManager:
     def index_accessible_value(self):
         value = ""
         print( "----- CHECKING ACCESSIBLE TEXT" )
-        try:
+        # Windows based A11Y
+        if self.system == "Windows":
             element = ui.focused_element()
-            if "Value" in element.patterns:
+            #print( "ELEMENT PATTERNS!", element.patterns)
+            #print( "SELECTION", element.text_pattern.selection )
+
+            if "Text2" in element.patterns:
+                value = element.text_pattern2.document_range.text
+                if self.current_context:
+                    self.current_context.set_accessible_api_available("text", True)
+            elif "Value" in element.patterns:
                 value = element.value_pattern.value
-            elif "Text2" in element.patterns:
-                value = element.text_pattern2.value
-            elif "Text" in element.patterns:
-                value = element.text_pattern.value
-            #print( "CARET!", element.patterns )
-            #print( "RANGE", dir(element.text_pattern2.caret_range) )
-            #print( "TEXT_PATERN!", dir(element.text_pattern2) )# element.text_pattern.value )
-            #print( "TEXT_PATERN 2!", dir(element) )            
-            value = element.value_pattern.value
-        except: # Windows sometimes throws a success error, otherwise ui.UIErr
+                if self.current_context:
+                    self.current_context.set_accessible_api_available("text", True)                
+        # Mac based A11Y - Currently unimplemented
+        elif self.system == "Darwin":
             pass
+
+        # Linux based A11Y - Currently unimplemented
+        else:
+            pass
+
+        # Update the visual state to accessible if a value was found        
+        if value:
+            self.update_visual_state(level = "accessibility")
+    
         return value
     
     def index_file(self, file_path: str):
@@ -217,10 +263,9 @@ class InputContextManager:
         self.index_content(file_contents)
 
     def index_textarea(self, total_value: str = "", forced = True):
+        self.update_visual_state(scanning=True)
         total_value = self.index_accessible_value() if total_value == "" else total_value
-        print( "A11Y", total_value )
         results = self.find_cursor_position(total_value, 1 if forced == True else 0)
-        print( results )
         self.index_content(results[0], results[1], results[2])
 
     def zero_width_space_insertion_index(self) -> (int, int):
@@ -274,7 +319,7 @@ class InputContextManager:
 
         if visibility_level > 0:
             # Go to the start of the document and copy that text
-            actions.key("ctrl-shift-home")
+            actions.key("ctrl-shift-home" if self.system != "Darwin" else "cmd-shift-home")
             actions.sleep("200ms")
             with clip.revert():
                 with clip.capture() as s:
@@ -296,7 +341,7 @@ class InputContextManager:
 
             # Otherwise we need to select until the end of the document
             else:
-                actions.key("ctrl-shift-end")
+                actions.key("ctrl-shift-end" if self.system != "Darwin" else "cmd-shift-end")
                 actions.sleep("200ms")
                 with clip.revert():
                     with clip.capture() as s:
@@ -317,6 +362,8 @@ class InputContextManager:
 
     def index_content(self, total_value: str = "", first_cursor_position: (int, int) = (-1, -1), second_cursor_position: (int, int) = (-1, -1)):
         context = self.get_current_context()
+        caret_confidence = 0
+        content_confidence = 2 if total_value != "" else 0
 
         # First, determine text history
         if first_cursor_position[0] >= -1 and first_cursor_position[1] >= -1:
@@ -346,6 +393,7 @@ class InputContextManager:
                 after_text = "\n" + after_text
 
             context.input_history_manager.cursor_position_tracker.set_history(before_text, after_text)
+            caret_confidence = 2
 
             # Set the selection correctly as well
             if second_cursor_position[0] > -1 and second_cursor_position[1] > -1 and (first_cursor_position != second_cursor_position):
@@ -354,6 +402,32 @@ class InputContextManager:
             # If no cursor is known - Simply set the text history - We will deal with inconsistent behavior later
         else:
             context.input_history_manager.cursor_position_tracker.set_history(total_value)
-        
+
         events = self.indexer.index_text(context.input_history_manager.cursor_position_tracker.text_history)
         context.input_history_manager.set_input_history(events)
+        self.update_visual_state(caret_confidence=caret_confidence, content_confidence=content_confidence, scanning=False)
+
+    def update_visual_state(self, level: str = None, caret_confidence: int = -1, content_confidence: int = -1, scanning: bool = None):
+        is_updated = False
+        if scanning is not None:
+            if scanning != self.visual_state['scanning']:
+                is_updated = True
+                self.visual_state['scanning'] = scanning
+
+        if level is not None:
+            if level != self.visual_state['level']:
+                is_updated = True
+                self.visual_state['level'] = level
+
+        if caret_confidence > -1:
+            if caret_confidence != self.visual_state['caret_confidence']:
+                is_updated = True
+                self.visual_state['caret_confidence'] = caret_confidence
+
+        if content_confidence > -1:
+            if content_confidence != self.visual_state['content_confidence']:
+                is_updated = True
+                self.visual_state['content_confidence'] = content_confidence
+
+        if is_updated and self.state_callback:
+            self.state_callback(self.visual_state['scanning'], self.visual_state['level'], self.visual_state['caret_confidence'], self.visual_state['content_confidence'])

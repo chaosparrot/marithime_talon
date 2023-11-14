@@ -83,9 +83,9 @@ class HudActions:
             actions.user.hud_add_log("warning", "Could not detect anything to remember as '" + " ".join(words) + "'")
         return remembered
     
-    def forget_text(words: List[str]) -> str:
+    def forget_text(words: List[str], list_name: str = None) -> str:
         """Detect text and remove it from the user managed lists"""
-        value_to_forget = actions.next(words)
+        value_to_forget = actions.next(words, list_name)
         if value_to_forget:
             actions.user.hud_add_log("success", "'" + " ".join(words) + "' forgotten")
         else:

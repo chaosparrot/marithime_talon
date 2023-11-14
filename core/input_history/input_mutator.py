@@ -1,4 +1,4 @@
-from talon import Module, Context, actions, settings, ui, speech_system
+from talon import Module, Context, actions, settings, ui, speech_system, app
 from .input_context_manager import InputContextManager
 from .input_fixer import InputFixer
 from typing import List, Union
@@ -42,7 +42,7 @@ class InputMutator:
     use_last_set_formatter = False
 
     def __init__(self):
-        self.manager = InputContextManager()
+        self.manager = InputContextManager(actions.user.input_core_update_sensory_state)
         self.fixer = InputFixer()
         self.fixer.verbose = True
 
@@ -143,7 +143,6 @@ class InputMutator:
 
             self_repair_match = ihm.find_self_repair(insert.split())
             if self_repair_match is not None:
-                actions.user.hud_add_log("success", "SELF REPAIR FOUND! " + insert )
 
                 # If we are dealing with a continuation, change the insert to remove the first few words
                 if self_repair_match.score / len(self_repair_match.scores) == 3:
@@ -210,7 +209,6 @@ class InputMutator:
 
         # Format text 
         if formatter is not None:
-            actions.user.hud_add_log("warning", ihm.cursor_position_tracker.text_history )
             formatter_repair_keys = formatter.determine_correction_keys(insert.split(), previous_text, next_text)
             for formatter_repair_key in formatter_repair_keys:
                 self.manager.apply_key(formatter_repair_key)
@@ -288,9 +286,18 @@ class InputMutator:
     def window_closed(self, event):
         self.manager.close_context(event)
 
-mutator = InputMutator()
-ui.register("win_focus", mutator.focus_changed)
-ui.register("win_close", mutator.window_closed)
+mutator = None
+def init_mutator():
+    global mutator
+    mutator = InputMutator()
+    ui.register("win_focus", mutator.focus_changed)
+    ui.register("win_close", mutator.window_closed)
+    settings.register("speech.language", lambda language: update_language(language))
+    settings.register("speech.engine", lambda _: update_language(""))
+    update_language("")
+
+app.register("ready", init_mutator)
+
 def update_language(language: str):
     if language == "":
         language = settings.get("speech.language", "en")
@@ -303,9 +310,6 @@ def update_language(language: str):
         pass
     mutator.fixer.load_fixes(language, engine_description)
 
-settings.register("speech.language", lambda language: update_language(language))
-settings.register("speech.engine", lambda _: update_language(""))
-update_language("")
 
 @mod.action_class
 class Actions:
@@ -384,7 +388,6 @@ class Actions:
                     actions.key(key)
                 mutator.enable_tracking()
         else:
-            actions.user.hud_add_log("command", phrase + " could not be found in context")
             raise RuntimeError("Input phrase '" + phrase + "' could not be found in the history")
 
     def input_core_select(phrase: Union[str, List[str]]):
@@ -407,7 +410,6 @@ class Actions:
                         actions.key(key)
                 mutator.enable_tracking()
             else:
-                actions.user.hud_add_log("warning", phrase + " could not be found in context")
                 raise RuntimeError("Input phrase '" + phrase + "' could not be found in the history")
             
     def input_core_correction(selection_and_correction: List[str]):
@@ -423,7 +425,6 @@ class Actions:
             text = " ".join(selection_and_correction)
             actions.user.input_core_insert(text)
         else:
-            actions.user.hud_add_log("warning", "'" + " ".join(selection_and_correction) + "' could not be corrected")
             raise RuntimeError("Input phrase '" + " ".join(selection_and_correction) + "' could not be corrected")
 
     def input_core_clear_phrase(phrase: str):
@@ -437,7 +438,6 @@ class Actions:
         mutator.enable_tracking()
 
         keys = mutator.clear_keys()
-        actions.user.hud_add_log("warning", "CLEAR! " + " ".join(keys))
         for key in keys:
             actions.key(key)
 
@@ -475,6 +475,10 @@ class Actions:
         global mutator
         mutator.index_textarea()
     
+    def input_core_update_sensory_state(scanning: bool, level: str, caret_confidence: int, content_confidence: int):
+        """Visually or audibly update the state for the user"""
+        pass
+
     def input_core_dump():
         """Dump the current state of the input history for debugging purposes"""
         global mutator
@@ -504,3 +508,63 @@ class Actions:
         actions.key("enter")
 
         mutator.enable_tracking("DUMP")
+
+ctx_override = Context()
+ctx_override.matches = """
+tag: user.talon_hud_available
+"""
+
+def index_document():
+    actions.user.input_core_index_textarea()
+
+@ctx_override.action_class("user")
+class HudActions:
+
+    def input_core_move_cursor(phrase: str, cursor_position: int = -1):
+        """Move the cursor to the given phrase"""
+        try:
+            actions.next(phrase, cursor_position)
+        except RuntimeError as e:
+            actions.user.hud_add_log("warning", phrase + " could not be found in context")
+            raise e
+
+    def input_core_select(phrase: Union[str, List[str]]):
+        """Move the cursor to the given phrase and select it"""
+        try:
+            actions.next(phrase)
+        except RuntimeError as e:
+            actions.user.hud_add_log("warning", phrase + " could not be found in context")
+            raise e
+        
+    def input_core_correction(selection_and_correction: List[str]):
+        """Select a fuzzy match of the words and apply the given words"""
+        try:
+            actions.next(selection_and_correction)
+        except RuntimeError as e:
+            actions.user.hud_add_log("warning", "'" + " ".join(selection_and_correction) + "' could not be corrected")
+            raise e
+
+    def input_core_update_sensory_state(scanning: bool, level: str, caret_confidence: int, content_confidence: int):
+        """Visually or audibly update the state for the user"""
+        
+        # Build up the status bar image icon name
+        status_bar_image = "virtual_buffer"
+        if level == "accessibility" and not scanning:
+            status_bar_image += "_a11y"
+        
+        if caret_confidence <= 0 and content_confidence <= 0:
+            status_bar_image += "_empty"
+        else:
+            status_bar_image += "_all_content" if content_confidence > 1 else "_some_content"
+            if caret_confidence <= 0:
+                status_bar_image += "_no_caret"
+            elif caret_confidence == 1:
+                status_bar_image += "_coarse_caret"
+            else:
+                status_bar_image += "_known_caret"
+
+        if scanning:
+            status_bar_image += "_scan"
+
+        status_bar_icon = actions.user.hud_create_status_icon("virtual_buffer", status_bar_image, "Virtual buffer unavailable", index_document)
+        actions.user.hud_publish_status_icon("virtual_buffer", status_bar_icon)

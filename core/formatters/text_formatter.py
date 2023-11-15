@@ -13,7 +13,7 @@ class TextFormatter:
     # Transform words into the given format
     def words_to_format(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
         return words
-    
+
     # Determine whether or not we need to type correction keys ( backspaces etc. ) when inserting this text
     def determine_correction_keys(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
         return []

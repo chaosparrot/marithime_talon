@@ -326,7 +326,7 @@ class InputFixer:
                 break
             else:
                 # Single word replacements
-                to_word = to_words[to_words_index]
+                to_word = to_words[to_words_index].strip()
 
                 no_format_from_word = re.sub(r"[^\w]", '', from_word).lower()
                 no_format_to_word = re.sub(r"[^\w]", '', to_word).lower()

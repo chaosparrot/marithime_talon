@@ -7,10 +7,10 @@ mode: dictation
     user.virtual_buffer_insert(word)
     user.virtual_buffer_insert(raw_prose)
 
-^before {user.indexed_words} [quill]:
+^cursor before {user.indexed_words} [quill]:
     user.virtual_buffer_move_caret(indexed_words, 0)
 
-^after {user.indexed_words} [quill]:
+^cursor after {user.indexed_words} [quill]:
     user.virtual_buffer_move_caret(indexed_words, -1)
 
 # Spelling

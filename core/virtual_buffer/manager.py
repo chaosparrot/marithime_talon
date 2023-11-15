@@ -140,8 +140,8 @@ class VirtualBufferManager:
         # Make sure we have the right caret position for insertion
         self.disable_tracking()
         self.context.ensure_viable_context()
-        vbm = self.context.get_current_context().buffer
         self.enable_tracking()
+        vbm = self.context.get_current_context().buffer
 
         repair_keys = []
 
@@ -229,12 +229,13 @@ class VirtualBufferManager:
 
         # Format text 
         if formatter is not None:
-            formatter_repair_keys = formatter.determine_correction_keys(insert.split(), previous_text, next_text)
+            words = formatter.words_to_format(insert.split(), previous_text, next_text)
+            formatter_repair_keys = formatter.determine_correction_keys(words, previous_text, next_text)
+
             for formatter_repair_key in formatter_repair_keys:
                 self.context.apply_key(formatter_repair_key)
 
             repair_keys.extend(formatter_repair_keys)
-            words = formatter.words_to_format(insert.split(), previous_text, next_text)
         
         # If there was a fix, keep track of it here
         if previous_selection:

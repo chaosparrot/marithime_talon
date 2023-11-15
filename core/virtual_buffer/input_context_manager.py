@@ -5,6 +5,7 @@ from typing import List, Callable
 from ..formatters.text_formatter import TextFormatter
 from ..formatters.formatters import FORMATTERS_LIST
 from .indexer import VirtualBufferIndexer, text_to_virtual_buffer_tokens
+from .caret_tracker import _CARET_MARKER, _COARSE_MARKER
 from ..utils.levenshtein import levenshtein
 import os
 import platform
@@ -56,10 +57,10 @@ class InputContextManager:
                     break
                 elif context.coarse_match_pattern(name, title, pid):
                     accessible_content = self.index_accessible_value()
-                    context.buffer.caret_tracker.text_buffer
+                    text_buffer = context.buffer.caret_tracker.text_buffer.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
 
                     normalized_accessible_content = "".join(accessible_content.lower().split())
-                    normalized_context = "".join(context.buffer.caret_tracker.text_buffer.lower().split())
+                    normalized_context = "".join(text_buffer.lower().split())
                     comparison = levenshtein(normalized_accessible_content, normalized_context)
 
                     if (len(normalized_context) - comparison) > len(normalized_context) * 0.9:
@@ -73,13 +74,47 @@ class InputContextManager:
             if context_to_switch_to is not None:
                 caret_index = context_to_switch_to.buffer.caret_tracker.get_caret_index()
                 caret_confidence = 0 if caret_index[0] == -1 else 1 if caret_index[1] == -1 else 2
-                content_confidence = 0 if len(context_to_switch_to.buffer.caret_tracker) == 0 else 1
+                content_confidence = 0 if len(context_to_switch_to.buffer.tokens) == 0 else 1
+
+                # Check if we can upgrade the context to be fully confident
+                if caret_confidence > 0 and context_to_switch_to.accessible_api_available:
+                    accessible_text = self.index_accessible_value()
+                    text_buffer = context_to_switch_to.buffer.caret_tracker.text_buffer.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
+
+                    if text_buffer == accessible_text:
+                        content_confidence = 2
+
                 self.update_visual_state("accessibility" if context_to_switch_to.accessible_api_available else "text", caret_confidence=caret_confidence, content_confidence=content_confidence)
             else:
                 self.update_visual_state("text", 0, 0, False)
 
             return self.current_context is not None
         return False
+
+    def ensure_viable_context(self):
+        update_caret = update_caret=self.visual_state['caret_confidence'] != 2
+        update_content = self.visual_state['caret_confidence'] == 1 and self.visual_state['content_confidence'] < 1
+        self.poll_accessible_changes(update_caret=update_caret, update_content=update_content)
+
+    def poll_accessible_changes(self, update_caret = False, update_content = False):
+        caret_updated = False
+        context = self.get_current_context()
+        value = self.index_accessible_value()
+
+        if update_content and self.visual_state['content_confidence'] != 2:
+            if context:
+                text_buffer = context.buffer.caret_tracker.text_buffer.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
+                
+                if value != text_buffer:
+                    self.index_textarea(value, False)
+                    caret_updated = True
+
+        if update_caret and caret_updated == False and self.visual_state['caret_confidence'] != 2:
+            results = self.find_caret_position(value, -1)
+
+            # Only if the caret position is not the same as the known position do we need to reindex
+            if results[1] != context.buffer.caret_tracker.get_caret_index():
+                self.index_content(results[0], results[1], results[2])
     
     def set_formatter(self, formatter_name: str):
         if formatter_name in FORMATTERS_LIST:
@@ -100,10 +135,12 @@ class InputContextManager:
         current_context = self.get_current_context()
         current_context.apply_key(key)
 
-        if "ctrl" in key:
-            caret_index = current_context.buffer.caret_tracker.get_caret_index()
-            caret_confidence = 0 if caret_index[0] == -1 else 1 if caret_index[1] == -1 else 2
-            self.update_visual_state(caret_confidence=caret_confidence)
+        if "ctrl" in key and len(current_context.buffer.tokens) > 0:
+
+            # Only poll the changes for specific key combinations that have known changes to the content
+            if "ctrl-z" in key or "ctrl-v" in key or "ctrl-x" in key \
+                or "ctrl-backspace" in key or "ctrl-delete" in key:
+                self.poll_accessible_changes(True, True)
 
     def track_insert(self, insert: str, phrase: str = None):
         vbm = self.get_current_context().buffer
@@ -275,6 +312,7 @@ class InputContextManager:
         return self.indexer.determine_caret_position(zwsp, total_value)
     
     def find_caret_position(self, total_value: str, visibility_level = 0) -> (str, (int, int), (int, int)):
+        self.update_visual_state(scanning=True)        
         undefined_positions = (total_value, (-1, -1), (-1, -1))
         before_text = ""
         after_text = ""

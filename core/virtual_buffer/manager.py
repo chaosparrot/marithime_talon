@@ -82,6 +82,10 @@ class VirtualBufferManager:
         return self.context.get_current_context().buffer.has_matching_phrase(phrase)
     
     def move_caret_back(self, keep_selection: bool = False) -> List[str]:
+        self.disable_tracking()
+        self.context.ensure_viable_context()
+        self.enable_tracking()
+        
         vbm = self.context.get_current_context().buffer
 
         if len(vbm.tokens) > 0:
@@ -95,6 +99,10 @@ class VirtualBufferManager:
             return ["end"]
         
     def select_phrase(self, phrase: str, until_end = False) -> List[str]:
+        self.disable_tracking()
+        self.context.ensure_viable_context()
+        self.enable_tracking()
+
         vbm = self.context.get_current_context().buffer
 
         if self.has_phrase(phrase):
@@ -106,6 +114,10 @@ class VirtualBufferManager:
             return vbm.select_phrase(phrase)
         
     def select_phrases(self, phrases: List[str], until_end = False) -> List[str]:
+        self.disable_tracking()
+        self.context.ensure_viable_context()
+        self.enable_tracking()
+
         vbm = self.context.get_current_context().buffer
         self.context.should_use_last_formatter(False)
 
@@ -115,13 +127,21 @@ class VirtualBufferManager:
             return vbm.select_phrases(phrases)
 
     def move_to_phrase(self, phrase: str, character_index: int = -1, keep_selection: bool = False, next_occurrence: bool = True) -> List[str]:
+        self.disable_tracking()
+        self.context.ensure_viable_context()
+        self.enable_tracking()
+
         if self.has_phrase(phrase):
             self.context.should_use_last_formatter(False)
         vbm = self.context.get_current_context().buffer
         return vbm.go_phrase(phrase, "end" if character_index == -1 else "start", keep_selection, next_occurrence )
 
     def transform_insert(self, insert: str, enable_self_repair: bool = False) -> (str, List[str]):
+        # Make sure we have the right caret position for insertion
+        self.disable_tracking()
+        self.context.ensure_viable_context()
         vbm = self.context.get_current_context().buffer
+        self.enable_tracking()
 
         repair_keys = []
 
@@ -286,18 +306,6 @@ class VirtualBufferManager:
     def window_closed(self, event):
         self.context.close_context(event)
 
-mutator = None
-def init_mutator():
-    global mutator
-    mutator = VirtualBufferManager()
-    ui.register("win_focus", mutator.focus_changed)
-    ui.register("win_close", mutator.window_closed)
-    settings.register("speech.language", lambda language: update_language(language))
-    settings.register("speech.engine", lambda _: update_language(""))
-    update_language("")
-
-app.register("ready", init_mutator)
-
 def update_language(language: str):
     if language == "":
         language = settings.get("speech.language", "en")
@@ -310,6 +318,17 @@ def update_language(language: str):
         pass
     mutator.fixer.load_fixes(language, engine_description)
 
+mutator = None
+def init_mutator():
+    global mutator
+    mutator = VirtualBufferManager()
+    ui.register("win_focus", mutator.focus_changed)
+    ui.register("win_close", mutator.window_closed)
+    settings.register("speech.language", lambda language: update_language(language))
+    settings.register("speech.engine", lambda _: update_language(""))
+    update_language("")
+
+app.register("ready", init_mutator)
 
 @mod.action_class
 class Actions:

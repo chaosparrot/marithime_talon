@@ -1,3 +1,3 @@
 mode: noise
 -
-parrot(pop): user.input_core_clear()
+parrot(pop): user.virtual_buffer_clear()

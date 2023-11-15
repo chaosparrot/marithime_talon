@@ -1,7 +1,5 @@
 from talon import Context, Module, actions
 from dataclasses import dataclass
-from ...apps.vscode.vscode import is_untitled
-
 
 @dataclass
 class Language:
@@ -91,17 +89,6 @@ class OtherCodeActions:
     def language() -> str:
         return ""
 
-
-# Vscode specific `code.language`
-@ctx_vscode.action_class("code")
-class VscodeCodeActions:
-    def language() -> str:
-        # New untitled files are markdown in vscode
-        if not forced_language and is_untitled(actions.win.filename()):
-            return "markdown"
-        return actions.next()
-
-
 @ctx.action_class("code")
 class CodeActions:
     def language() -> str:
@@ -109,7 +96,6 @@ class CodeActions:
             return forced_language
         file_extension = actions.win.file_ext()
         return extension_lang_map.get(file_extension, "")
-
 
 @mod.action_class
 class Actions:

@@ -1,6 +1,7 @@
-from talon import actions
-from .typing import InputFix
+from talon import actions, cron
+from .typing import InputFix, InputMutation
 import re
+import time
 from typing import List, Dict
 from ..user_settings import SETTINGS_DIR
 import os
@@ -23,10 +24,13 @@ class InputFixer:
     known_fixes: Dict[str, List[InputFix]] = {}
     verbose: bool = False
 
+    buffer: List[InputMutation] = []
+
     def __init__(self, language: str = "en", engine: str = "", path_prefix: str = str(Path(SETTINGS_DIR) / "cache"), verbose = False):
         self.language = language
         self.engine = engine
         self.path_prefix = path_prefix
+        self.buffer = []
         self.done_fixes = {}
         self.known_fixes = {}
         self.phonetic_search = phonetic_search
@@ -54,7 +58,7 @@ class InputFixer:
                     if "from_text" in row:
                         if row["from_text"].lower() not in self.known_fixes:
                             self.known_fixes[row["from_text"]] = []
-                        known_fix = InputFix(self.get_key(row["from_text"], row["to_text"]), row["from_text"], row["to_text"], row["amount"], row["previous"], row["next"])
+                        known_fix = InputFix(self.get_key(row["from_text"], row["to_text"]), row["from_text"], row["to_text"], int(row["amount"]), row["previous"], row["next"])
                         self.known_fixes[row["from_text"].lower()].append(known_fix)
 
     # Find fixes for lists of words
@@ -101,6 +105,84 @@ class InputFixer:
         # No known fixes - Keep the same
         else:
             return text
+    
+    def commit_buffer(self, cutoff_timestamp: float) -> List[InputFix]:
+        new_fixes = []
+        buffer_to_commit = [mutation for mutation in self.buffer if mutation.time <= cutoff_timestamp]
+        for index, mutation in enumerate(buffer_to_commit):
+
+            # Skip subsitutions that have been immediately removed afterwards
+            if index + 1 < len(buffer_to_commit) and buffer_to_commit[index + 1].deletion == mutation.insertion:
+                continue
+
+            # Detect changes in substitutions
+            elif len(mutation.insertion) > 0 and len(mutation.deletion) > 0:
+                from_words = mutation.deletion.split(" ")
+                to_words = mutation.insertion.split(" ")
+                fixes = self.find_fixes_in_mutation(from_words, to_words, mutation.previous, mutation.next)
+                for fix in fixes:
+                    new_fixes.extend(self.create_fixes(fix[0], fix[1], fix[2], fix[3]))
+
+        # TODO MAKE SURE TO ONLY COMMIT BUFFER IF CHANGES HAVEN'T BEEN MADE LATER
+        self.buffer = [mutation for mutation in self.buffer if mutation.time > cutoff_timestamp]
+        return new_fixes
+
+    def add_to_buffer(self, insertion: str = "", deletion: str = "", previous: str = "", next: str = ""):
+        mutation = InputMutation(time.time(), insertion, deletion, previous, next)
+        self.buffer.append(mutation)
+        self.merge_buffer()
+
+    # Simplify the buffer to properly detect changes
+    def merge_buffer(self):
+
+        # Merge consecutive insertions, deletions and insertions into a single change
+        merged_buffer = []
+        for item in self.buffer:
+            if len(merged_buffer) > 0:
+                # Merge insert - delete - insert into a single mutation change
+                if len(merged_buffer) > 1 and item.insertion and merged_buffer[-2].insertion == merged_buffer[-1].deletion:
+                    merged_buffer.pop()
+                    merged_buffer[-1].time = item.time
+
+                    # Only change the deletion if it is empty
+                    # This way we can track changes 'thats' -> 'hat' -> 'that' correctly
+                    if merged_buffer[-1].deletion == "":
+                        merged_buffer[-1].deletion = merged_buffer[-1].insertion
+                    merged_buffer[-1].insertion = item.insertion
+                
+                # Merge complete substitution fixes
+                elif item.insertion and item.deletion == merged_buffer[-1].insertion:
+                    merged_buffer[-1].time = item.time
+                    merged_buffer[-1].insertion = item.insertion
+                else:
+                    merged_buffer.append(item)
+            else:
+                merged_buffer.append(item)
+
+        self.buffer = merged_buffer
+
+    def create_fixes(self, from_text: str, to_text: str, previous: str, next: str) -> InputFix:
+        fix_key = self.get_key(from_text, to_text)
+
+        if previous != "" and next != "":
+            return [
+                InputFix(fix_key, from_text, to_text, 0, previous, next),
+                InputFix(fix_key, from_text, to_text, 0, "", next),
+                InputFix(fix_key, from_text, to_text, 0, previous, ""),
+                InputFix(fix_key, from_text, to_text, 0, "", "")
+            ]
+        elif previous == "" and next != "":
+            return [
+                InputFix(fix_key, from_text, to_text, 0, "", next),
+                InputFix(fix_key, from_text, to_text, 0, "", "")
+            ]
+        elif previous != "" and next == "":
+            return [
+                InputFix(fix_key, from_text, to_text, 0, previous, ""),
+                InputFix(fix_key, from_text, to_text, 0, "", "")
+            ]
+        else:
+            return [InputFix(fix_key, from_text, to_text, 0, "", "")]
         
     def add_fix(self, from_text: str, to_text: str, previous: str, next: str, weight: int = 1):
         fix_key = self.get_key(from_text, to_text)
@@ -109,25 +191,8 @@ class InputFixer:
 
         # Add fixes for every type of context
         if not fix_key in self.done_fixes:
-            if previous != "" and next != "":
-                self.done_fixes[fix_key] = [
-                    InputFix(fix_key, from_text, to_text, 0, previous, next),
-                    InputFix(fix_key, from_text, to_text, 0, "", next),
-                    InputFix(fix_key, from_text, to_text, 0, previous, ""),
-                    InputFix(fix_key, from_text, to_text, 0, "", "")
-                ]
-            elif previous == "" and next != "":
-                self.done_fixes[fix_key] = [
-                    InputFix(fix_key, from_text, to_text, 0, "", next),
-                    InputFix(fix_key, from_text, to_text, 0, "", "")
-                ]
-            elif previous != "" and next == "":
-                self.done_fixes[fix_key] = [
-                    InputFix(fix_key, from_text, to_text, 0, previous, ""),
-                    InputFix(fix_key, from_text, to_text, 0, "", "")
-                ]
-            else:
-                self.done_fixes[fix_key] = [InputFix(fix_key, from_text, to_text, 0, "", "")]
+            new_fixes = self.create_fixes(from_text, to_text, previous, next)
+            self.done_fixes[fix_key] = new_fixes
 
         for done_fix in self.done_fixes[fix_key]:
             if (done_fix.previous == previous and done_fix.next == next) or \
@@ -308,7 +373,8 @@ class InputFixer:
         to_words = to_text.split()
         self.track_fix_list(from_words, to_words, previous_word, next_word)
 
-    def track_fix_list(self, from_words: List[str], to_words: List[str], previous: str, next: str):
+    def find_fixes_in_mutation(self, from_words: List[str], to_words: List[str], previous: str, next: str) -> List:
+        found_fixes = []
         to_words_index = 0
 
         first_previous_word = "" if previous == "" else re.sub(r"[^\w]", '', previous.strip().split()[-1]).lower()
@@ -363,7 +429,7 @@ class InputFixer:
                             if one_to_one_similarity_score >= min(0.5, 1 - (1 / len(to_word))):
                                 previous_word = first_previous_word if to_words_index == 0 else to_words[to_words_index - 1]
                                 next_word = first_next_word if to_words_index + 1 >= len(to_words) else to_words[to_words_index + 1]
-                                self.add_fix(no_format_from_word, to_word, previous_word, next_word)
+                                found_fixes.append((no_format_from_word, to_word, previous_word, next_word))
                         
                         # If the two to one word replacement is more likely, add a fix for that
                         elif two_to_one_similarity_score >= one_to_one_similarity_score and two_to_one_similarity_score >= one_to_two_similarity_score:
@@ -374,7 +440,7 @@ class InputFixer:
 
                                 previous_word = first_previous_word if to_words_index == 0 else to_words[to_words_index - 1]
                                 next_word = first_next_word if to_words_index + 1 >= len(to_words) else to_words[to_words_index + 1]
-                                self.add_fix(no_format_two_words, to_word, previous_word, next_word)
+                                found_fixes.append((no_format_two_words, to_word, previous_word, next_word))
 
                         # If the one to two word replacement is more likely, add a fix for that
                         elif one_to_two_similarity_score >= one_to_one_similarity_score and one_to_two_similarity_score >= two_to_one_similarity_score:
@@ -382,9 +448,15 @@ class InputFixer:
                             if one_to_two_similarity_score >= min(0.5, 1 - (1 / len(no_format_to_two_words))):
                                 previous_word = first_previous_word if to_words_index == 0 else to_words[to_words_index - 1]
                                 next_word = first_next_word if to_words_index + 2 >= len(to_words) else to_words[to_words_index + 2]
-                                self.add_fix(no_format_from_word, two_to_words, previous_word, next_word)
+                                found_fixes.append((no_format_from_word, two_to_words, previous_word, next_word))
                                 to_words_index += 1
                     to_words_index += 1
+        return found_fixes
+
+    def track_fix_list(self, from_words: List[str], to_words: List[str], previous: str, next: str):
+        fixes = self.find_fixes_in_mutation(from_words, to_words, previous, next)
+        for fix in fixes:
+            self.add_fix(fix[0], fix[1], fix[2], fix[3])
 
     def can_activate_fix(self, fix: InputFix, amount = None) -> bool:
         context_threshold = CONTEXT_THRESHOLD_NONE

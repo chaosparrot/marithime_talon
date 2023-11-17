@@ -26,6 +26,14 @@ class VirtualBufferTokenContext:
     next: VirtualBufferToken = None
 
 @dataclass
+class InputMutation:
+    time: float
+    insertion: str
+    deletion: str
+    previous: str = ""
+    next: str = ""
+
+@dataclass
 class InputFix:
     key: str
     from_text: str

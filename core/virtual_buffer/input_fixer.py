@@ -24,9 +24,11 @@ class InputFixer:
     known_fixes: Dict[str, List[InputFix]] = {}
     verbose: bool = False
 
+    poll_buffer_commit_seconds = 0
+    buffer_committing_job = None
     buffer: List[InputMutation] = []
 
-    def __init__(self, language: str = "en", engine: str = "", path_prefix: str = str(Path(SETTINGS_DIR) / "cache"), verbose = False):
+    def __init__(self, language: str = "en", engine: str = "", path_prefix: str = str(Path(SETTINGS_DIR) / "cache"), poll_buffer_seconds: int = 30, verbose = False):
         self.language = language
         self.engine = engine
         self.path_prefix = path_prefix
@@ -36,6 +38,7 @@ class InputFixer:
         self.phonetic_search = phonetic_search
         self.verbose = verbose
         self.load_fixes(language, engine)
+        self.poll_buffer_seconds = poll_buffer_seconds
 
     def load_fixes(self, language: str, engine: str):
         if language and engine and self.path_prefix:
@@ -106,6 +109,7 @@ class InputFixer:
         else:
             return text
     
+    # Commit the buffer as proper changes
     def commit_buffer(self, cutoff_timestamp: float) -> List[InputFix]:
         new_fixes = []
         buffer_to_commit = [mutation for mutation in self.buffer if mutation.time <= cutoff_timestamp]
@@ -125,16 +129,29 @@ class InputFixer:
 
         # TODO MAKE SURE TO ONLY COMMIT BUFFER IF CHANGES HAVEN'T BEEN MADE LATER
         self.buffer = [mutation for mutation in self.buffer if mutation.time > cutoff_timestamp]
+
+        # Restart the polling if the buffer is filled still
+        if self.poll_buffer_seconds > 0:
+            if len(self.buffer) > 0:
+                self.buffer_committing_job = cron.after(str(self.poll_buffer_seconds) + "s", lambda: self.commit_buffer(time.time() - self.poll_buffer_seconds))
+            else:
+                cron.cancel(self.buffer_committing_job)
+                self.buffer_committing_job = None
+
         return new_fixes
 
     def add_to_buffer(self, insertion: str = "", deletion: str = "", previous: str = "", next: str = ""):
+
+        # Only start the buffer committing job if the buffer has been filled
+        if len(self.buffer) == 0 and self.poll_buffer_commit_seconds > 0:
+            self.buffer_committing_job = cron.after(str(self.poll_buffer_seconds) + "s", lambda: self.commit_buffer(time.time() - self.poll_buffer_seconds))
+
         mutation = InputMutation(time.time(), insertion, deletion, previous, next)
         self.buffer.append(mutation)
         self.merge_buffer()
 
     # Simplify the buffer to properly detect changes
     def merge_buffer(self):
-
         # Merge consecutive insertions, deletions and insertions into a single change
         merged_buffer = []
         for item in self.buffer:
@@ -155,7 +172,13 @@ class InputFixer:
                     merged_buffer[-1].time = item.time
                     merged_buffer[-1].insertion = item.insertion
                 else:
-                    merged_buffer.append(item)
+                    # Merge item if they are connected
+                    if item.previous != "" and merged_buffer[-1].insertion.endswith(item.previous) and \
+                        merged_buffer[-1].deletion == "":
+                        merged_buffer[-1].insertion += item.insertion
+                        merged_buffer[-1].time = item.time
+                    else:
+                        merged_buffer.append(item)
             else:
                 merged_buffer.append(item)
 

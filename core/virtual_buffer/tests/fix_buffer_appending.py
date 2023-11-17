@@ -4,7 +4,7 @@ from ...utils.test import create_test_suite
 import time
 
 def get_input_fixer() -> InputFixer:
-    input_fixer = InputFixer("en", "test", None)
+    input_fixer = InputFixer("en", "test", None, 0)
     search = PhoneticSearch()
     search.set_homophones("")
     search.set_phonetic_similiarities("")
@@ -18,19 +18,22 @@ def test_insertions_only(assertion):
     assertion( "    Inserting 'This '")
     input_fixer.add_to_buffer("This ")    
     assertion( "        Should increase the buffer by 1", len(input_fixer.buffer) == 1)
-    assertion( "    Inserting 'is '")
-    input_fixer.add_to_buffer("is ")    
-    assertion( "        Should increase the buffer by 1 again", len(input_fixer.buffer) == 2)
+    assertion( "    Inserting 'is ' afterwards")
+    input_fixer.add_to_buffer("is ", "", "This ")    
+    assertion( "        Should keep the buffer as 1 item because we are appending", len(input_fixer.buffer) == 1)
     assertion( "    Inserting 'a test '")
-    input_fixer.add_to_buffer("a test ")
-    assertion( "        Should increase the buffer by 1 again", len(input_fixer.buffer) == 3)
+    input_fixer.add_to_buffer("a test ", "", "is ")
+    assertion( "        Should keep the buffer as 1 item because we are appending", len(input_fixer.buffer) == 1)
+    assertion( "    Inserting 'need ' from an unconnected source")
+    input_fixer.add_to_buffer("need ", "", "This ")
+    assertion( "        Should increase the buffer by 1", len(input_fixer.buffer) == 2)
 
 def test_substitution_only(assertion):
     input_fixer = get_input_fixer()
 
     assertion( "Replacing text from an empty buffer")
     assertion( "    Replacing 'This ' with 'That '")
-    input_fixer.add_to_buffer("This ", "That ")    
+    input_fixer.add_to_buffer("This ", "That ")
     assertion( "        Should increase the buffer by 1", len(input_fixer.buffer) == 1)
     assertion( "    Replacing 'is ' with 'is '")
     input_fixer.add_to_buffer("is ", "is ")    

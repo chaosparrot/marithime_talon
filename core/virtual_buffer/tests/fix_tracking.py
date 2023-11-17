@@ -3,7 +3,7 @@ from ...phonetics.phonetics import PhoneticSearch
 from ...utils.test import create_test_suite
 
 def get_input_fixer() -> InputFixer:
-    input_fixer = InputFixer("en", "test", None)
+    input_fixer = InputFixer("en", "test", None, 0)
     search = PhoneticSearch()
     search.set_homophones("")
     search.set_phonetic_similiarities("")

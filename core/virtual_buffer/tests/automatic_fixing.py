@@ -2,7 +2,7 @@ from ..input_fixer import InputFixer
 from ...utils.test import create_test_suite
 
 def get_input_fixer():
-    return InputFixer("en", "test", None)
+    return InputFixer("en", "test", None, 0)
 
 def test_empty_fixer(assertion):
     input_fixer = get_input_fixer()

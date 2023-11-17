@@ -34,12 +34,7 @@ class SentenceFormatter(TextFormatter):
 
     # Transform formatted text into separate words
     def format_to_words(self, text: str) -> List[str]:
-        new_words = []
-        for word in text.split(" "):
-            if word:
-                new_words.append(word if word == "" else word.lower())
-        
-        return new_words
+        return self.split(text)
     
     # Transform words into the given format
     def words_to_format(self, words: List[str], previous: str = "", next: str = "") -> str:        
@@ -75,6 +70,20 @@ class SentenceFormatter(TextFormatter):
                 formatted_words[-1] += " "
         
         return formatted_words
+    
+    def split(self, text: str, with_current_capitalisation: bool = False) -> List[str]:
+        new_words = []
+        spaced_words = text.split(" ")
+        for index, word in enumerate(spaced_words):
+            if with_current_capitalisation:
+                new_words.append(word + (" " if index != len(spaced_words) - 1 else ""))
+            else:
+                new_words.append(word if word == "" else word.lower())
+        
+        return new_words
+
+    def split_format(self, text: str) -> List[str]:
+        return self.split(text, True)
 
     def detect_end_sentence(self, previous: str) -> bool:
         return previous == "" or "".join(previous.replace("\n", "").split()).endswith(("?", ".", "!"))

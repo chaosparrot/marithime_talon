@@ -23,6 +23,9 @@ class DictationFormatter(TextFormatter):
     # Determine whether or not we need to type correction keys ( backspaces etc. ) when inserting this text
     def determine_correction_keys(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
         return self.language.determine_correction_keys(words, previous, next)
+    
+    def split_format(self, text: str) -> List[str]:
+        return self.language.split_format(text)
 
 DICTATION_FORMATTERS = {
     'EN': DictationFormatter('english', englishLanguage),

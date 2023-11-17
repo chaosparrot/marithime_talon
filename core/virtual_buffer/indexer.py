@@ -83,7 +83,7 @@ class VirtualBufferIndexer:
 
         # TODO - Do index matching based on if we are dealing with a regular or a programming language
         # We are now just using the default formatter instead
-        words = self.default_formatter.words_to_format(self.default_formatter.format_to_words(text))
+        words = self.default_formatter.split_format(text)
         
         tokens = []
         for word in words:

@@ -10,3 +10,6 @@ class Language:
     
     def determine_correction_keys(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
         return []
+    
+    def split_format(self, text: str) -> List[str]:
+        return self.format_to_words(text)

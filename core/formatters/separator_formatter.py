@@ -10,29 +10,7 @@ class SeparatorFormatter(TextFormatter):
 
     # Transform formatted text into separate words
     def format_to_words(self, text: str) -> List[str]:
-        separated_words = [word for word in text.split(self.separator)] if self.separator else [text]
-        total_words = []
-        for separated_word in separated_words:
-            if separated_word.isalnum() or separated_word == "":
-                total_words.append(separated_word)
-            else:
-                # Split non-alphanumeric characters in separate buckets
-                new_word = ""
-                new_words = []
-                for char in separated_word:
-                    if char.isalnum():
-                        new_word += char
-                    else:
-                        if new_word:
-                            new_words.append(new_word)
-                            new_word = ""
-                        new_words.append(char)
-                if new_word:
-                    new_words.append(new_word)
-                
-                total_words.extend(new_words)
-
-        return total_words
+        return self.split(text)
     
     # Transform words into the given format
     def words_to_format(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
@@ -59,3 +37,33 @@ class SeparatorFormatter(TextFormatter):
             formatted[-1] = formatted[-1] + self.separator
 
         return formatted
+    
+    def split(self, text: str, with_separator: bool = False) -> List[str]:
+
+        separated_words = [word for word in text.split(self.separator)] if self.separator else [text]
+        total_words = []
+        for index, separated_word in enumerate(separated_words):
+            appended_separator = (self.separator if with_separator and index != len(separated_words) - 1 else "")
+            if separated_word.isalnum() or separated_word == "":
+                total_words.append(separated_word + appended_separator)
+            else:
+                # Split non-alphanumeric characters in separate buckets
+                new_word = ""
+                new_words = []
+                for char in separated_word:
+                    if char.isalnum():
+                        new_word += char
+                    else:
+                        if new_word:
+                            new_words.append(new_word)
+                            new_word = ""
+                        new_words.append(char)
+                if new_word:
+                    new_words.append(new_word + appended_separator)
+                
+                total_words.extend(new_words)
+
+        return total_words
+    
+    def split_format(self, text: str) -> List[str]:
+        return self.split(text, True)

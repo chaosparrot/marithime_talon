@@ -26,6 +26,15 @@ And this is a second sentence!""")
     assertion("    should have 7 tokens on the second line", len([token for token in sentence_tokens if token.line_index == 1]) == 6)
     assertion("    the first word of the second line should be capitalized", [token for token in sentence_tokens if token.line_index == 1][0].text == "And ")    
 
+def test_index_sentence_with_unorthodox_spacing(assertion):
+    sentence_tokens = input_indexer.index_text("this  is  the  first  sentence  . ")
+    assertion( "Indexing the sentence 'this  is  the  first  sentence  . '")
+    assertion("    should consist of 5 virtual buffer tokens", len(sentence_tokens) == 5)
+    assertion("    should have 5 tokens on the first line", len([token for token in sentence_tokens if token.line_index == 0]) == 5)
+    assertion("    the first word of the first line shouldn't be capitalized", [token for token in sentence_tokens if token.line_index == 0][0].text == "this  ")
+    assertion("    the last word of the first line should contain the dot", [token for token in sentence_tokens if token.line_index == 0][-1].text == "sentence  . ")
+
 suite = create_test_suite("Text indexation")
 suite.add_test(test_index_single_sentence)
 suite.add_test(test_index_multiple_sentences)
+suite.add_test(test_index_sentence_with_unorthodox_spacing)

@@ -22,7 +22,21 @@ class EnglishLanguage(Language):
     ]
 
     def format_to_words(self, text: str) -> List[str]:
-        sentence_separated_words = self.sentence_formatter.format_to_words(text)
+        return self.split(text)
+
+    def dictation_format(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
+        converted_words = words
+        for converter in self.converters:
+            if converter.match_words(converted_words, previous, next):
+                converted_words = converter.convert_words(converted_words, previous, next)
+
+        return self.sentence_formatter.words_to_format([word for word in converted_words], previous, next)
+
+    def determine_correction_keys(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
+        return self.sentence_formatter.determine_correction_keys(words, previous, next)
+
+    def split(self, text: str, lossless = False) -> List[str]:
+        sentence_separated_words = self.sentence_formatter.split(text, lossless)
         total_words = []
         for separated_word in sentence_separated_words:
             if separated_word.isalnum():
@@ -45,15 +59,7 @@ class EnglishLanguage(Language):
                 total_words.extend(new_words)
         return total_words
 
-    def dictation_format(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
-        converted_words = words
-        for converter in self.converters:
-            if converter.match_words(converted_words, previous, next):
-                converted_words = converter.convert_words(converted_words, previous, next)
-
-        return self.sentence_formatter.words_to_format([word for word in converted_words], previous, next)
-
-    def determine_correction_keys(self, words: List[str], previous: str = "", next: str = "") -> List[str]:
-        return self.sentence_formatter.determine_correction_keys(words, previous, next)
+    def split_format(self, text: str) -> List[str]:
+        return self.split(text, True)
 
 englishLanguage = EnglishLanguage()

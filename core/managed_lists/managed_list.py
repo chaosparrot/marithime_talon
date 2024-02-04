@@ -16,26 +16,33 @@ class ManagedList:
     def __init__(self, list_name: str, filename: str):
         self.list_name = list_name
         self.filename = str(filename)
+
+        # Create the file if it does not exist yet
+        if not os.path.exists(self.filename):
+            with open(self.filename, 'w') as file:
+                file.write("")
+
+
         self.rows = {}
         self.ctx = Context()
         self.update_context_list()
 
     # Append an item to the list, never overwriting known names
     def append_to_list(self, value: str, name: str):
-        if self.rows:
+        if self.rows is not None:
             self.rows[name] = value
 
     # Add a value to the list
     # If the value already exists, overwrite its name
     # If the value exists multiple times, remove all but one instance and overwrite it
     def add_to_list(self, value: str, name: str):
-        if self.rows:
+        if self.rows is not None``:
             self.remove_from_list(value, name)
             self.rows[name] = value
 
     # Remove an item from the list
     def remove_from_list(self, value: str, name: str):
-        if self.rows:
+        if self.rows is not None:
             names_to_remove = []
             for known_name in self.rows:
                 if self.rows[known_name] == value:
@@ -49,7 +56,7 @@ class ManagedList:
     
     # Check if the value exists in the list
     def value_exists(self, value: str, name: str) -> bool:
-        if self.rows:
+        if self.rows is not None:
             for known_name in self.rows:
                 if self.rows[known_name] == value or known_name == name:
                     return True
@@ -81,7 +88,7 @@ class ManagedList:
     def list_to_text(self) -> str:
         rows = []
         output = io.StringIO()
-        if self.rows:
+        if self.rows is not None:
             for key in self.rows:
                 rows.append({
                     "value": self.rows[key],

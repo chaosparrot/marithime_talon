@@ -84,4 +84,5 @@ def track_csv_list(path: str, callable: Callable):
 
     @resource.watch(str(path))
     def on_update(f):
-        callable(f)
+        callable(str(path))
+        f.close()

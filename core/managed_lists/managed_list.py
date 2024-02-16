@@ -22,7 +22,6 @@ class ManagedList:
             with open(self.filename, 'w') as file:
                 file.write("")
 
-
         self.rows = {}
         self.ctx = Context()
         self.update_context_list()
@@ -36,7 +35,7 @@ class ManagedList:
     # If the value already exists, overwrite its name
     # If the value exists multiple times, remove all but one instance and overwrite it
     def add_to_list(self, value: str, name: str):
-        if self.rows is not None``:
+        if self.rows is not None:
             self.remove_from_list(value, name)
             self.rows[name] = value
 

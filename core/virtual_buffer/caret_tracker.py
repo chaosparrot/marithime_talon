@@ -1,5 +1,8 @@
 from typing import List
 import re
+import platform
+
+is_macos = platform.system() == "Darwin"
 
 # CARET MARKERS
  # TODO APPEND RANDOM NUMBER FOR LESS COLLISIONS?
@@ -81,34 +84,59 @@ class CaretTracker:
                     self.shift_down = False
                 continue
 
-            # TODO PROPER ALT TRACKING? FOR NOW TURNED OFF SO WE KEEP CONTEXT DURING PROGRAM SWITCHES
-            if "alt" in key:
-                key_used = True
+            if is_macos:
+                if "alt" in key:
+                    self.selecting_text = "shift" in key or self.shift_down
+                    key_combinations = key_modifier[0].lower().split("-")                
+                    if "left" in key: 
+                        left_movements = 1
+                        if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
+                            left_movements = int(key_modifier[-1])
+                        self.last_caret_movement = "left"
+                        self.track_coarse_caret_left(left_movements)
+                        key_used = True
+                    elif "right" in key:
+                        right_movements = 1
+                        if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
+                            right_movements = int(key_modifier[-1])
 
-            # Control keys are slightly inconsistent across programs, but generally they skip a word
-            elif "ctrl" in key:
-                self.selecting_text = "shift" in key or self.shift_down
-                key_combinations = key_modifier[0].lower().split("-")                
-                if "left" in key: 
-                    left_movements = 1
-                    if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
-                        left_movements = int(key_modifier[-1])
-                    self.last_caret_movement = "left"
-                    self.track_coarse_caret_left(left_movements)
-                elif "right" in key:
-                    right_movements = 1
-                    if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
-                        right_movements = int(key_modifier[-1])
+                        self.last_caret_movement = "right"
+                        self.track_coarse_caret_right(right_movements)
+                        key_used = True
+                # TODO PROPER CMD / SUPER TRACKING?
+            else:
+                # TODO PROPER ALT TRACKING? FOR NOW TURNED OFF SO WE KEEP CONTEXT DURING PROGRAM SWITCHES
+                if "alt" in key:
+                    key_used = True
 
-                    self.last_caret_movement = "right"
-                    self.track_coarse_caret_right(right_movements)
-                
-                # Only a few items do not change the focus or caret position for the caret
-                # But for other hotkeys the buffer needs to be cleared
-                elif not("s" in key_combinations or "c" in key_combinations or \
-                    "x" in key_combinations or "v" in key_combinations):
-                    self.set_buffer("")
-                key_used = True
+                # Control keys are slightly inconsistent across programs, but generally they skip a word
+                elif "ctrl" in key:
+                    self.selecting_text = "shift" in key or self.shift_down
+                    key_combinations = key_modifier[0].lower().split("-")                
+                    if "left" in key: 
+                        left_movements = 1
+                        if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
+                            left_movements = int(key_modifier[-1])
+                        self.last_caret_movement = "left"
+                        self.track_coarse_caret_left(left_movements)
+                    elif "right" in key:
+                        right_movements = 1
+                        if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
+                            right_movements = int(key_modifier[-1])
+
+                        self.last_caret_movement = "right"
+                        self.track_coarse_caret_right(right_movements)
+                    
+                    # Only a few items do not change the focus or caret position for the caret
+                    # But for other hotkeys the buffer needs to be cleared
+                    elif not("s" in key_combinations or "c" in key_combinations or \
+                        "x" in key_combinations or "v" in key_combinations):
+                        self.set_buffer("")
+                    key_used = True
+
+            # Noop if it has already been used
+            if key_used == True:
+                return key_used
             elif "shift" in key:
                 self.shift_down = key_modifier[-1] == "down"
                 if self.shift_down and self.selection_caret_marker == (-1, -1):
@@ -141,22 +169,22 @@ class CaretTracker:
                     self.track_caret_right(right_movements)
                 key_used = True
                 self.last_caret_movement = "right"
-            elif "end" in key:
+            elif ( not is_macos and "end" in key ) or ( is_macos and ("cmd" in key or "super" in key) and "right" in key ):
                 self.mark_caret_to_end_of_line()
                 key_used = True
-                self.last_caret_movement = "right"                
-            elif "home" in key:
+                self.last_caret_movement = "right"
+            elif ( not is_macos and "home" in key ) or ( is_macos and ("cmd" in key or "super" in key) and "left" in key ):
                 self.mark_line_as_coarse()
                 key_used = True
                 self.last_caret_movement = "left"
-            elif "up" in key:
+            elif "up" in key and ( not is_macos or ("cmd" not in key and "super" not in key)):
                 up_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     up_movements = int(key_modifier[-1])
                 for _ in range(up_movements):
                     self.mark_above_line_as_coarse()
                 key_used = True
-            elif "down" in key:
+            elif "down" in key and ( not is_macos or ("cmd" not in key and "super" not in key)):
                 down_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     down_movements = int(key_modifier[-1])

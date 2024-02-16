@@ -135,12 +135,19 @@ class InputContextManager:
         current_context = self.get_current_context()
         current_context.apply_key(key)
 
-        if "ctrl" in key and len(current_context.buffer.tokens) > 0:
+        # Only poll the changes for specific key combinations that have known changes to the content
+        if len(current_context.buffer.tokens) > 0:
+            if self.system == "Darwin" and ("cmd" in key or "super" in key):
+                if "cmd-z" in key or "cmd-v" in key or "cmd-x" in key \
+                    or "cmd-backspace" in key or "cmd-delete" in key \
+                    or "super-z" in key or "super-v" in key or "super-x" in key \
+                    or "super-backspace" in key or "super-delete" in key:
+                    self.poll_accessible_changes(True, True)
 
-            # Only poll the changes for specific key combinations that have known changes to the content
-            if "ctrl-z" in key or "ctrl-v" in key or "ctrl-x" in key \
-                or "ctrl-backspace" in key or "ctrl-delete" in key:
-                self.poll_accessible_changes(True, True)
+            elif "ctrl" in key:
+                if "ctrl-z" in key or "ctrl-v" in key or "ctrl-x" in key \
+                    or "ctrl-backspace" in key or "ctrl-delete" in key:
+                    self.poll_accessible_changes(True, True)
 
     def track_insert(self, insert: str, phrase: str = None):
         vbm = self.get_current_context().buffer
@@ -265,6 +272,7 @@ class InputContextManager:
 
             if "Text2" in element.patterns:
                 value = element.text_pattern2.document_range.text
+                print( "YEET", element.text_pattern2.caret_range.compare_endpoints("", ""))
                 if self.current_context:
                     self.current_context.set_accessible_api_available("text", True)
             elif "Value" in element.patterns:
@@ -355,7 +363,7 @@ class InputContextManager:
 
         if visibility_level > 0:
             # Go to the start of the document and copy that text
-            actions.key("ctrl-shift-home" if self.system != "Darwin" else "cmd-shift-home")
+            actions.key("ctrl-shift-home" if self.system != "Darwin" else "cmd-shift-up")
             actions.sleep("200ms")
             with clip.revert():
                 with clip.capture() as s:
@@ -377,7 +385,7 @@ class InputContextManager:
 
             # Otherwise we need to select until the end of the document
             else:
-                actions.key("ctrl-shift-end" if self.system != "Darwin" else "cmd-shift-end")
+                actions.key("ctrl-shift-end" if self.system != "Darwin" else "cmd-shift-down")
                 actions.sleep("200ms")
                 with clip.revert():
                     with clip.capture() as s:

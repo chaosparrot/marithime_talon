@@ -184,7 +184,7 @@ class InputContextManager:
         # 3 - The app has a rectangle ( for window )
         # 4 - The window isn't 0 pixels
         # 5 - The window is inside of the current screen
-        if window.app and window.enabled and not window.app.background and not window.hidden and window.rect:
+        if window and window.app and window.enabled and not window.app.background and not window.hidden and window.rect:
             # Detect whether or not the window is in the current screen
             if window.rect.width * window.rect.height > 0 and \
                 ( window.rect.x >= window.screen.x or \

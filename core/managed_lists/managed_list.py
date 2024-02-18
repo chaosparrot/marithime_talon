@@ -18,7 +18,7 @@ class ManagedList:
         self.filename = str(filename)
 
         # Create the file if it does not exist yet
-        if not os.path.exists(self.filename):
+        if self.filename and not os.path.exists(self.filename):
             with open(self.filename, 'w') as file:
                 file.write("")
 

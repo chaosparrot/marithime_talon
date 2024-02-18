@@ -279,10 +279,13 @@ class InputContextManager:
                 value = element.value_pattern.value
                 if self.current_context:
                     self.current_context.set_accessible_api_available("text", True)                
-        # Mac based A11Y - Currently unimplemented
+        # Mac based A11Y - Currently untested
+        # Examples taken from phillco/ax_kit and tweaked afterwards
         elif self.system == "Darwin":
-            pass
-
+            element = ui.focused_element()        
+            # Has accessibility support
+            if element and element.attrs:
+                value = el.get("AXValue")
         # Linux based A11Y - Currently unimplemented
         else:
             pass

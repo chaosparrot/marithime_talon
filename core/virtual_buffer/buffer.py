@@ -549,9 +549,6 @@ class VirtualBuffer:
     def select_token(self, token: VirtualBufferToken, extend_selection: bool = False) -> List[str]:
         if token:
             self.use_last_set_formatter = False
-            select_key_down = "shift:down"
-            select_key_up = "shift:up"
-
             keys = []
 
             # Continue the selection we have going right now
@@ -585,13 +582,13 @@ class VirtualBuffer:
                     if caret_on_left_side:
                         reset_selection = True
 
-                if not reset_selection:
-                    if not self.caret_tracker.shift_down:
-                        self.apply_key(select_key_down)
-                        keys.append(select_key_down)
-                    
+                if not reset_selection:                    
                     after_keys = self.navigate_to_token(token, token_caret_end, True)
-                    keys.extend(after_keys)
+                    if not self.caret_tracker.shift_down:
+                        for key in after_keys:
+                            keys.append( "shift-" + key )
+                    else:
+                        keys.extend(after_keys)
 
                 # Reset the selection, go to the left side and all the way to the right side
                 else:
@@ -600,25 +597,18 @@ class VirtualBuffer:
                         self.apply_key(key)
                     keys.extend(key_events)
 
-                    self.apply_key(select_key_down)
-                    keys.append(select_key_down)
-
                     key_events = self.caret_tracker.navigate_to_position(right_caret[0], right_caret[1], False)
                     for key in key_events:
-                        self.apply_key(key)
+                        self.apply_key("shift-" + key)
                     keys.extend(key_events)
             
             # New selection - just go to the token and select it
             else:                
                 before_keys = self.navigate_to_token(token, 0, False)
                 keys.extend(before_keys)
-                keys.append(select_key_down)
-                self.apply_key(select_key_down)
-                after_keys = self.navigate_to_token(token, -1, True)                
-                keys.extend(after_keys)
-
-            self.apply_key(select_key_up)
-            keys.append(select_key_up)
+                after_keys = self.navigate_to_token(token, -1, True)
+                for key in after_keys:
+                    keys.append("shift-" + key)
 
             return keys
         else: 

@@ -509,7 +509,7 @@ class Actions:
 
         actions.key("enter")
         actions.insert("Using " + mutator.context.get_current_context().title + " - PID " + str(mutator.context.get_current_context().pid ))
-        actions.key("enter")        
+        actions.key("enter")
         actions.insert(mutator.context.get_current_context().buffer.caret_tracker.text_buffer)
         actions.key("enter:2")
         tokens = []
@@ -534,7 +534,7 @@ ctx_override.matches = """
 tag: user.talon_hud_available
 """
 
-def index_document():
+def index_document(self, icon):
     actions.user.virtual_buffer_index_textarea()
 
 @ctx_override.action_class("user")
@@ -586,5 +586,5 @@ class HudActions:
         if scanning:
             status_bar_image += "_scan"
 
-        status_bar_icon = actions.user.hud_create_status_icon("virtual_buffer", status_bar_image, "Virtual buffer unavailable", index_document)
+        status_bar_icon = actions.user.hud_create_status_icon("virtual_buffer", status_bar_image, "", "Virtual buffer unavailable", index_document)
         actions.user.hud_publish_status_icon("virtual_buffer", status_bar_icon)

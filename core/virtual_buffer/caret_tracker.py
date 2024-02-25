@@ -137,7 +137,9 @@ class CaretTracker:
             # Noop if it has already been used
             if key_used == True:
                 return key_used
-            elif "shift" in key:
+                
+            # Only track a shift down if it is the ONLY key pressed down
+            elif "shift" == key_modifier[0]:
                 self.shift_down = key_modifier[-1] == "down"
                 if self.shift_down and self.selection_caret_marker == (-1, -1):
                     self.selection_caret_marker = self.get_caret_index()
@@ -608,7 +610,7 @@ class CaretTracker:
                     selection_lines.append( replaced_line[:len(replaced_line) - right[1]] )
         return "\n".join(selection_lines)
 
-    def navigate_to_position(self, line_index: int, character_from_end: int, deselection: bool = True) -> List[str]:
+    def navigate_to_position(self, line_index: int, character_from_end: int, deselection: bool = True, selecting: bool = None) -> List[str]:
         current = self.get_caret_index()
 
         keys = []
@@ -679,7 +681,8 @@ class CaretTracker:
         # Move to the right character position
         if not character_from_end == current[1] and current[1] != -1:
             char_diff = current[1] - character_from_end
-            keys.append(("left:" if char_diff < 0 else "right:") + str(abs(char_diff)))
+            renewed_selection = selecting and not deselection and not self.shift_down
+            keys.append( ("shift-" if renewed_selection else "" ) + ("left:" if char_diff < 0 else "right:") + str(abs(char_diff)))
 
         if current[0] == -1 or current[1] == -1:
             keys = []

@@ -584,11 +584,7 @@ class VirtualBuffer:
 
                 if not reset_selection:                    
                     after_keys = self.navigate_to_token(token, token_caret_end, True)
-                    if not self.caret_tracker.shift_down:
-                        for key in after_keys:
-                            keys.append( "shift-" + key )
-                    else:
-                        keys.extend(after_keys)
+                    keys.extend(after_keys)
 
                 # Reset the selection, go to the left side and all the way to the right side
                 else:
@@ -597,18 +593,17 @@ class VirtualBuffer:
                         self.apply_key(key)
                     keys.extend(key_events)
 
-                    key_events = self.caret_tracker.navigate_to_position(right_caret[0], right_caret[1], False)
-                    for key in key_events:
-                        self.apply_key("shift-" + key)
-                    keys.extend(key_events)
+                    select_key_events = self.caret_tracker.navigate_to_position(right_caret[0], right_caret[1], False, True)
+                    for key in select_key_events:
+                        self.apply_key(key)
+                    keys.extend(select_key_events)
             
             # New selection - just go to the token and select it
             else:                
                 before_keys = self.navigate_to_token(token, 0, False)
                 keys.extend(before_keys)
                 after_keys = self.navigate_to_token(token, -1, True)
-                for key in after_keys:
-                    keys.append("shift-" + key)
+                keys.extend(after_keys)
 
             return keys
         else: 
@@ -623,7 +618,7 @@ class VirtualBuffer:
             if char_position == -1:
                 char_position = -len(token.text)
 
-            key_events = self.caret_tracker.navigate_to_position(token.line_index, index_from_end + char_position, not keep_selection)
+            key_events = self.caret_tracker.navigate_to_position(token.line_index, index_from_end + char_position, not keep_selection, keep_selection)
             for key in key_events:
                 self.apply_key(key)
 

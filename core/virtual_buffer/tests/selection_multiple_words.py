@@ -21,7 +21,6 @@ def test_select_multiple_words(assertion):
     assertion( "    Starting from the current selection and searching for 'Insert a new'...")
     assertion( "        Should have the text 'Insert a new ' selected", vb.caret_tracker.get_selection_text() == 'Insert a new ')
     assertion( "        Should go left once to go to the start of 'Insert'", keys[0] == "left")
-    print( keys )
     assertion( "        And then hold down shift and go right until 'new ' is selected", keys[1] == "shift-right:13")
     keys = vb.select_phrases(["a", "new"])
     assertion( "    Starting from the current selection and searching for 'a new'...")
@@ -41,6 +40,5 @@ def test_select_multiple_words(assertion):
     assertion( "        Should go left 7 times to go to the start of 'Insert '", keys[1] == "left:7")
     assertion( "        Should then hold down shift and go right 22 times to go to the end of 'sentence'", keys[2] == "shift-right:22" )
 
-suite = create_test_suite("Selecting a whole phrase in the virtual buffer")
+suite = create_test_suite("Selecting a whole phrase in the virtual buffer") 
 suite.add_test(test_select_multiple_words)
-suite.run()

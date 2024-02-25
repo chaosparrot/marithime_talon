@@ -267,22 +267,31 @@ class InputContextManager:
         # Windows based A11Y
         if self.system == "Windows":
             element = ui.focused_element()
-            #print( "ELEMENT PATTERNS!", element.patterns)
-            #print( "SELECTION", element.text_pattern.selection )
+            print( "ELEMENT PATTERNS!", element.patterns)
+            #if "LegacyIAccessible" in element.patterns:
+            #    print( "LEGACY!", dir( element.legacyiaccessible_pattern ) )
+            #    print( "ROLE", element.legacyiaccessible_pattern.value )
+                #print( element.legacy_pattern )    
+            #try:
+            #    print( "SELECTION", dir(element.text_pattern.selection), element.text_pattern.selection.index(), element.text_pattern.selection.count() )
+            #except:
+            #    print( "ERROR! " )
 
             if "Text2" in element.patterns:
                 value = element.text_pattern2.document_range.text
-                print( "YEET", element.text_pattern2.caret_range.compare_endpoints("", ""))
+                print( "YEET", element.text_pattern2.caret_range.text, dir(element.text_pattern2.caret_range) )
+                # , element.text_pattern2.caret_range.compare_endpoints("", "")
                 if self.current_context:
                     self.current_context.set_accessible_api_available("text", True)
             elif "Value" in element.patterns:
                 value = element.value_pattern.value
                 if self.current_context:
-                    self.current_context.set_accessible_api_available("text", True)                
+                    self.current_context.set_accessible_api_available("text", True)
+            raise NotImplementedError("ARGH")
         # Mac based A11Y - Currently untested
         # Examples taken from phillco/ax_kit and tweaked afterwards
         elif self.system == "Darwin":
-            element = ui.focused_element()        
+            element = ui.focused_element()
             # Has accessibility support
             if element and element.attrs:
                 value = el.get("AXValue")
@@ -476,5 +485,9 @@ class InputContextManager:
                 is_updated = True
                 self.visual_state['content_confidence'] = content_confidence
 
-        if is_updated and self.state_callback:
-            self.state_callback(self.visual_state['scanning'], self.visual_state['level'], self.visual_state['caret_confidence'], self.visual_state['content_confidence'])
+        # TODO implement non-hud visualisation
+        try:
+            if is_updated and self.state_callback:        
+                self.state_callback(self.visual_state['scanning'], self.visual_state['level'], self.visual_state['caret_confidence'], self.visual_state['content_confidence'])
+        except NotImplementedError:
+            pass

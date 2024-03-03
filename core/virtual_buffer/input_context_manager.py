@@ -359,7 +359,7 @@ class InputContextManager:
                            right_cursor_index = left_cursor_index
                         # Selection, need to find both cursors
                         else:
-                           right_cursor_index = context.index.determine_caret_position("", total_value, right_index)                    
+                           right_cursor_index = context.index.determine_caret_position("", total_value, right_index)
             
         return (left_cursor_index, right_cursor_index)
 
@@ -378,7 +378,7 @@ class InputContextManager:
         after_text = ""
         
         # Check for accessible cursor indexes ( selection or not )
-        accessible_cursor_index = self.get_accessible_cursor_indecis()
+        accessible_cursor_index = self.get_accessible_cursor_indecis(total_value)
         if accessible_cursor_index != [(-1, -1), (-1, -1)]:
             return [total_value, accessible_cursor_index[0], accessible_cursor_index[1]]
 

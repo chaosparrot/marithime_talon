@@ -349,17 +349,17 @@ class InputContextManager:
                     return (left_cursor_index, right_cursor_index)
                 else:
                     selected_text_range = element.get("AXSelectedTextRange")
-                    if selected_text_range:
+                    if selected_text_range is not None:
                         left_index = selected_text_range.left
                         right_index = selected_text_range.right
                         
                         # No selection - only need to check one and duplicate it
-                        left_cursor_index = context.index.determine_caret_position("", total_value, left_index)
+                        left_cursor_index = self.indexer.determine_caret_position("", total_value, left_index)
                         if left_index == right_index:
                            right_cursor_index = left_cursor_index
                         # Selection, need to find both cursors
                         else:
-                           right_cursor_index = context.index.determine_caret_position("", total_value, right_index)
+                           right_cursor_index = self.indexer.determine_caret_position("", total_value, right_index)
             
         return (left_cursor_index, right_cursor_index)
 

@@ -4,6 +4,8 @@ from ...utils.test import create_test_suite
 
 def get_filled_vb():
     vb = VirtualBuffer()
+    vb.caret_tracker.system = "Windows"
+    vb.caret_tracker.is_macos = False
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("a ", "a"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("new ", "new"))
@@ -46,5 +48,5 @@ def test_multiple_match_consistent(assertion):
     keys = vb.go_phrase("sentence", 'end')
     assertion( "        Should go right until the last occurrence of sentence", keys[0] == "right:9")
 
-suite = create_test_suite("Using a filled virtual buffer which contains duplicates of certain words")
+suite = create_test_suite("Using a filled virtual buffer which contains duplicates of certain words which can be consistently navigated towards")
 suite.add_test(test_multiple_match_consistent)

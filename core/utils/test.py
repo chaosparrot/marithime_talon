@@ -43,7 +43,7 @@ class TestSuite:
         for assertion in self.assertions:
             if assertion[1] == True:
                 results_string += "✔"
-            elif assertion[1] == False:
+            elif assertion[1] != True and assertion[1] is not None:
                 results_string += "x"
         
         if verbosity > 0:
@@ -51,9 +51,10 @@ class TestSuite:
         
         if verbosity == 1:
             for assertion in assertions_to_print:
-                print( assertion[0], "" if assertion[1] == None else assertion[1])
-
-        return [assertion[1] for assertion in self.assertions if assertion[1] is not None]
+                print( assertion[0], "" if assertion[1] == None else assertion[1] == True)
+        
+        #print( self.assertions )
+        return [assertion[1] == True for assertion in self.assertions if assertion[1] is not None]
 
 class TestSuiteCollection:
     name: str = ""
@@ -95,9 +96,9 @@ class TestSuiteCollection:
                 print( "Test suite '" + test_suite.intro_text + "' crashes and could not run!" )
         print( "=============================================" )
         for suite_result in suite_results:
-            if False in suite_result[1]:
-                print( " - '" + suite_result[0] + "' contains " + str(suite_result[1].count(False)) + " errors")
-
+            if any(suite_result != True for suite_result in suite_result[1]):
+                print( " - '" + suite_result[0] + "' contains " + str(len(suite_result[1]) - suite_result[1].count(True)) + " errors")
+        
         print( "" + self.name + " " + str(len([result for result in total_results if result == True])) + "/" + str(len(total_results)) + " assertions succeeded")
         end_time = time.perf_counter()
         print( "" + str(round((end_time - start_time) * 1000) / 1000) + " seconds run time")
@@ -107,6 +108,7 @@ class TestSuiteCollection:
         self.running_cron = None
 
 test_suite_collection = TestSuiteCollection("Test cases")
+
 def create_test_suite(intro_text: str) -> TestSuite:
     suite = TestSuite(intro_text)
     test_suite_collection.add_test_suite(suite)

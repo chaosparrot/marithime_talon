@@ -29,3 +29,6 @@ after <user.fuzzy_indexed_word>:
     user.virtual_buffer_dump()
 ^document index:
     user.virtual_buffer_index_textarea()
+	
+key(keypad_minus):
+    user.virtual_buffer_index_textarea()

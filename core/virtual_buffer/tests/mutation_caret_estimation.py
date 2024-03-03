@@ -52,7 +52,6 @@ This adds to the sentence and turns it into a small paragraph."""
     location = input_indexer.determine_diverges_from(multiline_haystack, multiline_add_very, "very ")
     assertion("    Adding the text 'very ' in between the second sentence")
     assertion("        should give line 1, 16 characters from end upon inspection", location == (1, 16))
-    assertion( "YEET!!!" + multiline_add_very.splitlines()[1][-location[1]:] )
     location = input_indexer.determine_diverges_from(multiline_haystack, multiline_add_newline, """
 """)
     assertion("    Adding a new line in the middle of the first sentence")
@@ -70,11 +69,10 @@ def test_replacing_within_single_line(assertion):
     assertion("Replacing the words 'is a ' with 'was ' in 'This is a test'")    
     location = input_indexer.determine_diverges_from('This is a test', 'This was test', "was")
     assertion("    should give line 0, 5 characters from end upon inspection", location == (0, 5))
-    assertion("Replacing the word 'This' with 'That' in 'This is a test'", "That")
+    assertion("Replacing the word 'This' with 'That' in 'This is a test'")
     location = input_indexer.determine_diverges_from('This is a test', 'That is a test', "That")
     assertion("    should give line 0, 10 characters from end upon inspection", location == (0, 10))
-    assertion("Replacing the word 'test.' with 'sentence.<newline>' in  'This is a test.'", """sentence.
-""")
+    assertion("Replacing the word 'test.' with 'sentence.<newline>' in  'This is a test.'")
     location = input_indexer.determine_diverges_from('This is a test.', """This is a sentence.
 """, "sentence.\n")
     assertion("    should give line 1, 0 characters from end upon inspection", location == (1, 0))
@@ -167,3 +165,4 @@ suite.add_test(test_replacing_within_single_line)
 suite.add_test(test_replacing_within_multiline)
 suite.add_test(test_deleting_within_single_line)
 suite.add_test(test_deleting_within_multiline)
+suite.run() 

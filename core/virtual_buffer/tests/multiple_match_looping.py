@@ -72,17 +72,16 @@ def test_looping_to(assertion):
 
 def test_looping_new(assertion):
     vb = get_filled_vb()
-    assertion( "Using a filled virtual buffer which contains duplicates of certain words")
     assertion( "    Moving from the end to the buffer to selecting the first occurrence of 'new'...") 
     keys = vb.select_phrase("new")
     assertion( "        Should move to the left until we have reached the word 'new'", keys[0] == "left:44")
-    assertion( "        Should move to the right until we have reached the end of the word 'new'", keys[2] == "right:4")
+    assertion( "        Should move to the right until we have reached the end of the word 'new'", keys[1] == "shift-right:4")
     assertion( "    Repeating the search for 'new' again...")
     keys = vb.select_phrase("new")
     assertion( "        Should move to the left until we have reached the second occurrence", keys[1] == "left:29")
-    assertion( "        Should move to the right until we have reached the end of the word 'new'", keys[3] == "right:4")
+    assertion( "        Should move to the right until we have reached the end of the word 'new'", keys[2] == "shift-right:4")
 
-suite = create_test_suite("Using a filled virtual buffer which contains duplicates of certain words")
+suite = create_test_suite("Using a filled virtual buffer which contains duplicates of certain words used for testing looping")
 suite.add_test(test_looping_sentence)
 suite.add_test(test_looping_new_sentence)
 suite.add_test(test_looping_to)

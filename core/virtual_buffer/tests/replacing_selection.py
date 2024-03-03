@@ -23,7 +23,7 @@ Insert a third sentence."""
     assertion( "        Expect text to be merged", vb.tokens[1].text == "Insert a secondGsentence. \n")
     assertion( "        Expect phrase to be merged", vb.tokens[1].phrase == "insert a secondgsentence")
     assertion( "    Selecting a single character to the right and replace it...")
-    vb.apply_key("shift:down right shift:up")
+    vb.apply_key("shift-right")
     vb.insert_tokens(text_to_virtual_buffer_tokens("G"))
     assertion( "        Expect buffer length to stay the same (3)", len(vb.tokens) == 3)
     caret_index = vb.caret_tracker.get_caret_index()
@@ -33,7 +33,7 @@ Insert a third sentence."""
     assertion( "        Expect text to be merged", vb.tokens[1].text == "Insert a secondGGentence. \n")
     assertion( "        Expect phrase to be merged", vb.tokens[1].phrase == "insert a secondggentence")
     assertion( "    Selecting right beyond the line break and replace the selection...")
-    vb.apply_key("left shift:down right:11 shift:up")
+    vb.apply_key("left shift-right:11")
     vb.insert_tokens(text_to_virtual_buffer_tokens(" and "))
     assertion( "        Expect buffer length to be the one more than before (4)", len(vb.tokens) == 4)
     caret_index = vb.caret_tracker.get_caret_index()
@@ -58,7 +58,7 @@ def test_multiple_token_replacement_left(assertion):
     vb.caret_tracker.text_buffer = "Suggest create delete insert" + _CARET_MARKER + "ion"
 
     assertion( "    Selecting characters until the left side of the token is reached and replacing it...")
-    vb.apply_key("shift:down left:7 shift:up")
+    vb.apply_key("shift-left:7")
     vb.insert_tokens(text_to_virtual_buffer_tokens("rat"))
     assertion( "        Expect buffer length to be one less (3)", len(vb.tokens) == 3)
     caret_index = vb.caret_tracker.get_caret_index()
@@ -87,7 +87,7 @@ def test_multiple_token_replacement_right(assertion):
     vb.caret_tracker.text_buffer = "Suggest" + _CARET_MARKER + " create delete insertion"
 
     assertion( "    Selecting characters until the right side of the token is reached and replacing it...")
-    vb.apply_key("shift:down right shift:up")
+    vb.apply_key("shift-right")
     vb.insert_tokens(text_to_virtual_buffer_tokens("or"))
     assertion( "        Expect buffer length to be one less (3)", len(vb.tokens) == 3)
     caret_index = vb.caret_tracker.get_caret_index()
@@ -111,4 +111,3 @@ suite = create_test_suite("Replacing selection with new text")
 suite.add_test(test_single_token_replacement)
 suite.add_test(test_multiple_token_replacement_left)
 suite.add_test(test_multiple_token_replacement_right)
-suite.run()

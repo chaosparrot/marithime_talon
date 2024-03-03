@@ -56,7 +56,7 @@ Insert a third sentence."""
     assertion( "        Expect caret character index to be at the end of the selection (10)", caret_index[1] == 10)
     assertion( "        Expect no selection detected", vb.is_selecting() == False)
     assertion( "    Selecting 10 characters to the left and moving one to the right...")
-    vb.apply_key("shift:down left:10 shift:up right")
+    vb.apply_key("shift-left:10 right")
     assertion( "        Expect buffer length to stay the same (3)", len(vb.tokens) == 3)
     caret_index = vb.caret_tracker.get_caret_index()
     assertion( "        Expect caret line index to be 1", caret_index[0] == 1)

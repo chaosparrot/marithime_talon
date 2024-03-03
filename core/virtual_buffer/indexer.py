@@ -222,23 +222,38 @@ class VirtualBufferIndexer:
 
         normalized_needle = " ".join(needle.split(" "))
         normalized_haystack = " ".join(haystack.split(" "))
-
         occurrences_count = normalized_haystack.count(normalized_needle)
-        if occurrences_count == 1 and needle != "" and haystack != "":
+
+        # Special case - End of the total value
+        if position == len(normalized_haystack):
+            line_index = len(haystack.splitlines()) - 1
+            from_end_of_line = 0
+
+        # Calculate the line and character index
+        elif (occurrences_count == 1 and needle != "" and haystack != "") or position != -1:
             from_end_of_line = -1
-            needle_index = normalized_haystack.find(normalized_needle)
+            if position != -1:
+                needle_index = position
+            else:
+                needle_index = normalized_haystack.find(normalized_needle)
+
             if needle_index > -1:
                 line_count = 1
+                index_from_line_start = 0
                 for char_index, char in enumerate(normalized_haystack):
                     if char_index == needle_index:
                         line_index = line_count - 1
+                        if position != -1:
+                            from_end_of_line = len(haystack.splitlines()[line_index]) - index_from_line_start
                         break
+                    index_from_line_start += 1
 
                     if char == "\n":
                         line_count += 1
+                        index_from_line_start = 0
 
                 # Find exact character location within line
-                if line_index >= 0:
+                if line_index >= 0 and position == -1:
                     needle_lines = needle.splitlines()
                     last_needle_line = needle_lines[-1]
                     haystack_line = haystack.splitlines()[line_index + len(needle_lines) - 1]
@@ -255,7 +270,7 @@ class VirtualBufferIndexer:
         elif occurrences_count > 1 and needle != "":
             line_index = -2
             from_end_of_line = -2
-
+        
         # For counts lower than 1, we output -1, -1 to indicate none was found
         else:
             line_index = -1

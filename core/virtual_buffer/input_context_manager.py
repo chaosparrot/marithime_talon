@@ -264,9 +264,14 @@ class InputContextManager:
     def index_accessible_value(self):
         value = ""
         print( "----- CHECKING ACCESSIBLE TEXT" )
+        
+        try:
+            element = ui.focused_element()
+        except:
+            element = None
+        
         # Windows based A11Y
         if self.system == "Windows":
-            element = ui.focused_element()
             #print( "ELEMENT PATTERNS!", element.patterns)
             #if "LegacyIAccessible" in element.patterns:
             #    print( "LEGACY!", dir( element.legacyiaccessible_pattern ) )
@@ -291,7 +296,6 @@ class InputContextManager:
         # Mac based A11Y - Currently untested
         # Examples taken from phillco/ax_kit and tweaked afterwards
         elif self.system == "Darwin":
-            element = ui.focused_element()
             # Has accessibility support
             if element and element.attrs:
                 value = element.get("AXValue")
@@ -302,6 +306,9 @@ class InputContextManager:
         # Update the visual state to accessible if a value was found        
         if value:
             self.update_visual_state(level = "accessibility")
+
+        if value is None:
+            value = ""
     
         return value
     
@@ -323,20 +330,38 @@ class InputContextManager:
         results = self.find_caret_position(total_value, 1 if forced == True else 0)
         self.index_content(results[0], results[1], results[2])
         
-    def get_accessible_cursor_indecis(self) -> [(int, int), (int, int)]:
-        cursor_indecis = [(-1, -1), (-1, -1)]
+    def get_accessible_cursor_indecis(self, total_value: str) -> ((int, int), (int, int)):
+        left_cursor_index = (-1, -1) 
+        right_cursor_index = (-1, -1)
 
-        element = ui.focused_element()
+        try:
+            element = ui.focused_element()
+        except:
+            element = None
+
         if element and self.system == "Darwin":
             # Has accessibility support
             if element.attrs:
-                selected_text_range = element.get("AXSelectedTextRange")
-                if selected_text_range:
-                    left_index = selected_text_range.left
-                    right_index = selected_text_range.right
-                    print( left_index, right_index, selected_text_range, dir(selected_text_range) )
+                ranges = element.get("AXSelectedTextRanges")
+
+                # Multiple carets / cursors - Undefined locations
+                if ranges is not None and len(ranges) > 1:
+                    return (left_cursor_index, right_cursor_index)
+                else:
+                    selected_text_range = element.get("AXSelectedTextRange")
+                    if selected_text_range:
+                        left_index = selected_text_range.left
+                        right_index = selected_text_range.right
+                        
+                        # No selection - only need to check one and duplicate it
+                        left_cursor_index = context.index.determine_caret_position("", total_value, left_index)
+                        if left_index == right_index:
+                           right_cursor_index = left_cursor_index
+                        # Selection, need to find both cursors
+                        else:
+                           right_cursor_index = context.index.determine_caret_position("", total_value, right_index)                    
             
-        return cursor_indecis
+        return (left_cursor_index, right_cursor_index)
 
     def zero_width_space_insertion_index(self) -> (int, int):
         zwsp = "​"

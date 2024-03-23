@@ -32,8 +32,8 @@ def test_selection(assertion, buffer: str, query: str, result: str = ""):
         assertion("    Starting with the text '" + buffer + "' and searching for '" + query + "'...")
         assertion("        Should result in the selection '" + result.strip() + "'", is_valid)
         assertion("        Found '" + vb.caret_tracker.get_selection_text().strip() + "' instead")
-    #else:
-    #    assertion("    Searching for '" + query + "' finds '" + result.strip() + "'", is_valid)
+    else:
+        assertion("    Searching for '" + query + "' finds '" + result.strip() + "'", is_valid)
 
 def test_selfrepair(assertion, buffer: str, query: str, result: str = ""):
     vb = VirtualBuffer()
@@ -79,4 +79,3 @@ def selfrepair_tests(assertion):
 suite = create_test_suite("Selecting whole phrases inside of a selection") 
 suite.add_test(selection_tests)
 suite.add_test(selfrepair_tests)
-suite.run()

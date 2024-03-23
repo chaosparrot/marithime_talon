@@ -3,7 +3,11 @@ from ..indexer import text_to_virtual_buffer_tokens
 from ...utils.test import create_test_suite
 import csv
 import os 
+from talon import resource
 test_path = os.path.dirname(os.path.realpath(__file__))
+
+resource.open(os.path.join(test_path, "testcase_selfrepair.csv"))
+resource.open(os.path.join(test_path, "testcase_selection.csv"))
 
 def test_selection(assertion, buffer: str, query: str, result: str = ""):
     vb = VirtualBuffer()
@@ -28,8 +32,8 @@ def test_selection(assertion, buffer: str, query: str, result: str = ""):
         assertion("    Starting with the text '" + buffer + "' and searching for '" + query + "'...")
         assertion("        Should result in the selection '" + result.strip() + "'", is_valid)
         assertion("        Found '" + vb.caret_tracker.get_selection_text().strip() + "' instead")
-    else:
-        assertion("    Searching for '" + query + "' finds '" + result.strip() + "'", is_valid)
+    #else:
+    #    assertion("    Searching for '" + query + "' finds '" + result.strip() + "'", is_valid)
 
 def test_selfrepair(assertion, buffer: str, query: str, result: str = ""):
     vb = VirtualBuffer()
@@ -55,8 +59,8 @@ def test_selfrepair(assertion, buffer: str, query: str, result: str = ""):
         found_result = "" if match is None else " ".join(match.comparisons[1]).replace("  ", " ")
         assertion("        Selected '" + found_result + "' but expected '" + result.strip() + "'")
 
-    else:
-        assertion("    Selfrepairing '" + buffer + "' with '" + query.strip() + "' works as expected", is_valid)
+    #else:
+    #    assertion("    Selfrepairing '" + buffer + "' with '" + query.strip() + "' works as expected", is_valid)
 
 def selection_tests(assertion):
     with open(os.path.join(test_path, "testcase_selection.csv"), 'r', newline='') as csv_file:

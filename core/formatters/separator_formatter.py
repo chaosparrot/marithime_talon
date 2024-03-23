@@ -39,7 +39,6 @@ class SeparatorFormatter(TextFormatter):
         return formatted
     
     def split(self, text: str, with_separator: bool = False) -> List[str]:
-
         separated_words = [word for word in text.split(self.separator)] if self.separator else [text]
         total_words = []
         for index, separated_word in enumerate(separated_words):

@@ -21,7 +21,7 @@ class VirtualBufferMatcher:
     # Based on the similarity score times the amount of syllables
     # After all, a matching long word gives more confidence than a short word
     def calculate_syllable_score(self, score, query: str, match: str) -> float:
-        return self.phonetic_search.calculate_syllabe_score(score, normalize_text(query).replace(" ", ''), match)
+        return self.phonetic_search.calculate_syllable_score(score, normalize_text(query).replace(" ", ''), match)
 
     def is_phrase_selected(self, virtual_buffer, phrase: str) -> bool:
         if virtual_buffer.is_selecting():
@@ -136,9 +136,16 @@ class VirtualBufferMatcher:
 
     def find_matches_by_phrases(self, tokens: List[VirtualBufferToken], phrases: List[str], match_threshold: float = 2.5, strategy='highest_score', verbose=False) -> List[VirtualBufferTokenMatch]:
         matrix = self.generate_similarity_matrix(tokens, phrases)
+        #verbose = False
 
-        # Scale match threshold based on amount of phrases
-        match_threshold = match_threshold if len(phrases) > 2 else match_threshold + (0.33 * len(phrases))
+        # Scale match threshold based on amount of phrases and syllable count
+        phrase_syllable_counts = [self.phonetic_search.syllable_count(phrase) for phrase in phrases]
+        phrase_syllable_count = sum(phrase_syllable_counts)
+        phrase_weights = [count / phrase_syllable_count for count in phrase_syllable_counts]
+        match_threshold = match_threshold if len(phrases) > 2 else match_threshold + (0.8 / len(phrases))
+        #match_threshold = (match_threshold * (len(phrases) / phrase_syllable_count))
+        if verbose:
+            print("SYLLABLE COUNT FOR " + " ".join(phrases), phrase_syllable_count, match_threshold)
 
         needed_average_score = match_threshold * len(phrases)
         used_indices = {}
@@ -247,7 +254,7 @@ class VirtualBufferMatcher:
                         previous_indices.extend(current_match.indices)
                         current_match.indices = previous_indices
                         current_match.score += previous_score
-                        current_match.syllable_score += previous_syllable_score                        
+                        current_match.syllable_score += previous_syllable_score
 
                     # Add score of missing matches at the end
                     if current_match != None and last_matching_index > -1 and len(missing_end_indices) > 0:
@@ -273,19 +280,25 @@ class VirtualBufferMatcher:
                         current_match.score += next_score
                         current_match.syllable_score += next_syllable_score
 
+                # Syllable score is a weighted sum
+                syllable_score = 0
+                if current_match is not None:
+                    for index, weight in enumerate(phrase_weights):
+                        syllable_score += 0 if len(current_match.syllable_scores) <= index else current_match.syllable_scores[index] * weight
+                    current_match.syllable_score = syllable_score
+
                 # Prune out matches below the average score threshold
                 # And with a distance between words that is larger than forgetting a word in between every word
                 if current_match != None and (current_match.distance <= len(phrases) - 1) and strategy == 'most_direct_matches':
                     matches.append(current_match)
-                    current_match = None
-                elif current_match != None and (current_match.score / (len(phrases) + current_match.distance / 2)) >= match_threshold and (current_match.distance <= len(phrases) - 1):
+                elif current_match != None and (current_match.syllable_score / (len(phrases) + current_match.distance / 2)) >= match_threshold / len(phrases) and (current_match.distance <= len(phrases) - 1):
                     if verbose:
-                        print( "CAN ADD, BECAUSE score ", (current_match.score / (len(phrases) + current_match.distance / 2)), " >= ", match_threshold, " and distance ", current_match.distance, "<=", len(phrases) - 1 )
+                        print( "CAN ADD, BECAUSE score ", (current_match.syllable_score / (len(phrases) + current_match.distance / 2)), " >= ", match_threshold, " and distance ", current_match.distance, "<=", len(phrases) - 1 )
                     matches.append(current_match)
-                    current_match = None
                 elif current_match != None and verbose:
-                    print( "No match, score ", (current_match.score / (len(phrases) + current_match.distance / 2)), " >= ", match_threshold, " and distance ", current_match.distance, "<=", len(phrases) - 1, current_match )
-
+                    print( "No match, score ", (current_match.syllable_score / (len(phrases) + current_match.distance / 2)), " >= ", match_threshold, " and distance ", current_match.distance, "<=", len(phrases) - 1, current_match )
+                
+                current_match = None
 
         if strategy == 'highest_score':
             matches = sorted(matches, key=lambda match: match.syllable_score - (match.distance / len(match.indices)), reverse=True)

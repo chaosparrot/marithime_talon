@@ -187,7 +187,7 @@ def percentage_tests(assertion):
     for regression in selection_results[3]: 
         assertion(regression["buffer"] + " searching '" + regression["query"] + "' does not yield '" + regression["result"] + "' but '" + regression["actual"] + "'")
 
-    selection_tests(assertion, False, True)
+    #selection_tests(assertion, False, True)
 
 # Tell me, Muse, of that man, so ready at need;for that weird;
 

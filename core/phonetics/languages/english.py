@@ -43,7 +43,7 @@ def syllable_count(text: str) -> int:
     # Replace I
     if text.endswith("y"):
         text = text[:-1] + marker
-    text = text.replace("eye", marker).replace("i", marker)
+    text = text.replace("eye", marker).replace("i", marker).replace("cy", "c" + marker)
 
     # Replace A
     text = text.replace("a", marker)

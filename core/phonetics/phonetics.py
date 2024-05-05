@@ -188,8 +188,11 @@ class PhoneticSearch:
 
                 return (phonetics_score + homophone_score ) / 2
 
-    def calculate_syllabe_score(self, score: float, word_a: str, word_b: str) -> float:
+    def syllable_count(self, word_a: str) -> int:
+        return syllable_count(word_a, self.language)
+
+    def calculate_syllable_score(self, score: float, word_a: str, word_b: str) -> float:
         word_a_count = syllable_count(word_a, self.language)
         word_b_count = word_a_count if word_a == word_b else syllable_count(word_b, self.language)
 
-        return score * ((word_a_count + word_b_count) / 2)
+        return score * (max(word_a_count, word_b_count))

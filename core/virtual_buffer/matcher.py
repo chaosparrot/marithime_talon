@@ -91,8 +91,11 @@ class VirtualBufferMatcher:
         
         return None
     
-    def find_best_match_by_phrases(self, virtual_buffer, phrases: List[str], match_threshold: float = 3, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False) -> List[VirtualBufferToken]:
-        matches = self.find_matches_by_phrases( virtual_buffer.tokens, phrases, match_threshold)
+    def find_best_match_by_phrases(self, virtual_buffer, phrases: List[str], match_threshold: float = 3, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, verbose: bool = False) -> List[VirtualBufferToken]:
+        matches = self.find_matches_by_phrases( virtual_buffer.tokens, phrases, match_threshold, verbose=verbose)
+        if verbose:
+            print( "MATCHES!", matches )
+
         if len(matches) > 0:
 
             # For selection only, we want the best possible match score wise
@@ -131,8 +134,11 @@ class VirtualBufferMatcher:
         else:
             return None
 
-    def find_matches_by_phrases(self, tokens: List[VirtualBufferToken], phrases: List[str], match_threshold: float = 2.5, strategy='highest_score') -> List[VirtualBufferTokenMatch]:
+    def find_matches_by_phrases(self, tokens: List[VirtualBufferToken], phrases: List[str], match_threshold: float = 2.5, strategy='highest_score', verbose=False) -> List[VirtualBufferTokenMatch]:
         matrix = self.generate_similarity_matrix(tokens, phrases)
+
+        # Scale match threshold based on amount of phrases
+        match_threshold = match_threshold if len(phrases) > 2 else match_threshold + (0.33 * len(phrases))
 
         needed_average_score = match_threshold * len(phrases)
         used_indices = {}
@@ -272,9 +278,14 @@ class VirtualBufferMatcher:
                 if current_match != None and (current_match.distance <= len(phrases) - 1) and strategy == 'most_direct_matches':
                     matches.append(current_match)
                     current_match = None
-                elif current_match != None and (current_match.score / len(phrases)) >= match_threshold and (current_match.distance <= len(phrases) - 1):
+                elif current_match != None and (current_match.score / (len(phrases) + current_match.distance / 2)) >= match_threshold and (current_match.distance <= len(phrases) - 1):
+                    if verbose:
+                        print( "CAN ADD, BECAUSE score ", (current_match.score / (len(phrases) + current_match.distance / 2)), " >= ", match_threshold, " and distance ", current_match.distance, "<=", len(phrases) - 1 )
                     matches.append(current_match)
                     current_match = None
+                elif current_match != None and verbose:
+                    print( "No match, score ", (current_match.score / (len(phrases) + current_match.distance / 2)), " >= ", match_threshold, " and distance ", current_match.distance, "<=", len(phrases) - 1, current_match )
+
 
         if strategy == 'highest_score':
             matches = sorted(matches, key=lambda match: match.syllable_score - (match.distance / len(match.indices)), reverse=True)

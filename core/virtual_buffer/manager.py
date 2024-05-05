@@ -103,28 +103,28 @@ class VirtualBufferManager:
         self.context.ensure_viable_context()
         self.enable_tracking()
 
-        vbm = self.context.get_current_context().buffer
+        vb = self.context.get_current_context().buffer
 
         if self.has_phrase(phrase):
             self.context.should_use_last_formatter(False)
 
         if until_end:
-            return vbm.select_until_end(phrase)
+            return vb.select_until_end(phrase)
         else:
-            return vbm.select_phrase(phrase)
+            return vb.select_phrase(phrase)
         
-    def select_phrases(self, phrases: List[str], until_end = False) -> List[str]:
+    def select_phrases(self, phrases: List[str], until_end = False, for_correction=False) -> List[str]:
         self.disable_tracking()
         self.context.ensure_viable_context()
         self.enable_tracking()
 
-        vbm = self.context.get_current_context().buffer
+        vb = self.context.get_current_context().buffer
         self.context.should_use_last_formatter(False)
 
         if until_end:
-            return vbm.select_until_end(phrases)
+            return vb.select_until_end(phrases)
         else:
-            return vbm.select_phrases(phrases)
+            return vb.select_phrases(phrases, for_correction)
 
     def move_to_phrase(self, phrase: str, character_index: int = -1, keep_selection: bool = False, next_occurrence: bool = True) -> List[str]:
         self.disable_tracking()
@@ -435,7 +435,7 @@ class Actions:
     def virtual_buffer_correction(selection_and_correction: List[str]):
         """Select a fuzzy match of the words and apply the given words"""
         global mutator
-        keys = mutator.select_phrases(selection_and_correction)
+        keys = mutator.select_phrases(selection_and_correction, for_correction=True)
         if len(keys) > 0:
             mutator.disable_tracking()
             if keys:

@@ -11,6 +11,12 @@ PHONETIC_NORMALIZE_METHODS = {
     'de': german.homophone_normalize,
 }
 
+SYLLABLE_COUNT_METHODS = {
+    'en': english.syllable_count,
+    'nl': dutch.syllable_count,
+    'de': german.syllable_count,   
+}
+
 def phonetic_normalize(word: str, strict = True, language: str = 'en') -> str:
     normalize_method = PHONETIC_NORMALIZE_METHODS['en']
     if language in PHONETIC_NORMALIZE_METHODS:
@@ -35,3 +41,10 @@ def detect_phonetic_fix_type(a: str, b:str, language: str = 'en') -> str:
             return "phonetic"
     
     return ""
+
+# Roughly calculate the amount of syllables in a word
+def syllable_count(a: str, language: str = 'en') -> int:
+    count_method = SYLLABLE_COUNT_METHODS['en']
+    if language in SYLLABLE_COUNT_METHODS:
+        count_method = SYLLABLE_COUNT_METHODS[language]
+    return count_method(a)

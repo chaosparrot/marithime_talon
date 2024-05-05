@@ -1,4 +1,5 @@
 import unicodedata
+import re
 
 # Does a very coarse - unprecise transformation to some sort of phonetic normalization
 # A lot of assumptions are made here that don't equate to all methods
@@ -38,3 +39,30 @@ def homophone_normalize(text: str, strict = False) -> str:
         .replace("mm", "m").replace("zz", "z")
 
     return text
+
+def syllable_count(text: str) -> int:
+    marker = "@"
+
+    text = unicodedata.normalize('NFD', text)
+    text = text.encode('ascii', 'ignore')
+    text = text.decode("utf-8").replace(marker, '')
+
+    # Replace ij
+    text = text.replace("ij", marker).replace("ei", marker)
+
+    # Replace *U
+    text = text.replace("au", marker).replace("ou", marker).replace("eeu", marker).replace("eu", marker)
+
+    # Replace A*
+    text = text.replace("aai", marker).replace("aa", marker).replace("ai", marker).replace("ae", marker).replace("a", marker)
+
+    # Replace U*
+    text = text.replace("ui", marker).replace("uu", marker).replace("u", marker)
+
+    # Replace O
+    text = text.replace("ooi", marker).replace("oo", marker).replace("o", marker)
+    
+    # Replace E
+    text.replace("ee", marker).replace("e", marker)
+
+    return max(1, text.count(marker))

@@ -1,6 +1,5 @@
 from typing import List, Callable
-from .detection import detect_phonetic_fix_type, phonetic_normalize, levenshtein
-from pathlib import Path
+from .detection import detect_phonetic_fix_type, phonetic_normalize, levenshtein, syllable_count
 
 class PhoneticSearch:    
 
@@ -188,3 +187,9 @@ class PhoneticSearch:
                     homophone_score = (longest_homophone_length - homophone_distance ) / longest_homophone_length
 
                 return (phonetics_score + homophone_score ) / 2
+
+    def calculate_syllabe_score(self, score: float, word_a: str, word_b: str) -> float:
+        word_a_count = syllable_count(word_a, self.language)
+        word_b_count = word_a_count if word_a == word_b else syllable_count(word_b, self.language)
+
+        return score * ((word_a_count + word_b_count) / 2)

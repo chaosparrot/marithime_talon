@@ -17,6 +17,12 @@ class VirtualBufferMatcher:
         self.phonetic_search = phonetic_search
         self.similarity_matrix = {}
 
+    # Calculate the best matching score
+    # Based on the similarity score times the amount of syllables
+    # After all, a matching long word gives more confidence than a short word
+    def calculate_syllable_score(self, score, query: str, match: str) -> float:
+        return self.phonetic_search.calculate_syllabe_score(score, normalize_text(query).replace(" ", ''), match)
+
     def is_phrase_selected(self, virtual_buffer, phrase: str) -> bool:
         if virtual_buffer.is_selecting():
             selection = virtual_buffer.caret_tracker.get_selection_text()
@@ -85,29 +91,37 @@ class VirtualBufferMatcher:
         
         return None
     
-    def find_best_match_by_phrases(self, virtual_buffer, phrases: List[str], match_threshold: float = 3, next_occurrence: bool = True, selecting: bool = False) -> List[VirtualBufferToken]:
+    def find_best_match_by_phrases(self, virtual_buffer, phrases: List[str], match_threshold: float = 3, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False) -> List[VirtualBufferToken]:
         matches = self.find_matches_by_phrases( virtual_buffer.tokens, phrases, match_threshold)
         if len(matches) > 0:
+
+            # For selection only, we want the best possible match score wise
+            # Before getting the closest distance wise
+            if not for_correction:
+                max_score = max([match.syllable_score - match.distance for match in matches])
+                matches = [match for match in matches if match.syllable_score - match.distance >= max_score]
+
             best_match = matches[0]
 
-            current_index = virtual_buffer.determine_token_index()
-            if current_index[0] != -1:
-                # Get the closest item to the caret in the case of multiple matches
-                distance = 1000000
-                for match in matches:
-                    end_index = max(match.indices)
-                    start_index = min(match.indices)
-                    
-                    distance_from_found_end = abs(end_index - current_index[0])
-                    distance_from_found_start = abs(start_index - current_index[0])
-                    
-                    if distance_from_found_end < distance:
-                        best_match = match
-                        distance = distance_from_found_end
-                    
-                    elif distance_from_found_start < distance:
-                        best_match = match
-                        distance = distance_from_found_start
+            if len(matches) > 1:
+                current_index = virtual_buffer.determine_token_index()
+                if current_index[0] != -1:
+                    # Get the closest item to the caret in the case of multiple matches
+                    distance = 1000000
+                    for match in matches:
+                        end_index = max(match.indices)
+                        start_index = min(match.indices)
+                        
+                        distance_from_found_end = abs(end_index - current_index[0])
+                        distance_from_found_start = abs(start_index - current_index[0])
+                        
+                        if distance_from_found_end < distance:
+                            best_match = match
+                            distance = distance_from_found_end
+                        
+                        elif distance_from_found_start < distance:
+                            best_match = match
+                            distance = distance_from_found_start
             
             best_match_tokens = []
             for index in best_match.indices:
@@ -117,7 +131,7 @@ class VirtualBufferMatcher:
         else:
             return None
 
-    def find_matches_by_phrases(self, tokens: List[VirtualBufferToken], phrases: List[str], match_threshold: float = 2, strategy='highest_score') -> List[VirtualBufferTokenMatch]:
+    def find_matches_by_phrases(self, tokens: List[VirtualBufferToken], phrases: List[str], match_threshold: float = 2.5, strategy='highest_score') -> List[VirtualBufferTokenMatch]:
         matrix = self.generate_similarity_matrix(tokens, phrases)
 
         needed_average_score = match_threshold * len(phrases)
@@ -137,7 +151,8 @@ class VirtualBufferMatcher:
                     continue
 
                 if score >= match_threshold:
-                    current_match = VirtualBufferTokenMatch(phrase_index, [index], [[phrase], [tokens[index].text]], score, [score])
+                    syllable_score = self.calculate_syllable_score(score, phrase, tokens[index].text)
+                    current_match = VirtualBufferTokenMatch(phrase_index, [index], [[phrase], [tokens[index].text]], score, [score], syllable_score, [syllable_score])
 
                     # Keep a list of used indexes to know which to skip for future passes
                     used_indices[str(phrase_index)][index] = 1
@@ -150,7 +165,7 @@ class VirtualBufferMatcher:
                     while(current_phrase_index + 1 < len(phrases)):                        
                         tokens_left = len(phrases) - current_phrase_index - 1
                         current_word_index += 1
-                        current_phrase_index += 1
+                        current_phrase_index += 1 
                         if not str(current_phrase_index) in used_indices:
                             used_indices[str(current_phrase_index)] = [0 for _ in range(0, len(matrix[phrase]))]
 
@@ -173,15 +188,24 @@ class VirtualBufferMatcher:
                                     current_match.indices.append(next_index[0] - missed_phrase_length)
                                     added_score = matrix[phrases[current_phrase_index - missed_phrase_length]][next_index[0] - missed_phrase_length]
                                     current_match.comparisons[0].append(phrases[current_phrase_index - missed_phrase_length])
-                                    current_match.comparisons[1].append(tokens[next_index[0]].phrase)
+                                    current_match.comparisons[1].append(tokens[next_index[0] - missed_phrase_length].phrase)
                                     current_match.score += added_score
                                     current_match.scores.append( added_score )
+                                    
+                                    syllable_score = self.calculate_syllable_score(added_score, phrases[current_phrase_index - missed_phrase_length], tokens[next_index[0] - missed_phrase_length].phrase)
+                                    current_match.syllable_score += syllable_score
+                                    current_match.syllable_scores.append( syllable_score)
 
                                 missed_phrase_length -= 1
 
                             current_match.indices.append(next_index[0])
                             current_match.score += next_index[1]
                             current_match.scores.append( next_index[1] )
+                            
+                            syllable_score = self.calculate_syllable_score(next_index[1], phrases[current_phrase_index - missed_phrase_length], tokens[next_index[0]].phrase)
+                            current_match.syllable_score += syllable_score
+                            current_match.syllable_scores.append( syllable_score)
+
                             current_word_index = next_index[0]
 
                             # Keep a list of used indexes to know which to skip for future passes
@@ -196,6 +220,7 @@ class VirtualBufferMatcher:
                     if current_match != None and phrase_index > 0:
                         previous_indices = []
                         previous_score = 0
+                        previous_syllable_score = 0
                         current_phrase_index = phrase_index
                         prepend_index = -1
                         for previous_phrase_index in range(0 - phrase_index, 0):
@@ -207,15 +232,21 @@ class VirtualBufferMatcher:
                                 current_match.comparisons[0].insert(prepend_index, previous_phrase)
                                 current_match.comparisons[1].insert(prepend_index, tokens[index + previous_phrase_index].phrase)
                                 current_match.scores.insert(prepend_index, new_previous_score)
+
+                                syllable_score = self.calculate_syllable_score(new_previous_score, previous_phrase, tokens[index + previous_phrase_index].phrase)
+                                previous_syllable_score += syllable_score
+                                current_match.syllable_scores.insert(prepend_index, new_previous_score)                                
                             prepend_index += 1
                         
                         previous_indices.extend(current_match.indices)
                         current_match.indices = previous_indices
                         current_match.score += previous_score
+                        current_match.syllable_score += previous_syllable_score                        
 
                     # Add score of missing matches at the end
                     if current_match != None and last_matching_index > -1 and len(missing_end_indices) > 0:
                         next_score = 0
+                        next_syllable_score = 0
                         next_indices = []
                         for next_index in missing_end_indices:
                             last_matching_index += 1
@@ -227,8 +258,14 @@ class VirtualBufferMatcher:
                                 current_match.scores.append(new_next_score)
                                 current_match.comparisons[0].append(next_phrase)
                                 current_match.comparisons[1].append(tokens[last_matching_index].phrase)
+
+                                syllable_score = self.calculate_syllable_score(new_next_score, next_phrase, tokens[last_matching_index].phrase)
+                                next_syllable_score += syllable_score
+                                current_match.syllable_scores.append(syllable_score)                                
+
                         current_match.indices.extend(next_indices)
                         current_match.score += next_score
+                        current_match.syllable_score += next_syllable_score
 
                 # Prune out matches below the average score threshold
                 # And with a distance between words that is larger than forgetting a word in between every word
@@ -240,11 +277,11 @@ class VirtualBufferMatcher:
                     current_match = None
 
         if strategy == 'highest_score':
-            matches = sorted(matches, key=lambda match: match.score - (match.distance / len(match.indices)), reverse=True)
+            matches = sorted(matches, key=lambda match: match.syllable_score - (match.distance / len(match.indices)), reverse=True)
 
         # Place the highest direct matches on top
         elif strategy == 'most_direct_matches':
-            matches = sorted(matches, key=lambda match: len(list(filter(lambda x: x >= 0.8, match.scores))) - (match.distance / len(match.indices)), reverse=True)
+            matches = sorted(matches, key=lambda match: len(list(filter(lambda x: x >= 0.8, match.syllable_scores))) - (match.distance / len(match.indices)), reverse=True)
         return matches
     
     def match_next_in_phrases(self, matrix, matrix_index: int, phrases: List[str], phrase_index: int, match_threshold: float):

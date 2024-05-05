@@ -16,6 +16,8 @@ class VirtualBufferTokenMatch:
     comparisons: List[List[str]]
     score: float
     scores: List[float]
+    syllable_score: float
+    syllable_scores: List[float]
     distance: float = 0.0
 
 @dataclass

@@ -514,7 +514,7 @@ class VirtualBuffer:
 
         return keys
     
-    def select_phrases(self, phrases: List[str], match_threshold: float = 1, extend_selection: bool = False) -> List[str]:
+    def select_phrases(self, phrases: List[str], match_threshold: float = 1, extend_selection: bool = False, for_correction: bool = False) -> List[str]:
         # For a single phrase we can fall back to a single selection
         if len(phrases) == 1:
             return self.select_phrase(phrases[0], extend_selection)
@@ -527,7 +527,7 @@ class VirtualBuffer:
                 if not should_go_to_next_occurrence:
                     break
 
-        best_match = self.matcher.find_best_match_by_phrases(self, phrases, match_threshold, should_go_to_next_occurrence, True)
+        best_match = self.matcher.find_best_match_by_phrases(self, phrases, match_threshold, should_go_to_next_occurrence, True, for_correction=for_correction)
         if best_match is not None and len(best_match) > 0:
             return self.select_token_range(best_match[0], best_match[-1])
         else:

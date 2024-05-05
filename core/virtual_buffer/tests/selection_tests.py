@@ -23,7 +23,7 @@ def test_selection(assertion, buffer: str, query: str, result: str = "") -> (boo
         query_tokens.extend(text_to_virtual_buffer_tokens(query_token + (" " if index < len(query_text_tokens) - 1 else "")))
 
     vb.insert_tokens(tokens)
-    vb.select_phrases([x.phrase for x in query_tokens], 1)
+    vb.select_phrases([x.phrase for x in query_tokens], 1.5)
     if result != "":
         is_valid = vb.caret_tracker.get_selection_text().strip() == result.strip()
     else:

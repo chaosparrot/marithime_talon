@@ -26,9 +26,11 @@ class VirtualBufferMatchCalculation:
     potentials: List[float]
     match_threshold: float
     max_score: float
+    length: float
 
     def __init__(self, words: List[str], weights: List[str], match_threshold = 0, max_score_per_word = 3):
         self.words = words
+        self.length = len(words)
         self.weights = weights
         self.match_threshold = match_threshold
         self.max_score = max_score_per_word
@@ -39,7 +41,7 @@ class VirtualBufferMatchCalculation:
         sorted_potentials = [{"index": index, "potential": potential} for index, potential in enumerate(self.potentials)]
         sorted_potentials.sort(key=lambda x: x["potential"], reverse=True)
 
-        # TODO IMPROVE IMPOSSIBILITIES
+        # TODO IMPROVE IMPOSSIBLE BRANCH DETECTION
         impossible_potential = 0
         for potential in sorted_potentials:
             if self.max_score - potential["potential"] < self.match_threshold:
@@ -47,19 +49,17 @@ class VirtualBufferMatchCalculation:
 
         return [potential["index"] for potential in sorted_potentials if potential["potential"] >= impossible_potential]
 
-
-
 @dataclass
 class VirtualBufferMatchMatrix:
     index: int
-    tokens: List[VirtualBufferToken]    
+    tokens: List[VirtualBufferToken]
 
     def get_submatrix(self, starting_index: int, ending_index: int):
         max_index = self.index + len(self.tokens) - 1
         submatrix_tokens = []
         if starting_index <= ending_index and starting_index >= self.index and ending_index <= max_index:
-            submatrix_tokens = self.tokens[starting_index:ending_index]
-        return VirtualBufferMatchMatrix(starting_index, submatrix_tokens)
+            submatrix_tokens = self.tokens[starting_index:ending_index + 1]
+        return VirtualBufferMatchMatrix(starting_index, submatrix_tokens)        
 
 @dataclass
 class VirtualBufferTokenContext:

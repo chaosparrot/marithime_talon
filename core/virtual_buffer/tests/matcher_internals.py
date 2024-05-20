@@ -1,8 +1,15 @@
 from ..matcher import VirtualBufferMatcher
 from ...phonetics.phonetics import PhoneticSearch
-#from ..indexer import text_to_virtual_buffer_tokens
-from ..typing import VirtualBufferMatchCalculation
+from ..indexer import text_to_virtual_buffer_tokens
+from ..typing import VirtualBufferMatchMatrix
 from ...utils.test import create_test_suite
+
+def get_tokens_from_sentence(sentence: str):
+    text_tokens = sentence.split(" ")
+    tokens = []
+    for index, text_token in enumerate(text_tokens):
+        tokens.extend(text_to_virtual_buffer_tokens(text_token + (" " if index < len(text_tokens) - 1 else "")))
+    return tokens
 
 def get_matcher() -> VirtualBufferMatcher:
     homophone_contents = "where,wear,ware"
@@ -54,8 +61,38 @@ def test_filtered_mixed_match_calculation(assertion):
     assertion("    should return one possible branches", len(calculation.get_possible_branches()) == 1)
     assertion("    should alter the sorting based on word length", calculation.get_possible_branches()[0] == 1)
 
+def test_empty_potential_submatrices(assertion):
+    matcher = get_matcher()
+
+    assertion("Using the mixed syllable words 'An incredible' and searching a matrix without a match for incredible")
+    calculation = matcher.generate_match_calculation(["an", "incredible"], 1)
+    matrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("this is a large test with a bunch of connections"))
+    submatrices = matcher.find_potential_submatrices(calculation, matrix)
+    assertion("    should not give a single possible submatrix", len(submatrices) == 0)
+
+def test_single_potential_submatrices(assertion):
+    matcher = get_matcher()
+
+    assertion("Using the mixed syllable words 'An incredible' and searching a matrix with a match for incredible")
+    calculation = matcher.generate_match_calculation(["an", "incredible"], 1)
+    matrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("this is a large test with the incredibly good match that can"))
+    submatrices = matcher.find_potential_submatrices(calculation, matrix)
+    assertion("    should give a single possible submatrix", len(submatrices) == 1)
+    assertion("    should start 4 indecis from the start", submatrices[0].index == 4)
+    assertion("    should start 2 indecis from the end", submatrices[0].index + len(submatrices[0].tokens) == 11)
+
+    assertion("Using the mixed syllable words 'An incredible' and searching a matrix with a match for incredible clipped at the end")
+    second_matrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("this is a large test with the incredibly good"))
+    submatrices = matcher.find_potential_submatrices(calculation, second_matrix)
+    assertion("    should give a single possible submatrix", len(submatrices) == 1)
+    assertion("    should start 4 indecis from the start", submatrices[0].index == 4)
+    assertion("    should start 0 indecis from the end", submatrices[0].index + len(submatrices[0].tokens) == 9)
+
 suite = create_test_suite("Virtual buffer matcher internal calculations")
 suite.add_test(test_generate_single_match_calculation)
 suite.add_test(test_generate_double_match_calculation)
 suite.add_test(test_generate_mixed_match_calculation)
 suite.add_test(test_filtered_mixed_match_calculation)
+suite.add_test(test_empty_potential_submatrices)
+suite.add_test(test_single_potential_submatrices)
+suite.run()

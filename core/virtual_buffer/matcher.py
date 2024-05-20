@@ -1,5 +1,5 @@
 from ..phonetics.phonetics import PhoneticSearch
-from .typing import VirtualBufferToken, VirtualBufferTokenMatch, VirtualBufferMatchCalculation
+from .typing import VirtualBufferToken, VirtualBufferTokenMatch, VirtualBufferMatchCalculation, VirtualBufferMatchMatrix
 import re
 from typing import List, Dict
 import math
@@ -39,13 +39,53 @@ class VirtualBufferMatcher:
         return False
     
     # Generate a match calculation based on the words to search for weighted by syllable count
-    def generate_match_calculation(self, query_words: List[str], threshold: float) -> VirtualBufferMatchCalculation:
+    def generate_match_calculation(self, query_words: List[str], threshold: float = 1, max_score_per_word: float = 3) -> VirtualBufferMatchCalculation:
         syllables_per_word = [self.phonetic_search.syllable_count(word) for word in query_words]
         total_syllables = max(sum(syllables_per_word), 1)
         weights = [syllable_count / total_syllables for syllable_count in syllables_per_word]
-        max_score_per_word = 3
 
         return VirtualBufferMatchCalculation(query_words, weights, threshold, max_score_per_word)
+    
+    # Generate a list of (sorted) potential submatrices to look through
+    def find_potential_submatrices(self, match_calculation: VirtualBufferMatchCalculation, matrix: VirtualBufferMatchMatrix) -> List[VirtualBufferMatchMatrix]:
+        word_indices = match_calculation.get_possible_branches()
+        max_submatrix_size = len(match_calculation.words) * 3
+        sub_matrices = []
+        for word_index in word_indices:
+            sub_matrices.extend(self.find_potential_submatrices_for_word(matrix, match_calculation, word_index, max_submatrix_size))
+
+        # TODO MERGE SUBMATRICES CLOSE TO ONE ANOTHER
+
+        return sub_matrices
+    
+    def find_potential_submatrices_for_word(self, matrix: VirtualBufferMatchMatrix, match_calculation: VirtualBufferMatchCalculation, word_index: int, max_submatrix_size: int) -> List[VirtualBufferMatchMatrix]:
+        submatrices = []
+        relative_left_index = -(word_index + ( max_submatrix_size - match_calculation.length ) / 2)
+        relative_right_index = relative_left_index + max_submatrix_size + 1
+
+        # Only search within the viable range ( no cut off matches at the start and end of the matrix )
+        # Due to multiple different fuzzy matches being possible, it isn't possible to do token skipping
+        # Like in the Boyer–Moore string-search algorithm 
+        for matrix_index in range(word_index, (len(matrix.tokens) - 1) - (match_calculation.length - 1 - word_index)):
+            matrix_token = matrix.tokens[matrix_index]
+            threshold = match_calculation.match_threshold * match_calculation.weights[word_index]
+
+            # TODO DYNAMIC SCORE CALCULATION BASED ON CORRECTION VS SELECTION?
+            score = self.get_memoized_similarity_score(matrix_token.phrase, match_calculation.words[word_index])
+
+            has_starting_match = score >= threshold
+            if has_starting_match:
+                starting_index = max(0, round(matrix_index + relative_left_index))
+                ending_index = min(len(matrix.tokens) - 1, round(matrix_index + relative_right_index))
+                submatrix = matrix.get_submatrix(starting_index, ending_index)
+                print( starting_index, ending_index)
+                if (len(submatrix.tokens) > 0):
+                    submatrices.append(submatrix)
+
+        return submatrices
+
+    def merge_submatrices(self, submatrices: List[VirtualBufferMatchMatrix]) -> List[VirtualBufferMatchMatrix]:
+        return submatrices
 
     def find_self_repair_match(self, virtual_buffer, phrases: List[str]) -> VirtualBufferTokenMatch:
         # Do not allow punctuation to activate self repair
@@ -411,6 +451,20 @@ class VirtualBufferMatcher:
                     matched_token = exact_matching_tokens[-1]
 
             return matched_token
+        
+    def get_memoized_similarity_score(self, word_a: str, word_b: str) -> float:
+        # Quick memoized look up
+        if word_a in self.similarity_matrix and word_b in self.similarity_matrix[word_a]:
+            return self.similarity_matrix[word_a][word_b]
+        elif word_b in self.similarity_matrix and word_a in self.similarity_matrix[word_b]:
+            return self.similarity_matrix[word_b][word_a]
+        
+        # Generate single cache entry using calculated similarity score
+        if word_a not in self.similarity_matrix:
+            self.similarity_matrix[word_a] = {}
+
+        self.similarity_matrix[word_a][word_b] = self.phonetic_search.phonetic_similarity_score(word_a, word_b)
+        return self.similarity_matrix[word_a][word_b]
 
     def generate_similarity_matrix(self, tokens: List[VirtualBufferToken], phrases: List[str]) -> Dict[str, List[float]]:
         matrix = {}

@@ -1,5 +1,5 @@
 from ..phonetics.phonetics import PhoneticSearch
-from .typing import VirtualBufferToken, VirtualBufferTokenMatch
+from .typing import VirtualBufferToken, VirtualBufferTokenMatch, VirtualBufferMatchCalculation
 import re
 from typing import List, Dict
 import math
@@ -38,6 +38,15 @@ class VirtualBufferMatcher:
 
         return False
     
+    # Generate a match calculation based on the words to search for weighted by syllable count
+    def generate_match_calculation(self, query_words: List[str], threshold: float) -> VirtualBufferMatchCalculation:
+        syllables_per_word = [self.phonetic_search.syllable_count(word) for word in query_words]
+        total_syllables = max(sum(syllables_per_word), 1)
+        weights = [syllable_count / total_syllables for syllable_count in syllables_per_word]
+        max_score_per_word = 3
+
+        return VirtualBufferMatchCalculation(query_words, weights, threshold, max_score_per_word)
+
     def find_self_repair_match(self, virtual_buffer, phrases: List[str]) -> VirtualBufferTokenMatch:
         # Do not allow punctuation to activate self repair
         phrases = [phrase for phrase in phrases if not phrase.replace(" ", "").endswith((",", ".", "!", "?"))]

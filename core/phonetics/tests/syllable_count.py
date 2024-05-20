@@ -11,7 +11,7 @@ def test_single_syllables(assertion):
 def test_double_syllables(assertion):
     assertion("Double syllable detection")
     words = ["hammer", "table", "astray", "granted", "struggled", "notes", "breaking", "youthfull", "gaudy", "paintbrush"]
-
+ 
     for word in words:
         assertion("    should find two syllables for " + word, syllable_count(word) == 2)
 

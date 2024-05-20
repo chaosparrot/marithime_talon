@@ -38,24 +38,27 @@ def syllable_count(text: str) -> int:
 
     text = unicodedata.normalize('NFD', text)
     text = text.encode('ascii', 'ignore')
-    text = text.decode("utf-8").replace(marker, '')
+    text = text.decode("utf-8").replace(marker, '').lower()
 
     # Replace I
     if text.endswith("y"):
         text = text[:-1] + marker
-    text = text.replace("eye", marker).replace("i", marker).replace("cy", "c" + marker)
+    text = text.replace("eye", marker).replace("i", marker)
 
     # Replace A
     text = text.replace("a", marker)
 
     # Replace O
-    text = text.replace("ou", marker).replace("ow", marker).replace("o", marker)
+    text = text.replace("ou", marker).replace("o", marker)
 
     # Replace U
     text = text.replace("u",marker)
 
     # Replace E - TODO schwa cases?
     text = text.replace("e", marker)
+
+    # Replace Y - Mostly a vowel, only a consonant in between vowels
+    text = text.replace(marker + "y" + marker, marker + "." + marker).replace("y", marker)
 
     # Replace duplicate @ signs with a single one
     # For cases with multiple letters forming a single syllable nucleus

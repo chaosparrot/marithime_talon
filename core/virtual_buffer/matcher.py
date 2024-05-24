@@ -52,7 +52,7 @@ class VirtualBufferMatcher:
         max_submatrix_size = len(match_calculation.words) * 3
         sub_matrices = []
         for word_index in word_indices:
-            sub_matrices.extend(self.find_potential_submatrices_for_word(matrix, match_calculation, word_index, max_submatrix_size))
+            sub_matrices.extend(self.find_potential_submatrices_for_words(matrix, match_calculation, word_index, max_submatrix_size))
 
         sub_matrices = self.simplify_submatrices(sub_matrices)
 
@@ -60,20 +60,20 @@ class VirtualBufferMatcher:
 
         return sub_matrices
     
-    def find_potential_submatrices_for_word(self, matrix: VirtualBufferMatchMatrix, match_calculation: VirtualBufferMatchCalculation, word_index: int, max_submatrix_size: int) -> List[VirtualBufferMatchMatrix]:
+    def find_potential_submatrices_for_words(self, matrix: VirtualBufferMatchMatrix, match_calculation: VirtualBufferMatchCalculation, word_indices: List[int], max_submatrix_size: int) -> List[VirtualBufferMatchMatrix]:
         submatrices = []
-        relative_left_index = -(word_index + ( max_submatrix_size - match_calculation.length ) / 2)
+        relative_left_index = -(word_indices[0] + ( max_submatrix_size - match_calculation.length ) / 2)
         relative_right_index = relative_left_index + max_submatrix_size
 
         # Only search within the viable range ( no cut off matches at the start and end of the matrix )
         # Due to multiple different fuzzy matches being possible, it isn't possible to do token skipping
         # Like in the Boyer–Moore string-search algorithm 
-        for matrix_index in range(word_index, (len(matrix.tokens) - 1) - (match_calculation.length - 1 - word_index)):
+        for matrix_index in range(word_indices[0], (len(matrix.tokens) - 1) - (match_calculation.length - 1 - word_indices[0])):
             matrix_token = matrix.tokens[matrix_index]
-            threshold = match_calculation.match_threshold * match_calculation.weights[word_index]
+            threshold = match_calculation.match_threshold * sum([match_calculation.weights[word_index] for word_index in word_indices])
 
             # TODO DYNAMIC SCORE CALCULATION BASED ON CORRECTION VS SELECTION?
-            score = self.get_memoized_similarity_score(matrix_token.phrase, match_calculation.words[word_index])
+            score = self.get_memoized_similarity_score(matrix_token.phrase, "".join([match_calculation.words[word_index] for word_index in word_indices]))
 
             has_starting_match = score >= threshold
             if has_starting_match:

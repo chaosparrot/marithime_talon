@@ -37,17 +37,24 @@ class VirtualBufferMatchCalculation:
         self.potentials = [weight * max_score_per_word for weight in weights]
 
     # Calculate the list of possible search branches that can lead to a match, sorted by most likely
-    def get_possible_branches(self) -> List[int]:
-        sorted_potentials = [{"index": index, "potential": potential} for index, potential in enumerate(self.potentials)]
-        sorted_potentials.sort(key=lambda x: x["potential"], reverse=True)
-
+    def get_possible_branches(self) -> List[List[int]]:
         # TODO IMPROVE IMPOSSIBLE BRANCH DETECTION
         impossible_potential = 0
-        for potential in sorted_potentials:
-            if self.max_score - potential["potential"] < self.match_threshold:
-                impossible_potential = max(potential["potential"], impossible_potential)
+        for potential in self.potentials:
+            if self.max_score - potential < self.match_threshold:
+                impossible_potential = max(potential, impossible_potential)
+        
+        # Add two-word combinations as well
+        combined_potentials = []
+        for index, potential in enumerate(self.potentials):
+            if index + 1 < len(self.potentials) and self.potentials[index] + self.potentials[index + 1] >= impossible_potential:
+                combined_potentials.append({"index": [index, index + 1], "potential": self.potentials[index] + self.potentials[index + 1]})
 
-        return [potential["index"] for potential in sorted_potentials if potential["potential"] >= impossible_potential]
+        sorted_potentials = [{"index": [index], "potential": potential} for index, potential in enumerate(self.potentials) if potential >= impossible_potential]
+        sorted_potentials.extend(combined_potentials)
+        sorted_potentials.sort(key=lambda x: x["potential"], reverse=True)
+
+        return [potential["index"] for potential in sorted_potentials]
 
 @dataclass
 class VirtualBufferMatchMatrix:

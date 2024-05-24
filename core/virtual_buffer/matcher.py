@@ -54,14 +54,16 @@ class VirtualBufferMatcher:
         for word_index in word_indices:
             sub_matrices.extend(self.find_potential_submatrices_for_word(matrix, match_calculation, word_index, max_submatrix_size))
 
-        # TODO MERGE SUBMATRICES CLOSE TO ONE ANOTHER
+        sub_matrices = self.simplify_submatrices(sub_matrices)
+
+        # TODO SORT BY DISTANCE ?
 
         return sub_matrices
     
     def find_potential_submatrices_for_word(self, matrix: VirtualBufferMatchMatrix, match_calculation: VirtualBufferMatchCalculation, word_index: int, max_submatrix_size: int) -> List[VirtualBufferMatchMatrix]:
         submatrices = []
         relative_left_index = -(word_index + ( max_submatrix_size - match_calculation.length ) / 2)
-        relative_right_index = relative_left_index + max_submatrix_size + 1
+        relative_right_index = relative_left_index + max_submatrix_size
 
         # Only search within the viable range ( no cut off matches at the start and end of the matrix )
         # Due to multiple different fuzzy matches being possible, it isn't possible to do token skipping
@@ -76,16 +78,41 @@ class VirtualBufferMatcher:
             has_starting_match = score >= threshold
             if has_starting_match:
                 starting_index = max(0, round(matrix_index + relative_left_index))
-                ending_index = min(len(matrix.tokens) - 1, round(matrix_index + relative_right_index))
+                ending_index = min(len(matrix.tokens), round(matrix_index + relative_right_index))
                 submatrix = matrix.get_submatrix(starting_index, ending_index)
-                print( starting_index, ending_index)
                 if (len(submatrix.tokens) > 0):
                     submatrices.append(submatrix)
 
         return submatrices
 
-    def merge_submatrices(self, submatrices: List[VirtualBufferMatchMatrix]) -> List[VirtualBufferMatchMatrix]:
+    def simplify_submatrices(self, submatrices: List[VirtualBufferMatchMatrix]) -> List[VirtualBufferMatchMatrix]:
+        # Sort by index so it is easier to merge by index later
+        submatrices.sort(key=lambda x: x.index)
+
+        merged_matrices = []
+        current_submatrix = None
+        for submatrix in submatrices:
+            if current_submatrix is not None:
+
+                # Merge and continue on overlap
+                if self.matrices_overlap(current_submatrix, submatrix):
+                    current_submatrix = self.merge_matrices(current_submatrix, submatrix)
+                    continue
+
+                # Append and set the current submatrix
+                else:
+                    merged_matrices.append(current_submatrix)
+            current_submatrix = submatrix
+
+        if current_submatrix is not None:
+            merged_matrices.append(current_submatrix)
         return submatrices
+    
+    def matrices_overlap(self, a: VirtualBufferMatchMatrix, b: VirtualBufferMatchMatrix) -> bool:
+        return a.index <= b.end_index and b.index <= a.end_index
+    
+    def merge_matrices(self, a: VirtualBufferMatchMatrix, b: VirtualBufferMatchMatrix) -> VirtualBufferMatchMatrix:
+        return a
 
     def find_self_repair_match(self, virtual_buffer, phrases: List[str]) -> VirtualBufferTokenMatch:
         # Do not allow punctuation to activate self repair

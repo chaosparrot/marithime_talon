@@ -79,7 +79,7 @@ def test_single_potential_submatrices(assertion):
     submatrices = matcher.find_potential_submatrices(calculation, matrix)
     assertion("    should give a single possible submatrix", len(submatrices) == 1)
     assertion("    should start 4 indecis from the start", submatrices[0].index == 4)
-    assertion("    should start 2 indecis from the end", submatrices[0].index + len(submatrices[0].tokens) == 11)
+    assertion("    should start 2 indecis from the end", submatrices[0].index + len(submatrices[0].tokens) == 10)
 
     assertion("Using the mixed syllable words 'An incredible' and searching a matrix with a match for incredible clipped at the end")
     second_matrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("this is a large test with the incredibly good"))
@@ -87,6 +87,13 @@ def test_single_potential_submatrices(assertion):
     assertion("    should give a single possible submatrix", len(submatrices) == 1)
     assertion("    should start 4 indecis from the start", submatrices[0].index == 4)
     assertion("    should start 0 indecis from the end", submatrices[0].index + len(submatrices[0].tokens) == 9)
+
+    assertion("Using the mixed syllable words 'An incredible' and searching a matrix with a match for incredible clipped at the start")
+    second_matrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("the incredibly good match that can"))
+    submatrices = matcher.find_potential_submatrices(calculation, second_matrix)
+    assertion("    should give a single possible submatrix", len(submatrices) == 1)
+    assertion("    should start 0 indecis from the start", submatrices[0].index == 0)
+    assertion("    should start 2 indecis from the end", submatrices[0].index + len(submatrices[0].tokens) == 4)
 
 suite = create_test_suite("Virtual buffer matcher internal calculations")
 suite.add_test(test_generate_single_match_calculation)

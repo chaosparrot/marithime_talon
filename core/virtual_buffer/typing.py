@@ -53,12 +53,18 @@ class VirtualBufferMatchCalculation:
 class VirtualBufferMatchMatrix:
     index: int
     tokens: List[VirtualBufferToken]
+    end_index: int
+
+    def __init__(self, index: int, tokens: List[VirtualBufferToken]):
+        self.index = index
+        self.end_index = index + len(tokens)
+        self.tokens = tokens
 
     def get_submatrix(self, starting_index: int, ending_index: int):
-        max_index = self.index + len(self.tokens) - 1
+        max_index = self.index + len(self.tokens)
         submatrix_tokens = []
         if starting_index <= ending_index and starting_index >= self.index and ending_index <= max_index:
-            submatrix_tokens = self.tokens[starting_index:ending_index + 1]
+            submatrix_tokens = self.tokens[starting_index:ending_index]
         return VirtualBufferMatchMatrix(starting_index, submatrix_tokens)        
 
 @dataclass

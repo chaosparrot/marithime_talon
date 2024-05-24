@@ -57,7 +57,7 @@ class VirtualBufferMatchMatrix:
 
     def __init__(self, index: int, tokens: List[VirtualBufferToken]):
         self.index = index
-        self.end_index = index + len(tokens)
+        self.end_index = index + len(tokens) - 1
         self.tokens = tokens
 
     def get_submatrix(self, starting_index: int, ending_index: int):

@@ -108,11 +108,25 @@ class VirtualBufferMatcher:
             merged_matrices.append(current_submatrix)
         return submatrices
     
-    def matrices_overlap(self, a: VirtualBufferMatchMatrix, b: VirtualBufferMatchMatrix) -> bool:
+    def can_merge_matrices(self, a: VirtualBufferMatchMatrix, b: VirtualBufferMatchMatrix) -> bool:
         return a.index <= b.end_index and b.index <= a.end_index
     
     def merge_matrices(self, a: VirtualBufferMatchMatrix, b: VirtualBufferMatchMatrix) -> VirtualBufferMatchMatrix:
-        return a
+        # Complete overlap just returns the overlapping matrix
+        if (a.index <= b.index and a.end_index >= b.end_index):
+            return a
+        elif (b.index <= a.index and b.end_index >= a.end_index):
+            return b
+
+        starting_matrix = a if a.index < b.index else b
+        ending_matrix = b if a.index < b.index else a
+
+        combined_tokens = []
+        combined_tokens.extend(starting_matrix.tokens)
+        if ending_matrix.end_index > starting_matrix.end_index:
+            combined_tokens.extend(ending_matrix.tokens[-(ending_matrix.end_index - starting_matrix.end_index):])
+
+        return VirtualBufferMatchMatrix(starting_matrix.index, combined_tokens)
 
     def find_self_repair_match(self, virtual_buffer, phrases: List[str]) -> VirtualBufferTokenMatch:
         # Do not allow punctuation to activate self repair

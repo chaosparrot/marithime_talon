@@ -26,53 +26,6 @@ def get_single_branches(calculation: VirtualBufferMatchCalculation) -> List[List
 def get_double_branches(calculation: VirtualBufferMatchCalculation) -> List[List[int]]:
     return [branch for branch in calculation.get_possible_branches() if len(branch) > 1]
 
-def test_generate_single_match_calculation(assertion):
-    matcher = get_matcher()
-
-    assertion("Using the single syllable words 'This is good'")
-    calculation = matcher.generate_match_calculation(["This", "is", "good"], 1)
-    assertion("    should have weights adding up to 1", 1 - sum(calculation.weights) < 0.0001)
-    assertion("    should have balanced weights", 0.333 - calculation.weights[0] < 0.001)    
-    assertion("    should return three possible single branches", len(get_single_branches(calculation)) == 3)
-    assertion("    should not alter the single branch sorting", get_single_branches(calculation) == [[0], [1], [2]])
-    assertion("    should return two possible double branches", len(get_double_branches(calculation)) == 2)
-
-def test_generate_double_match_calculation(assertion):
-    matcher = get_matcher()
-
-    assertion("Using the mixed syllable words 'Checkens running afoul'")
-    calculation = matcher.generate_match_calculation(["Chickens", "running", "afoul"], 1)
-    assertion("    should have weights adding up to 1", 1 - sum(calculation.weights) < 0.0001)
-    assertion("    should have balanced weights",  0.333 - calculation.weights[0] < 0.001)
-    assertion("    should return three possible branches", len(get_single_branches(calculation)) == 3)
-    assertion("    should not alter the sorting", get_single_branches(calculation) == [[0], [1], [2]])
-    assertion("    should return two possible double branches", len(get_double_branches(calculation)) == 2)    
-
-def test_generate_mixed_match_calculation(assertion):
-    matcher = get_matcher()
-
-    assertion("Using the mixed syllable words 'Amazing display of crowing'")
-    calculation = matcher.generate_match_calculation(["Amazing", "display", "of", "crowing"], 1)
-    assertion("    should have weights adding up to 1", 1 - sum(calculation.weights) < 0.0001)
-    assertion("    should give more weights to the first word", 0.375 - calculation.weights[0] < 0.001)
-    assertion("    should give less weights to the third word", 0.125 - calculation.weights[2] < 0.001)
-    assertion("    should return four possible branches", len(get_single_branches(calculation)) == 4)
-    assertion("    should alter the sorting based on word length", get_single_branches(calculation) == [[0], [1], [3], [2]])
-    assertion("    should return three possible double branches", len(get_double_branches(calculation)) == 3)    
-
-def test_filtered_mixed_match_calculation(assertion):
-    matcher = get_matcher()
-
-    assertion("Using the mixed syllable words 'An incredible'")
-    calculation = matcher.generate_match_calculation(["an", "incredible"], 1)
-    assertion("    should have weights adding up to 1", 1 - sum(calculation.weights) < 0.0001)
-    assertion("    should give less weights to the first word", 0.2 - calculation.weights[0] < 0.001)
-    assertion("    should give more weights to the third word", 0.8 - calculation.weights[1] < 0.001)
-    assertion("    should return one possible branches", len(get_single_branches(calculation)) == 1)
-    assertion("    should alter the sorting based on word length", get_single_branches(calculation)[0] == [1])
-    assertion("    should return one possible double branch", len(get_double_branches(calculation)) == 1)
-    assertion("    should have the sorting based on word length", calculation.get_possible_branches() == [[0, 1], [1]])
-
 def test_empty_potential_submatrices(assertion):
     matcher = get_matcher()
 
@@ -234,11 +187,22 @@ def test_merge_matrices_overlapping_matrices_middle(assertion):
     assertion("    should end with 'dense'", merged_matrix.tokens[-1].phrase == "dense")
     assertion("    should have three tokens", len(merged_matrix.tokens) == 3)
 
-suite = create_test_suite("Virtual buffer matcher internal calculations")
-suite.add_test(test_generate_single_match_calculation)
-suite.add_test(test_generate_double_match_calculation)
-suite.add_test(test_generate_mixed_match_calculation)
-suite.add_test(test_filtered_mixed_match_calculation)
+def test_translate_sub_matrix_index_to_matrix_index(assertion):
+    assertion("Translating a resulting index of a sub matrix back to a matrix index")
+    matrix0_2 = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("an incredibly dense"))
+    assertion("    0 should be 0 when the matrix start at 0", matrix0_2.to_global_index(0) == 0)
+    assertion("    1 should be 1 when the matrix start at 0", matrix0_2.to_global_index(1) == 1)
+    assertion("    2 should be 2 when the matrix start at 0", matrix0_2.to_global_index(2) == 2)
+    matrix1_2 = VirtualBufferMatchMatrix(1, get_tokens_from_sentence("an incredibly dense"))
+    assertion("    0 should be 1 when the matrix start at 0", matrix1_2.to_global_index(0) == 1)
+    assertion("    1 should be 2 when the matrix start at 0", matrix1_2.to_global_index(1) == 2)
+    assertion("    2 should be 3 when the matrix start at 0", matrix1_2.to_global_index(2) == 3)
+    matrix99_2 = VirtualBufferMatchMatrix(99, get_tokens_from_sentence("an incredibly dense"))
+    assertion("    0 should be 99 when the matrix start at 99", matrix99_2.to_global_index(0) == 99)
+    assertion("    1 should be 100 when the matrix start at 99", matrix99_2.to_global_index(1) == 100)
+    assertion("    2 should be 101 when the matrix start at 99", matrix99_2.to_global_index(2) == 101)
+
+suite = create_test_suite("Virtual buffer matcher matrix gathering")
 suite.add_test(test_empty_potential_submatrices)
 suite.add_test(test_single_potential_submatrices)
 suite.add_test(test_can_merge_matrices)
@@ -247,4 +211,4 @@ suite.add_test(test_merge_matrices_at_end)
 suite.add_test(test_merge_matrices_overlapping_matrices_end)
 suite.add_test(test_merge_matrices_overlapping_matrices_start)
 suite.add_test(test_merge_matrices_overlapping_matrices_middle)
-suite.run()
+suite.add_test(test_translate_sub_matrix_index_to_matrix_index)

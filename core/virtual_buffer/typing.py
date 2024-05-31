@@ -72,7 +72,30 @@ class VirtualBufferMatchMatrix:
         submatrix_tokens = []
         if starting_index <= ending_index and starting_index >= self.index and ending_index <= max_index:
             submatrix_tokens = self.tokens[starting_index:ending_index]
-        return VirtualBufferMatchMatrix(starting_index, submatrix_tokens)        
+        return VirtualBufferMatchMatrix(starting_index, submatrix_tokens)
+
+    def to_global_index(self, index):
+        return self.index + index
+
+@dataclass
+class VirtualBufferMatch:
+    query_indices: List[List[int]]
+    replace_indices: List[List[int]]
+    query: List[str]
+    buffer: List[str]
+    scores: List[float]
+    current_score: float
+    distance: float = 0.0
+
+    def can_expand_backward(self, submatrix: VirtualBufferMatchMatrix) -> bool:
+        next_query_index = self.query_indices[0][0] - 1 if len(self.query_indices) > 0 else -1
+        return next_query_index >= 0
+
+    def can_expand_forward(self, calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix) -> bool:
+        matrix_length = len(submatrix.tokens)
+        next_query_index = self.query_indices[-1][-1] + 1 if len(self.query_indices) > 0 else matrix_length
+        return next_query_index < matrix_length and next_query_index < calculation.length
+
 
 @dataclass
 class VirtualBufferTokenContext:

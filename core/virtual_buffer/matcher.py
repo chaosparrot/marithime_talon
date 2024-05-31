@@ -1,5 +1,5 @@
 from ..phonetics.phonetics import PhoneticSearch
-from .typing import VirtualBufferToken, VirtualBufferTokenMatch, VirtualBufferMatchCalculation, VirtualBufferMatchMatrix
+from .typing import VirtualBufferToken, VirtualBufferTokenMatch, VirtualBufferMatchCalculation, VirtualBufferMatchMatrix, VirtualBufferMatch
 import re
 from typing import List, Dict
 import math
@@ -56,9 +56,73 @@ class VirtualBufferMatcher:
 
         sub_matrices = self.simplify_submatrices(sub_matrices)
 
-        # TODO SORT BY DISTANCE ?
+        # TODO SORT BY DISTANCE FOR EARLY STOPPING?
 
         return sub_matrices
+    
+    def find_matches_in_matrix(self, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, highest_match: float = 0, early_stopping: bool = True) -> List[VirtualBufferMatch]:
+        query = match_calculation.words
+        buffer = [token.phrase for token in submatrix.tokens]
+
+        #starting_match = VirtualBufferMatch([], [], [], [], [], match_calculation.max_score, 0)
+        #score_matrix = {}
+
+        # Initial branches
+        #searches = []
+        #for word_index, query_word in enumerate(query):
+
+        #    max_buffer_search = len(buffer) - (len(query) - 1)
+        #    for buffer_index in range(word_index, word_index + max_buffer_search):
+        #        buffer_word = buffer[buffer_index]
+        #        score = self.get_memoized_similarity_score(query_word, buffer_word)
+
+        #        print( word_index, buffer_index)
+                #score_matrix[word_index].append(self.get_memoized_similarity_score(query_word, buffer_word))
+
+
+        #print( score_matrix, len(query) * len(buffer), "MATCHES")
+
+        return []
+
+    def expand_match_tree(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix) -> List[VirtualBufferMatchMatrix]:
+        match_trees = [match_tree]
+        expanded_matrices: List[VirtualBufferMatch] = []
+
+        # First expand backwards
+        if match_tree.can_expand_backward():
+            can_expand_backward_count = 1
+            while can_expand_backward_count != 0:
+                expanded_matrices = []
+                for match_tree in match_trees:
+                    if match_tree.can_expand_backward(submatrix):
+                        expanded_matrices.extend(self.expand_match_tree_backward(match_tree, match_calculation, submatrix))
+                    else:
+                        expanded_matrices.append(match_tree)
+                can_expand_backward_count = sum([expanded_matrix.can_expand_backward(submatrix) for expanded_matrix in expanded_matrices])
+                match_trees = expanded_matrices
+
+        # Then expand forwards if possible
+        if match_tree.can_expand_forward(match_calculation, submatrix):
+            can_expand_forward_count = 1
+            while can_expand_forward_count != 0:
+                expanded_matrices = []
+                for match_tree in match_trees:
+                    if match_tree.can_expand_forward(submatrix):
+                        expanded_matrices.extend(self.expand_match_tree_forward(match_tree, match_calculation, submatrix))
+                    else:
+                        expanded_matrices.append(match_tree)
+                can_expand_forward_count = sum([expanded_matrix.can_expand_forward(match_calculation, submatrix) for expanded_matrix in expanded_matrices])
+                match_trees = expanded_matrices
+
+        # TODO FILTER BEST?
+
+        return match_trees
+
+    def expand_match_tree_backward(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix) -> List[VirtualBufferMatch]:
+        return [match_tree]
+    
+    def expand_match_tree_forward(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix) -> List[VirtualBufferMatch]:
+        return [match_tree]
     
     def find_potential_submatrices_for_words(self, matrix: VirtualBufferMatchMatrix, match_calculation: VirtualBufferMatchCalculation, word_indices: List[int], max_submatrix_size: int) -> List[VirtualBufferMatchMatrix]:
         submatrices = []

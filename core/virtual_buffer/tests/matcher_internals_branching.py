@@ -64,14 +64,12 @@ def test_check_expand_backward(assertion):
     match_tree = get_single_word_match_tree_root(matcher, calculation, submatrix, 1, 3)
     assertion("    should be able to expand backward", match_tree.can_expand_backward(submatrix))
     match_trees = matcher.expand_match_tree_backward(match_tree, calculation, submatrix)
-    assertion("    should have one result after expanding", len(match_trees))
+    assertion("    should have at least one result after expanding", len(match_trees) > 0 )
     assertion("    should have a lower score potential than before", match_trees[0].score_potential < match_tree.score_potential)
     assertion("    should still have a score potential bigger than the threshold", match_trees[0].score_potential >= calculation.match_threshold)
     assertion("    should have two tokens matched", len(match_trees[0].query) == 2 and len(match_trees[0].buffer) == 2)
     assertion("    should have queried 'an incredible'", " ".join(match_trees[0].query) == "an incredible")
-    assertion("    should have matched 'the incredibly'", " ".join(match_trees[0].buffer) == "the incredibly")    
-
-    # TODO CHECK EXPAND BACKWARD RESULT
+    assertion("    should have matched 'the incredibly'", " ".join(match_trees[0].buffer) == "the incredibly")
 
 def test_check_expand_forward(assertion):
     matcher = get_matcher()
@@ -82,7 +80,7 @@ def test_check_expand_forward(assertion):
     match_tree = get_single_word_match_tree_root(matcher, calculation, submatrix, 0, 2)
     assertion("    should be able to expand forward", match_tree.can_expand_forward(calculation, submatrix))
     match_trees = matcher.expand_match_tree_forward(match_tree, calculation, submatrix)
-    assertion("    should have one result after expanding", len(match_trees))
+    assertion("    should have at least one result after expanding", len(match_trees) > 0)
     assertion("    should have a lower score potential than before", match_trees[0].score_potential < match_tree.score_potential)
     assertion("    should still have a score potential bigger than the threshold", match_trees[0].score_potential >= calculation.match_threshold)
     assertion("    should have two tokens matched", len(match_trees[0].query) == 2 and len(match_trees[0].buffer) == 2 )
@@ -97,8 +95,8 @@ def test_check_expand_forward(assertion):
     # TODO CHECK EXPAND FORWARD RESULT
 
 suite = create_test_suite("Virtual buffer matcher branching")
-suite.add_test(test_check_expand_backward) 
+suite.add_test(test_check_expand_backward)
 suite.add_test(test_check_expand_forward)
 #suite.add_test(test_no_matches_for_too_high_threshold)
 #suite.add_test(test_one_match_for_highest_threshold)
-suite.run()
+suite.run() 

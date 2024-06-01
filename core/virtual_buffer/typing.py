@@ -92,18 +92,18 @@ class VirtualBufferMatch:
     score_potential: float
     distance: float = 0.0
 
-    def get_next_query_index(self, submatrix: VirtualBufferMatchMatrix, direction:int = 1) -> int:
-        if direction < 0:
-            next_query_index = self.query_indices[0][0] + direction if len(self.query_indices) > 0 else -1            
+    def get_next_query_index(self, submatrix: VirtualBufferMatchMatrix, index_addition:int = 1) -> int:
+        if index_addition < 0:
+            next_query_index = self.query_indices[0][0] + index_addition if len(self.query_indices) > 0 else -1            
         else:
-            next_query_index = self.query_indices[-1][-1] + direction if len(self.query_indices) > 0 else submatrix.length
+            next_query_index = self.query_indices[-1][-1] + index_addition if len(self.query_indices) > 0 else submatrix.length
         return next_query_index
 
-    def get_next_buffer_index(self, submatrix: VirtualBufferMatchMatrix, direction:int = 1) -> int:
-        if direction < 0:
-            next_buffer_index = self.buffer_indices[0][0] + direction if len(self.buffer_indices) > 0 else -1            
+    def get_next_buffer_index(self, submatrix: VirtualBufferMatchMatrix, index_addition:int = 1) -> int:
+        if index_addition < 0:
+            next_buffer_index = self.buffer_indices[0][0] + index_addition if len(self.buffer_indices) > 0 else -1            
         else:
-            next_buffer_index = self.buffer_indices[-1][-1] + direction if len(self.buffer) > 0 else submatrix.length
+            next_buffer_index = self.buffer_indices[-1][-1] + index_addition if len(self.buffer) > 0 else submatrix.length
         return next_buffer_index
 
     def can_expand_backward(self, submatrix: VirtualBufferMatchMatrix) -> bool:

@@ -121,7 +121,8 @@ class VirtualBufferMatcher:
         else:
             expanded_match_trees.extend(self.expand_match_tree_in_direction(match_tree, match_calculation, submatrix, -1))
 
-        return expanded_match_trees
+        # Only keep the branches that have a possibility to become the best
+        return [expanded_match_tree for expanded_match_tree in expanded_match_trees if expanded_match_tree.score_potential >= match_calculation.match_threshold]
         
     def expand_match_tree_forward(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix) -> List[VirtualBufferMatch]:
         expanded_match_trees = []
@@ -132,34 +133,46 @@ class VirtualBufferMatcher:
         else:
             expanded_match_trees.extend(self.expand_match_tree_in_direction(match_tree, match_calculation, submatrix, 1))
 
-        return expanded_match_trees
+        # Prune the branches that do not have a possibility to become the best
+        return [expanded_match_tree for expanded_match_tree in expanded_match_trees if expanded_match_tree.score_potential >= match_calculation.match_threshold]
 
     def expand_match_tree_in_direction(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, direction: int = 1) -> List[VirtualBufferMatch]:
         expanded_match_trees = []
 
         next_query_index = match_tree.get_next_query_index(submatrix, direction)
-        next_query_skip_index = match_tree.get_next_query_index(submatrix, direction * 2)
         next_buffer_index = match_tree.get_next_buffer_index(submatrix, direction)
         next_buffer_skip_index = match_tree.get_next_buffer_index(submatrix, direction * 2)
 
-        single_expand_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_index], direction)
-        best_single_match = single_expand_match_tree
-        best_query_combined_match = None
-        best_buffer_combined_match = None
+        expanded_match_trees.append(self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_index], direction))
+        expanded_match_trees.extend(self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction))
+        if submatrix.is_valid_index(next_buffer_skip_index):
+            expanded_match_trees.extend(self.determine_combined_buffer_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction))
 
-        # TODO EXTRACT INTO SECOND METHOD?
-        # Combine query words into one
+        # Skip a single token in the buffer for single and combined query matches
+        if submatrix.is_valid_index(next_buffer_skip_index):
+            expanded_match_trees.append(self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_skip_index], direction))
+            expanded_match_trees.extend(self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_skip_index, direction))
+
+            # Combine buffer with single tokens
+            next_buffer_second_skip_index = match_tree.get_next_buffer_index(submatrix, direction * 3)
+            if submatrix.is_valid_index(next_buffer_second_skip_index):
+                expanded_match_trees.extend(self.determine_combined_buffer_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_skip_index, direction))
+        
+        return expanded_match_trees
+    
+    def determine_combined_query_matches(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, next_query_index: int, next_buffer_index: int, direction: int = 1) -> List[VirtualBufferMatch]:
+        combined_match_trees = []
+        next_query_skip_index = next_query_index + direction
         if match_tree.is_valid_index(match_calculation, submatrix, next_query_skip_index):
             combined_query_indices = [next_query_index]
             if direction < 0:
                 combined_query_indices.insert(0, next_query_skip_index)
             else:
                 combined_query_indices.append(next_query_skip_index)
-            combined_single_expand_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, combined_query_indices, [next_buffer_index], direction)
-            best_query_combined_match = combined_single_expand_tree
+            combined_match_trees.append(self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, combined_query_indices, [next_buffer_index], direction))
 
-            # Combine three - if possible and if the score will get higher
-            next_query_second_skip_index = match_tree.get_next_query_index(submatrix, direction * 3)
+            # Combine three if possible
+            next_query_second_skip_index = next_query_index + (direction * 2)
             if match_tree.is_valid_index(match_calculation, submatrix, next_query_second_skip_index):
                 combined_query_indices = [next_query_index]
                 if direction < 0:
@@ -167,31 +180,34 @@ class VirtualBufferMatcher:
                     combined_query_indices.insert(0, next_query_second_skip_index)                    
                 else:
                     combined_query_indices.append(next_query_skip_index)
-                    combined_query_indices.append(next_query_second_skip_index)                    
-                double_combined_single_expand_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, combined_query_indices, [next_buffer_index], direction)
-                if double_combined_single_expand_tree.score_potential > best_query_combined_match.score_potential:
-                    best_query_combined_match = double_combined_single_expand_tree
-
-        # Skip over a single token
+                    combined_query_indices.append(next_query_second_skip_index)
+                combined_match_trees.append(self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, combined_query_indices, [next_buffer_index], direction))
+        return combined_match_trees
+    
+    def determine_combined_buffer_matches(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, next_query_index: int, next_buffer_index: int, direction: int = 1) -> List[VirtualBufferMatch]:
+        combined_buffer_match_trees = []
+        next_buffer_skip_index = next_buffer_index + direction
         if submatrix.is_valid_index(next_buffer_skip_index):
-            skip_single_expand_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_skip_index], direction)
-            
-            # Keep the skip if it is better
-            if skip_single_expand_match_tree.score_potential > best_single_match.score_potential:
-                best_single_match = skip_single_expand_match_tree
+            combined_buffer_indices = [next_buffer_index]
+            if direction < 0:
+                combined_buffer_indices.insert(0, next_buffer_skip_index)
+            else:
+                combined_buffer_indices.append(next_buffer_skip_index)
+            combined_buffer_match_trees.append(self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], combined_buffer_indices, direction))
 
-        # TODO COMBINE BUFFER - EXTRACT INTO SECOND METHOD?
+            # Combine three if possible
+            next_buffer_second_skip_index = next_buffer_index + (direction * 2)
+            if submatrix.is_valid_index(next_buffer_second_skip_index):
+                combined_buffer_indices = [next_buffer_index]
+                if direction < 0:
+                    combined_buffer_indices.insert(0, next_buffer_skip_index)
+                    combined_buffer_indices.insert(0, next_buffer_second_skip_index)
+                else:
+                    combined_buffer_indices.append(next_buffer_skip_index)
+                    combined_buffer_indices.append(next_buffer_second_skip_index)
+                combined_buffer_match_trees.append(self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], combined_buffer_indices, direction))
 
-
-        # Skip the single expanded match tree if it cannot go above the threshold
-        if best_single_match.score_potential >= match_calculation.match_threshold:
-            expanded_match_trees.append(best_single_match)
-        if best_query_combined_match is not None and best_query_combined_match.score_potential >= match_calculation.match_threshold:
-            expanded_match_trees.append(best_query_combined_match)
-        if best_buffer_combined_match is not None and best_buffer_combined_match.score_potential >= match_calculation.match_threshold:
-            expanded_match_trees.append(best_buffer_combined_match)
-
-        return expanded_match_trees
+        return combined_buffer_match_trees
 
     def add_tokens_to_match_tree(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, query_indices: List[int], buffer_indices: List[int], direction: int = 1) -> VirtualBufferMatch:
         expanded_tree = match_tree.clone()

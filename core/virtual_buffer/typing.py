@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Self
 
 @dataclass
 class VirtualBufferToken:
@@ -61,11 +61,13 @@ class VirtualBufferMatchMatrix:
     index: int
     tokens: List[VirtualBufferToken]
     end_index: int
+    length: int
 
     def __init__(self, index: int, tokens: List[VirtualBufferToken]):
         self.index = index
         self.end_index = index + len(tokens) - 1
         self.tokens = tokens
+        self.length = len(tokens)
 
     def get_submatrix(self, starting_index: int, ending_index: int):
         max_index = self.index + len(self.tokens)
@@ -74,28 +76,49 @@ class VirtualBufferMatchMatrix:
             submatrix_tokens = self.tokens[starting_index:ending_index]
         return VirtualBufferMatchMatrix(starting_index, submatrix_tokens)
 
-    def to_global_index(self, index):
+    def to_global_index(self, index) -> int:
         return self.index + index
 
 @dataclass
 class VirtualBufferMatch:
     query_indices: List[List[int]]
-    replace_indices: List[List[int]]
+    buffer_indices: List[List[int]]
     query: List[str]
     buffer: List[str]
     scores: List[float]
-    current_score: float
+    score_potential: float
     distance: float = 0.0
 
+    def get_next_query_index(self, submatrix: VirtualBufferMatchMatrix, direction:int = 1) -> int:
+        if direction < 0:
+            next_query_index = self.query_indices[0][0] + direction if len(self.query_indices) > 0 else -1            
+        else:
+            next_query_index = self.query_indices[-1][-1] + direction if len(self.query_indices) > 0 else submatrix.length
+        return next_query_index
+
+    def get_next_buffer_index(self, submatrix: VirtualBufferMatchMatrix, direction:int = 1) -> int:
+        if direction < 0:
+            next_buffer_index = self.buffer_indices[0][0] + direction if len(self.buffer_indices) > 0 else -1            
+        else:
+            next_buffer_index = self.buffer_indices[-1][-1] + direction if len(self.buffer) > 0 else submatrix.length
+        return next_buffer_index
+
     def can_expand_backward(self, submatrix: VirtualBufferMatchMatrix) -> bool:
-        next_query_index = self.query_indices[0][0] - 1 if len(self.query_indices) > 0 else -1
+        next_query_index = self.get_next_query_index(submatrix, -1 )
         return next_query_index >= 0
 
     def can_expand_forward(self, calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix) -> bool:
-        matrix_length = len(submatrix.tokens)
-        next_query_index = self.query_indices[-1][-1] + 1 if len(self.query_indices) > 0 else matrix_length
-        return next_query_index < matrix_length and next_query_index < calculation.length
+        next_query_index = self.get_next_query_index(submatrix, 1)
+        return next_query_index < submatrix.length and next_query_index < calculation.length
 
+    def is_valid_index(self, calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, index: int) -> bool:
+        return index >= 0 and index < submatrix.length and index < calculation.length
+    
+    def reduce_potential(self, max_score: float, score: float, weight: float):
+        self.score_potential -= (max_score - score) * weight
+
+    def clone(self) -> Self:
+        return VirtualBufferMatch(list(self.query_indices), list(self.buffer_indices), list(self.query), list(self.buffer), list(self.scores), self.score_potential, self.distance)
 
 @dataclass
 class VirtualBufferTokenContext:

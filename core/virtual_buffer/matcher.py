@@ -94,10 +94,7 @@ class VirtualBufferMatcher:
             while can_expand_backward_count != 0:
                 expanded_matrices = []
                 for match_tree in match_trees:
-                    if match_tree.can_expand_backward(submatrix):
-                        expanded_matrices.extend(self.expand_match_tree_backward(match_tree, match_calculation, submatrix))
-                    else:
-                        expanded_matrices.append(match_tree)
+                    expanded_matrices.extend(self.expand_match_tree_backward(match_tree, match_calculation, submatrix))
                 can_expand_backward_count = sum([expanded_matrix.can_expand_backward(submatrix) for expanded_matrix in expanded_matrices])
                 match_trees = expanded_matrices
 
@@ -107,10 +104,7 @@ class VirtualBufferMatcher:
             while can_expand_forward_count != 0:
                 expanded_matrices = []
                 for match_tree in match_trees:
-                    if match_tree.can_expand_forward(submatrix):
-                        expanded_matrices.extend(self.expand_match_tree_forward(match_tree, match_calculation, submatrix))
-                    else:
-                        expanded_matrices.append(match_tree)
+                    expanded_matrices.extend(self.expand_match_tree_forward(match_tree, match_calculation, submatrix))
                 can_expand_forward_count = sum([expanded_matrix.can_expand_forward(match_calculation, submatrix) for expanded_matrix in expanded_matrices])
                 match_trees = expanded_matrices
 
@@ -119,11 +113,70 @@ class VirtualBufferMatcher:
         return match_trees
 
     def expand_match_tree_backward(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix) -> List[VirtualBufferMatch]:
-        return [match_tree]
-    
+        expanded_match_trees = []
+
+        # If no further expansion is possible, just return the input match tree
+        if not match_tree.can_expand_backward(submatrix):
+            expanded_match_trees.append(match_tree)
+        else:
+            expanded_match_trees.extend(self.expand_match_tree_in_direction(match_tree, match_calculation, submatrix, -1))
+
+        return expanded_match_trees
+        
     def expand_match_tree_forward(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix) -> List[VirtualBufferMatch]:
-        return [match_tree]
-    
+        expanded_match_trees = []
+
+        # If no further expansion is possible, just return the input match tree
+        if not match_tree.can_expand_forward(match_calculation, submatrix):
+            expanded_match_trees.append(match_tree)
+        else:
+            expanded_match_trees.extend(self.expand_match_tree_in_direction(match_tree, match_calculation, submatrix, 1))
+
+        return expanded_match_trees
+
+    def expand_match_tree_in_direction(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, direction: int = 1) -> List[VirtualBufferMatch]:
+        expanded_match_trees = []
+
+        next_query_index = match_tree.get_next_query_index(submatrix, direction)
+        next_query_skip_index = match_tree.get_next_query_index(submatrix, direction * 2)        
+        next_buffer_index = match_tree.get_next_buffer_index(submatrix, direction)
+        next_buffer_skip_index = match_tree.get_next_buffer_index(submatrix, direction * 2)
+        next_buffer_second_skip_index = match_tree.get_next_buffer_index(submatrix, direction * 3)
+
+        single_expand_match_tree = self.add_single_token_to_match_tree(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction)
+
+        # Skip the single expanded match tree if it cannot go above the threshold
+        if single_expand_match_tree.score_potential >= match_calculation.match_threshold:
+            expanded_match_trees.append(single_expand_match_tree)
+
+        # TODO FIND HIGHEST SCORE?
+
+        return expanded_match_trees
+
+    def add_single_token_to_match_tree(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, query_index: int, buffer_index: int, direction: int = 1) -> VirtualBufferMatch:
+        expanded_tree = match_tree.clone()
+
+        query_word = match_calculation.words[query_index]
+        weight = match_calculation.weights[query_index]        
+        buffer_word = submatrix.tokens[buffer_index].phrase
+        score = self.get_memoized_similarity_score(query_word, buffer_word)
+
+        if direction < 0:
+            expanded_tree.query_indices.insert(0, [query_index])
+            expanded_tree.buffer_indices.insert(0, [buffer_index])
+            expanded_tree.query.insert(0, query_word)
+            expanded_tree.buffer.insert(0, buffer_word)
+            expanded_tree.scores.insert(0, score)
+        else:
+            expanded_tree.query_indices.append([query_index])
+            expanded_tree.buffer_indices.append([buffer_index])
+            expanded_tree.query.append(query_word)
+            expanded_tree.buffer.append(buffer_word)
+            expanded_tree.scores.append(score)
+
+        expanded_tree.reduce_potential(match_calculation.max_score, score, weight)
+        return expanded_tree
+
     def find_potential_submatrices_for_words(self, matrix: VirtualBufferMatchMatrix, match_calculation: VirtualBufferMatchCalculation, word_indices: List[int], max_submatrix_size: int) -> List[VirtualBufferMatchMatrix]:
         submatrices = []
         relative_left_index = -(word_indices[0] + ( max_submatrix_size - match_calculation.length ) / 2)

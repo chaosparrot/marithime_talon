@@ -76,6 +76,9 @@ class VirtualBufferMatchMatrix:
             submatrix_tokens = self.tokens[starting_index:ending_index]
         return VirtualBufferMatchMatrix(starting_index, submatrix_tokens)
 
+    def is_valid_index(self, index) -> bool:
+        return index >= 0 and index < self.length
+
     def to_global_index(self, index) -> int:
         return self.index + index
 

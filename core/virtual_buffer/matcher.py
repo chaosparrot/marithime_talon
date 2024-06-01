@@ -138,40 +138,106 @@ class VirtualBufferMatcher:
         expanded_match_trees = []
 
         next_query_index = match_tree.get_next_query_index(submatrix, direction)
-        next_query_skip_index = match_tree.get_next_query_index(submatrix, direction * 2)        
+        next_query_skip_index = match_tree.get_next_query_index(submatrix, direction * 2)
         next_buffer_index = match_tree.get_next_buffer_index(submatrix, direction)
         next_buffer_skip_index = match_tree.get_next_buffer_index(submatrix, direction * 2)
-        next_buffer_second_skip_index = match_tree.get_next_buffer_index(submatrix, direction * 3)
 
-        single_expand_match_tree = self.add_single_token_to_match_tree(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction)
+        single_expand_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_index], direction)
+        best_single_match = single_expand_match_tree
+        best_query_combined_match = None
+        best_buffer_combined_match = None
+
+        # TODO EXTRACT INTO SECOND METHOD?
+        # Combine query words into one
+        if match_tree.is_valid_index(match_calculation, submatrix, next_query_skip_index):
+            combined_query_indices = [next_query_index]
+            if direction < 0:
+                combined_query_indices.insert(0, next_query_skip_index)
+            else:
+                combined_query_indices.append(next_query_skip_index)
+            combined_single_expand_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, combined_query_indices, [next_buffer_index], direction)
+            best_query_combined_match = combined_single_expand_tree
+
+            # Combine three - if possible and if the score will get higher
+            next_query_second_skip_index = match_tree.get_next_query_index(submatrix, direction * 3)
+            if match_tree.is_valid_index(match_calculation, submatrix, next_query_second_skip_index):
+                combined_query_indices = [next_query_index]
+                if direction < 0:
+                    combined_query_indices.insert(0, next_query_skip_index)
+                    combined_query_indices.insert(0, next_query_second_skip_index)                    
+                else:
+                    combined_query_indices.append(next_query_skip_index)
+                    combined_query_indices.append(next_query_second_skip_index)                    
+                double_combined_single_expand_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, combined_query_indices, [next_buffer_index], direction)
+                if double_combined_single_expand_tree.score_potential > best_query_combined_match.score_potential:
+                    best_query_combined_match = double_combined_single_expand_tree
+
+        # Skip over a single token
+        if submatrix.is_valid_index(next_buffer_skip_index):
+            skip_single_expand_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_skip_index], direction)
+            
+            # Keep the skip if it is better
+            if skip_single_expand_match_tree.score_potential > best_single_match.score_potential:
+                best_single_match = skip_single_expand_match_tree
+
+        # TODO COMBINE BUFFER - EXTRACT INTO SECOND METHOD?
+
 
         # Skip the single expanded match tree if it cannot go above the threshold
-        if single_expand_match_tree.score_potential >= match_calculation.match_threshold:
-            expanded_match_trees.append(single_expand_match_tree)
-
-        # TODO FIND HIGHEST SCORE?
+        if best_single_match.score_potential >= match_calculation.match_threshold:
+            expanded_match_trees.append(best_single_match)
+        if best_query_combined_match is not None and best_query_combined_match.score_potential >= match_calculation.match_threshold:
+            expanded_match_trees.append(best_query_combined_match)
+        if best_buffer_combined_match is not None and best_buffer_combined_match.score_potential >= match_calculation.match_threshold:
+            expanded_match_trees.append(best_buffer_combined_match)
 
         return expanded_match_trees
 
-    def add_single_token_to_match_tree(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, query_index: int, buffer_index: int, direction: int = 1) -> VirtualBufferMatch:
+    def add_tokens_to_match_tree(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, query_indices: List[int], buffer_indices: List[int], direction: int = 1) -> VirtualBufferMatch:
         expanded_tree = match_tree.clone()
 
-        query_word = match_calculation.words[query_index]
-        weight = match_calculation.weights[query_index]        
-        buffer_word = submatrix.tokens[buffer_index].phrase
-        score = self.get_memoized_similarity_score(query_word, buffer_word)
+        query_words = [match_calculation.words[query_index] for query_index in query_indices]
+        buffer_words = [submatrix.tokens[buffer_index].phrase for buffer_index in buffer_indices]
+        weight = sum([match_calculation.weights[query_index] for query_index in query_indices])
+        score = self.get_memoized_similarity_score("".join(query_words), "".join(buffer_words))
+        skipped_scores = []
+        skipped_words = []
 
         if direction < 0:
-            expanded_tree.query_indices.insert(0, [query_index])
-            expanded_tree.buffer_indices.insert(0, [buffer_index])
-            expanded_tree.query.insert(0, query_word)
-            expanded_tree.buffer.insert(0, buffer_word)
+            # Add skipped words as well
+            last_buffer_index = buffer_indices[-1] + 1
+            last_found_index = expanded_tree.buffer_indices[0][0]
+            for skipped_index in range(last_buffer_index, last_found_index):
+                skipped_words.insert(0, submatrix.tokens[skipped_index].phrase)
+
+            expanded_tree.query_indices.insert(0, query_indices)
+            expanded_tree.buffer_indices.insert(0, buffer_indices)
+            query_words.extend(expanded_tree.query)
+            expanded_tree.query = query_words
+            buffer_words.extend(skipped_words)
+            buffer_words.extend(expanded_tree.buffer)
+            expanded_tree.buffer = buffer_words
+
+            skipped_scores = [0 for _ in skipped_words]
+            for skipped_score in skipped_scores:
+                expanded_tree.scores.insert(0, skipped_score)
+
             expanded_tree.scores.insert(0, score)
         else:
-            expanded_tree.query_indices.append([query_index])
-            expanded_tree.buffer_indices.append([buffer_index])
-            expanded_tree.query.append(query_word)
-            expanded_tree.buffer.append(buffer_word)
+            # Add skipped words as well
+            last_buffer_index = buffer_indices[0] + 1
+            last_found_index = expanded_tree.buffer_indices[-1][-1]
+            for skipped_index in range(last_buffer_index, last_found_index):
+                skipped_words.append(submatrix.tokens[skipped_index].phrase)
+
+            expanded_tree.query_indices.append(query_indices)
+            expanded_tree.buffer_indices.append(buffer_indices)
+            expanded_tree.query.extend(query_words)
+            skipped_words.extend(buffer_words)
+            expanded_tree.buffer.extend(skipped_words)
+            skipped_scores = [0 for _ in skipped_words]
+            for skipped_score in skipped_scores:
+                expanded_tree.scores.append(skipped_score)
             expanded_tree.scores.append(score)
 
         expanded_tree.reduce_potential(match_calculation.max_score, score, weight)

@@ -1,6 +1,6 @@
 from ..phonetics.phonetics import PhoneticSearch
 from ..phonetics.detection import EXACT_MATCH, HOMOPHONE_MATCH, PHONETIC_MATCH
-from .typing import VirtualBufferToken, VirtualBufferTokenMatch, VirtualBufferMatchCalculation, VirtualBufferMatchMatrix, VirtualBufferMatch, SELECTION_THRESHOLD, CORRECTION_THRESHOLD
+from .typing import VirtualBufferToken, VirtualBufferTokenMatch, VirtualBufferMatchCalculation, VirtualBufferMatchMatrix, VirtualBufferMatch, VirtualBufferTokenContext, SELECTION_THRESHOLD, CORRECTION_THRESHOLD
 import re
 from typing import List, Dict
 import math
@@ -38,7 +38,43 @@ class VirtualBufferMatcher:
                 return True
 
         return False
-    
+
+    def find_top_three_matches_in_matrix(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, selecting: bool = False, for_correction: bool = False):
+        match_calculation = self.generate_match_calculation(phrases, match_threshold)
+        matrix = VirtualBufferMatchMatrix(0, virtual_buffer.tokens)
+        submatrices = self.find_potential_submatrices(match_calculation, matrix)
+
+        split_submatrices = self.split_submatrices_by_cursor_position(submatrices, virtual_buffer.determine_leftmost_token_index()[0], virtual_buffer.determine_rightmost_token_index()[0])
+
+        highest_score_achieved = False
+        matches = []
+
+        for matrix_group in split_submatrices:
+            match_calculation.match_threshold = match_threshold            
+            matrix_group_matches = []
+            highest_match = 0
+            for submatrix in matrix_group:
+                submatrix_matches = self.find_matches_in_matrix(match_calculation, submatrix, highest_match)
+                if len(submatrix_matches) > 0:
+                    highest_match = max(highest_match, submatrix_matches[0].score_potential)
+                    match_calculation.match_threshold = highest_match
+                    matrix_group_matches.extend(submatrix_matches)
+                    highest_score_achieved = highest_match == match_calculation.max_score
+
+                # Do not seek any further if we have reached the highest possible score
+                if highest_score_achieved:
+                    break
+
+            # TODO SORT MATCHES BY DISTANCE WHEN CORRECTING
+            #if for_correction:
+
+            if selecting and len(matrix_group_matches) > 0:
+                matrix_group_matches.sort(lambda x: x.score_potential, reverse=True)
+                matches.append(matrix_group_matches[0])
+        
+        matches.sort(lambda x: x.score_potential, reverse=True)
+        return matches
+
     # Generate a match calculation based on the words to search for weighted by syllable count
     def generate_match_calculation(self, query_words: List[str], threshold: float = SELECTION_THRESHOLD, max_score_per_word: float = EXACT_MATCH) -> VirtualBufferMatchCalculation:
         syllables_per_word = [self.phonetic_search.syllable_count(word) for word in query_words]
@@ -60,6 +96,29 @@ class VirtualBufferMatcher:
         # TODO SORT BY DISTANCE FOR EARLY STOPPING?
 
         return sub_matrices
+
+    # Split the submatrices up into three zones that are important for selection
+    # The zone before, on and after the caret
+    def split_submatrices_by_cursor_position(self, submatrices: List[VirtualBufferMatchMatrix], left_index: int, right_index: int) -> List[List[VirtualBufferMatchMatrix]]:
+        before = []
+        current = []
+        after = []
+
+        for submatrix in submatrices:
+            if submatrix.end_index < left_index:
+                before.append(submatrix)
+            elif submatrix.index > right_index:
+                after.append(submatrix)
+            else:
+                current.append(submatrix)
+
+        # Sort the matrices before the cursor in the opposite direction,
+        # the assumption being that the closest match to the cursor matters most
+        before[0].sort(reverse=True)
+
+        return [before, current, after]
+
+
     
     def find_matches_in_matrix(self, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, highest_match: float = 0, early_stopping: bool = True) -> List[VirtualBufferMatch]:
         branches = match_calculation.get_possible_branches()

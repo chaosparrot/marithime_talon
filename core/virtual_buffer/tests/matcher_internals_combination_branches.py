@@ -37,7 +37,7 @@ def get_multiple_query_word_match_tree_root(matcher: VirtualBufferMatcher, calcu
 def test_fully_combined_match_tree(assertion):
     matcher = get_matcher()
 
-    assertion("Using the query 'an incredible' on 'test with the incredibly good match' and an impossibly high threshold")
+    assertion("Using the query 'an incredible' on 'test with the incredibly good match' and a selection threshold")
     calculation = matcher.generate_match_calculation(["an", "incredible"], select_threshold)
     submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the incredibly good match"))
     match_tree = get_multiple_query_word_match_tree_root(matcher, calculation, submatrix, [0, 1], 2)
@@ -49,7 +49,7 @@ def test_fully_combined_match_tree(assertion):
 def test_partially_combined_match_tree(assertion):
     matcher = get_matcher()
 
-    assertion("Using the query 'an incredible good' on 'test with the incredibly good match' and an impossibly high threshold")
+    assertion("Using the query 'an incredible good' on 'test with the incredibly good match' and a selection threshold, staring with 'an incredible'")
     calculation = matcher.generate_match_calculation(["an", "incredible", "good"], select_threshold)
     submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the incredibly good match"))
     match_tree = get_multiple_query_word_match_tree_root(matcher, calculation, submatrix, [0, 1], 3)
@@ -57,9 +57,17 @@ def test_partially_combined_match_tree(assertion):
     assertion("    should not be able to expand backward", match_tree.can_expand_backward(submatrix) == False)
     match_trees = matcher.expand_match_tree(match_tree, calculation, submatrix)
     assertion("    should have a single result after expanding", len(match_trees) == 1)
-    assertion( match_trees )
+
+    assertion("Using the query 'the incredible good' on 'test with the incredibly good match' and a selection threshold, starting with 'incredibly good'")
+    calculation = matcher.generate_match_calculation(["the", "incredible", "good"], select_threshold)
+    submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the incredibly good match"))
+    match_tree = get_multiple_query_word_match_tree_root(matcher, calculation, submatrix, [1, 2], 3)
+    assertion("    should not be able to expand forward", match_tree.can_expand_forward(calculation, submatrix) == False)
+    assertion("    should be able to expand backward", match_tree.can_expand_backward(submatrix))
+    match_trees = matcher.expand_match_tree(match_tree, calculation, submatrix)
+    assertion("    should have a single result after expanding", len(match_trees) == 1)
+
 
 suite = create_test_suite("Virtual buffer matcher branching for combined tokens")
-#suite.add_test(test_fully_combined_match_tree)
+suite.add_test(test_fully_combined_match_tree)
 suite.add_test(test_partially_combined_match_tree)
-suite.run()

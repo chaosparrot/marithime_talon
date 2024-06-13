@@ -89,14 +89,51 @@ class VirtualBufferMatcher:
                     if max(individual_scores) > score:
                         continue
 
-                # TODO Combined buffer match as entry?
+                # Attempt multi-buffer matches if they score higher than the single match buffer case
+                highest_match_score = score
+                buffer_indices_to_use = [buffer_index]
+                if not is_multiple_query_match:
+                    next_word = ""
+
+                    # Combine two words
+                    if buffer_index + 1 <= max_buffer_search:
+                        next_word = buffer[buffer_index + 1]
+                        next_forward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), buffer_word + next_word)
+                        if next_forward_score > highest_match_score:
+                            highest_match_score = next_forward_score
+                            buffer_indices_to_use = [buffer_index, buffer_index + 1]
+
+                    # Combine three words
+                    if buffer_index + 2 <= max_buffer_search and len(buffer_indices_to_use) == 2:
+                        second_next_word = buffer[buffer_index + 2]
+                        next_forward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), buffer_word + next_word + second_next_word)
+                        if next_forward_score > highest_match_score:
+                            highest_match_score = next_forward_score
+                            buffer_indices_to_use = [buffer_index, buffer_index + 1, buffer_index + 2]
+
+                    # Combine two words backward
+                    if buffer_index - 1 >= word_index:
+                        previous_word = buffer[buffer_index - 1]
+                        previous_backward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), previous_word + buffer_word)
+                        if previous_backward_score > highest_match_score:
+                            highest_match_score = previous_backward_score
+                            buffer_indices_to_use = [buffer_index - 1, buffer_index]
+
+                    # Combine three words backward
+                    if buffer_index - 2 >= word_index and len(buffer_indices_to_use) == 2:
+                        second_previous_word = buffer[buffer_index - 2]
+                        previous_backward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), second_previous_word + previous_word + buffer_word)
+                        if previous_backward_score > highest_match_score:
+                            highest_match_score = previous_backward_score
+                            buffer_indices_to_use = [buffer_index - 2, buffer_index - 1, buffer_index]
                 
+                # Add only a single combination even if multiple options might have a better overall chance
                 # Only if the words compare well enough will we continue searching
-                if score >= match_calculation.match_threshold:
+                if highest_match_score >= match_calculation.match_threshold:
                     match_branch = query_match_branch.clone()
-                    match_branch.buffer_indices.append([buffer_index])
-                    match_branch.buffer.append(buffer_word)
-                    match_branch.scores.append(score)
+                    match_branch.buffer_indices.append(buffer_indices_to_use)
+                    match_branch.buffer.extend([buffer[buffer_index] for buffer_index in buffer_indices_to_use])
+                    match_branch.scores.append(highest_match_score)
                     match_branch.reduce_potential(match_calculation.max_score, score, combined_weight) 
                     match_branches.append(match_branch)
 

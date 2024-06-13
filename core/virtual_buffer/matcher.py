@@ -40,7 +40,7 @@ class VirtualBufferMatcher:
         return False
     
     # Generate a match calculation based on the words to search for weighted by syllable count
-    def generate_match_calculation(self, query_words: List[str], threshold: float = 1, max_score_per_word: float = 3) -> VirtualBufferMatchCalculation:
+    def generate_match_calculation(self, query_words: List[str], threshold: float = SELECTION_THRESHOLD, max_score_per_word: float = EXACT_MATCH) -> VirtualBufferMatchCalculation:
         syllables_per_word = [self.phonetic_search.syllable_count(word) for word in query_words]
         total_syllables = max(sum(syllables_per_word), 1)
         weights = [syllable_count / total_syllables for syllable_count in syllables_per_word]
@@ -100,11 +100,14 @@ class VirtualBufferMatcher:
                     match_branch.reduce_potential(match_calculation.max_score, score, combined_weight) 
                     match_branches.append(match_branch)
 
+        # Filter searches that do not match the previous best and sort by the best score first
         searches = []
         for match_root in match_branches:
             searches.extend(self.expand_match_tree(match_root, match_calculation, submatrix))
+        filtered_searches = [search for search in searches if search.score_potential >= highest_match]
+        filtered_searches.sort(key=lambda x: x.score_potential, reverse=True)
 
-        return [search for search in searches if search.score_potential >= highest_match]
+        return filtered_searches
 
     def expand_match_tree(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix) -> List[VirtualBufferMatchMatrix]:
         match_trees = [match_tree]
@@ -165,24 +168,26 @@ class VirtualBufferMatcher:
         next_buffer_index = match_tree.get_next_buffer_index(submatrix, direction)
         next_buffer_skip_index = match_tree.get_next_buffer_index(submatrix, direction * 2)
 
-        expanded_match_trees.append(self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_index], direction))
-        expanded_match_trees.extend(self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction))
+        single_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_index], direction)
+        expanded_match_trees.append(single_expanded_match_tree)
+        expanded_match_trees.extend(self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction, single_expanded_match_tree))
         if submatrix.is_valid_index(next_buffer_skip_index):
-            expanded_match_trees.extend(self.determine_combined_buffer_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction))
+            expanded_match_trees.extend(self.determine_combined_buffer_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction, single_expanded_match_tree))
 
         # Skip a single token in the buffer for single and combined query matches
         if submatrix.is_valid_index(next_buffer_skip_index):
-            expanded_match_trees.append(self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_skip_index], direction))
-            expanded_match_trees.extend(self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_skip_index, direction))
+            single_skipped_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_skip_index], direction)
+            expanded_match_trees.append(single_skipped_expanded_match_tree)
+            expanded_match_trees.extend(self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_skip_index, direction, single_skipped_expanded_match_tree))
 
             # Combine buffer with single tokens
             next_buffer_second_skip_index = match_tree.get_next_buffer_index(submatrix, direction * 3)
             if submatrix.is_valid_index(next_buffer_second_skip_index):
-                expanded_match_trees.extend(self.determine_combined_buffer_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_skip_index, direction))
+                expanded_match_trees.extend(self.determine_combined_buffer_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_skip_index, direction, single_skipped_expanded_match_tree))
         
         return expanded_match_trees
     
-    def determine_combined_query_matches(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, next_query_index: int, next_buffer_index: int, direction: int = 1) -> List[VirtualBufferMatch]:
+    def determine_combined_query_matches(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, next_query_index: int, next_buffer_index: int, direction: int, comparison_match_tree: VirtualBufferMatch) -> List[VirtualBufferMatch]:
         combined_match_trees = []
         next_query_skip_index = next_query_index + direction
         if match_tree.is_valid_index(match_calculation, submatrix, next_query_skip_index):
@@ -193,8 +198,10 @@ class VirtualBufferMatcher:
                 combined_query_indices.append(next_query_skip_index)
 
             # Add the combined tokens, but only if the score increases
+            # Compared to the current match tree, and the match tree that would be 
             combined_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, combined_query_indices, [next_buffer_index], direction)
-            if sum(combined_match_tree.scores) == sum(match_tree.scores):
+            if sum(combined_match_tree.scores) == sum(match_tree.scores) or \
+                sum(combined_match_tree.scores) < sum(comparison_match_tree.scores):
                 return combined_match_trees
             combined_match_trees.append(combined_match_tree)
 
@@ -215,7 +222,7 @@ class VirtualBufferMatcher:
                     combined_match_trees.append(combined_second_match_tree)
         return combined_match_trees
     
-    def determine_combined_buffer_matches(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, next_query_index: int, next_buffer_index: int, direction: int = 1) -> List[VirtualBufferMatch]:
+    def determine_combined_buffer_matches(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, next_query_index: int, next_buffer_index: int, direction: int, comparison_match_tree: VirtualBufferMatch) -> List[VirtualBufferMatch]:
         combined_buffer_match_trees = []
         next_buffer_skip_index = next_buffer_index + direction
         if submatrix.is_valid_index(next_buffer_skip_index):
@@ -227,7 +234,8 @@ class VirtualBufferMatcher:
             
             # Add the combined tokens, but only if the score increases
             combined_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], combined_buffer_indices, direction)
-            if sum(combined_match_tree.scores) == sum(match_tree.scores):
+            if sum(combined_match_tree.scores) == sum(match_tree.scores) or \
+                sum(combined_match_tree.scores) < sum(comparison_match_tree.scores):
                 return combined_buffer_match_trees
             combined_buffer_match_trees.append(combined_match_tree)
 
@@ -274,10 +282,12 @@ class VirtualBufferMatcher:
             buffer_words.extend(expanded_tree.buffer)
             expanded_tree.buffer = buffer_words
 
-            skipped_scores = [0 for _ in skipped_words]
+            skipped_scores = [0.0 for _ in skipped_words]
             for skipped_score in skipped_scores:
+                #print( "SKIP SCORES!", skipped_score )
                 expanded_tree.scores.insert(0, skipped_score)
 
+            #print( "UNSKIPPED SCORE", score )
             expanded_tree.scores.insert(0, score)
         else:
             # Add skipped words as well
@@ -289,11 +299,16 @@ class VirtualBufferMatcher:
             expanded_tree.query_indices.append(query_indices)
             expanded_tree.buffer_indices.append(buffer_indices)
             expanded_tree.query.extend(query_words)
-            skipped_words.extend(buffer_words)
-            expanded_tree.buffer.extend(skipped_words)
-            skipped_scores = [0 for _ in skipped_words]
+
+            skipped_scores = [0.0 for _ in skipped_words]
             for skipped_score in skipped_scores:
                 expanded_tree.scores.append(skipped_score)
+                #print( "SKIPPED SCORE", skipped_score, skipped_words )
+
+            skipped_words.extend(buffer_words)
+            expanded_tree.buffer.extend(skipped_words)
+
+            #print( "UNSKIPPED SCORE", score)
             expanded_tree.scores.append(score)
 
         expanded_tree.reduce_potential(match_calculation.max_score, score, weight)

@@ -1,5 +1,6 @@
 from ..phonetics.phonetics import PhoneticSearch
-from .typing import VirtualBufferToken, VirtualBufferTokenMatch, VirtualBufferMatchCalculation, VirtualBufferMatchMatrix, VirtualBufferMatch
+from ..phonetics.detection import EXACT_MATCH, HOMOPHONE_MATCH, PHONETIC_MATCH
+from .typing import VirtualBufferToken, VirtualBufferTokenMatch, VirtualBufferMatchCalculation, VirtualBufferMatchMatrix, VirtualBufferMatch, SELECTION_THRESHOLD, CORRECTION_THRESHOLD
 import re
 from typing import List, Dict
 import math
@@ -61,35 +62,56 @@ class VirtualBufferMatcher:
         return sub_matrices
     
     def find_matches_in_matrix(self, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, highest_match: float = 0, early_stopping: bool = True) -> List[VirtualBufferMatch]:
+        branches = match_calculation.get_possible_branches()
         query = match_calculation.words
         buffer = [token.phrase for token in submatrix.tokens]
 
-        #starting_match = VirtualBufferMatch([], [], [], [], [], match_calculation.max_score, 0)
-        #score_matrix = {}
+        starting_match = VirtualBufferMatch([], [], [], [], [], match_calculation.max_score, 0)
 
         # Initial branches
-        #searches = []
-        #for word_index, query_word in enumerate(query):
+        match_branches = []
+        for branch in branches:
+            query_match_branch = starting_match.clone()
+            query_match_branch.query_indices.append(branch)
+            query_match_branch.query.extend([query[index] for index in branch])
+            combined_weight = sum([match_calculation.weights[index] for index in branch])
+            is_multiple_query_match = len(branch) > 1
 
-        #    max_buffer_search = len(buffer) - (len(query) - 1)
-        #    for buffer_index in range(word_index, word_index + max_buffer_search):
-        #        buffer_word = buffer[buffer_index]
-        #        score = self.get_memoized_similarity_score(query_word, buffer_word)
+            word_index = branch[0]
+            max_buffer_search = len(buffer) - (len(query) - 1)
+            for buffer_index in range(word_index, word_index + max_buffer_search):
+                buffer_word = buffer[buffer_index]
+                score = self.get_memoized_similarity_score("".join(query_match_branch.query), buffer_word)
 
-        #        print( word_index, buffer_index)
-                #score_matrix[word_index].append(self.get_memoized_similarity_score(query_word, buffer_word))
+                # Only add a match branch for a combined query search if the combined search scores higher than individual scores
+                if is_multiple_query_match:
+                    individual_scores = [self.get_memoized_similarity_score(word, buffer_word) for word in match_calculation.words]
+                    if max(individual_scores) > score:
+                        continue
 
+                # TODO Combined buffer match as entry?
+                
+                # Only if the words compare well enough will we continue searching
+                if score >= match_calculation.match_threshold:
+                    match_branch = query_match_branch.clone()
+                    match_branch.buffer_indices.append([buffer_index])
+                    match_branch.buffer.append(buffer_word)
+                    match_branch.scores.append(score)
+                    match_branch.reduce_potential(match_calculation.max_score, score, combined_weight) 
+                    match_branches.append(match_branch)
 
-        #print( score_matrix, len(query) * len(buffer), "MATCHES")
+        searches = []
+        for match_root in match_branches:
+            searches.extend(self.expand_match_tree(match_root, match_calculation, submatrix))
 
-        return []
+        return [search for search in searches if search.score_potential >= highest_match]
 
     def expand_match_tree(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix) -> List[VirtualBufferMatchMatrix]:
         match_trees = [match_tree]
         expanded_matrices: List[VirtualBufferMatch] = []
 
         # First expand backwards
-        if match_tree.can_expand_backward():
+        if match_tree.can_expand_backward(submatrix):
             can_expand_backward_count = 1
             while can_expand_backward_count != 0:
                 expanded_matrices = []
@@ -169,7 +191,12 @@ class VirtualBufferMatcher:
                 combined_query_indices.insert(0, next_query_skip_index)
             else:
                 combined_query_indices.append(next_query_skip_index)
-            combined_match_trees.append(self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, combined_query_indices, [next_buffer_index], direction))
+
+            # Add the combined tokens, but only if the score increases
+            combined_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, combined_query_indices, [next_buffer_index], direction)
+            if sum(combined_match_tree.scores) == sum(match_tree.scores):
+                return combined_match_trees
+            combined_match_trees.append(combined_match_tree)
 
             # Combine three if possible
             next_query_second_skip_index = next_query_index + (direction * 2)
@@ -181,7 +208,11 @@ class VirtualBufferMatcher:
                 else:
                     combined_query_indices.append(next_query_skip_index)
                     combined_query_indices.append(next_query_second_skip_index)
-                combined_match_trees.append(self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, combined_query_indices, [next_buffer_index], direction))
+
+                # Only add if the combined match tree increases the total score
+                combined_second_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, combined_query_indices, [next_buffer_index], direction)
+                if sum(combined_second_match_tree.scores) > sum(combined_match_tree.scores):
+                    combined_match_trees.append(combined_second_match_tree)
         return combined_match_trees
     
     def determine_combined_buffer_matches(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, next_query_index: int, next_buffer_index: int, direction: int = 1) -> List[VirtualBufferMatch]:
@@ -193,7 +224,12 @@ class VirtualBufferMatcher:
                 combined_buffer_indices.insert(0, next_buffer_skip_index)
             else:
                 combined_buffer_indices.append(next_buffer_skip_index)
-            combined_buffer_match_trees.append(self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], combined_buffer_indices, direction))
+            
+            # Add the combined tokens, but only if the score increases
+            combined_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], combined_buffer_indices, direction)
+            if sum(combined_match_tree.scores) == sum(match_tree.scores):
+                return combined_buffer_match_trees
+            combined_buffer_match_trees.append(combined_match_tree)
 
             # Combine three if possible
             next_buffer_second_skip_index = next_buffer_index + (direction * 2)
@@ -205,7 +241,11 @@ class VirtualBufferMatcher:
                 else:
                     combined_buffer_indices.append(next_buffer_skip_index)
                     combined_buffer_indices.append(next_buffer_second_skip_index)
-                combined_buffer_match_trees.append(self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], combined_buffer_indices, direction))
+
+                # Only add if the combined match tree increases the total score
+                combined_second_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], combined_buffer_indices, direction)
+                if sum(combined_second_match_tree.scores) > sum(combined_match_tree.scores):
+                    combined_buffer_match_trees.append(combined_second_match_tree)
 
         return combined_buffer_match_trees
 
@@ -349,7 +389,7 @@ class VirtualBufferMatcher:
                         tokens_from_last_punctuation = []
 
                 if len(tokens_from_last_punctuation) > 0:
-                    matches = self.find_matches_by_phrases(tokens_from_last_punctuation, phrases, 1, 'most_direct_matches')
+                    matches = self.find_matches_by_phrases(tokens_from_last_punctuation, phrases, CORRECTION_THRESHOLD, 'most_direct_matches')
                     starting_offset = index_offset + max(0, current_index[0] - len(tokens_from_last_punctuation))
 
                     # Get the match with the most matches, closest to the end
@@ -380,10 +420,10 @@ class VirtualBufferMatcher:
         
         return None
     
-    def find_best_match_by_phrases(self, virtual_buffer, phrases: List[str], match_threshold: float = 3, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, verbose: bool = False) -> List[VirtualBufferToken]:
+    def find_best_match_by_phrases(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, verbose: bool = False) -> List[VirtualBufferToken]:
         matches = self.find_matches_by_phrases( virtual_buffer.tokens, phrases, match_threshold, verbose=verbose)
         if verbose:
-            print( "MATCHES!", matches )
+            print( "MATCHES!", matches, match_threshold )
 
         if len(matches) > 0:
 
@@ -579,6 +619,8 @@ class VirtualBufferMatcher:
                 # Prune out matches below the average score threshold
                 # And with a distance between words that is larger than forgetting a word in between every word
                 if current_match != None and (current_match.distance <= len(phrases) - 1) and strategy == 'most_direct_matches':
+                    if verbose:
+                        print("CAN ADD, BECAUSE DISTANCE ", current_match.distance , "<=", len(phrases) - 1)
                     matches.append(current_match)
                 elif current_match != None and (current_match.syllable_score / (len(phrases) + current_match.distance / 2)) >= match_threshold / len(phrases) and (current_match.distance <= len(phrases) - 1):
                     if verbose:
@@ -613,9 +655,9 @@ class VirtualBufferMatcher:
 
         for index, token in enumerate(virtual_buffer.tokens):
             score = self.phonetic_search.phonetic_similarity_score(phrase, token.phrase)
-            if score >= 2:
+            if score >= HOMOPHONE_MATCH:
                 exact_matching_tokens.append((index, token))
-            elif score > 0.8:
+            elif score > SELECTION_THRESHOLD:
                 fuzzy_matching_tokens.append((index, token, score))
 
         # If we have no valid matches or valid carets, we cannot find the phrase

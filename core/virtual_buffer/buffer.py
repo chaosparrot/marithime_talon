@@ -1,5 +1,5 @@
 from talon import Module, Context
-from .typing import VirtualBufferToken, VirtualBufferTokenContext
+from .typing import VirtualBufferToken, VirtualBufferTokenContext, SELECTION_THRESHOLD, CORRECTION_THRESHOLD
 from .matcher import VirtualBufferMatcher
 from typing import List, Dict
 from .caret_tracker import CaretTracker
@@ -514,7 +514,7 @@ class VirtualBuffer:
 
         return keys
     
-    def select_phrases(self, phrases: List[str], match_threshold: float = 1, extend_selection: bool = False, for_correction: bool = False, verbose = False) -> List[str]:
+    def select_phrases(self, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, extend_selection: bool = False, for_correction: bool = False, verbose = False) -> List[str]:
         # For a single phrase we can fall back to a single selection
         if len(phrases) == 1:
             return self.select_phrase(phrases[0], extend_selection)

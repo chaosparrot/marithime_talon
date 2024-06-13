@@ -1,5 +1,5 @@
 from talon import actions, cron
-from .typing import InputFix, InputMutation
+from .typing import InputFix, InputMutation, CORRECTION_THRESHOLD, SELECTION_THRESHOLD
 import re
 import time
 from typing import List, Dict
@@ -8,6 +8,7 @@ import os
 import csv
 from pathlib import Path
 from dataclasses import fields
+from ..phonetics.detection import EXACT_MATCH
 from ..phonetics.actions import PhoneticSearch, phonetic_search
 
 # Thresholds when a fix should be done automatically
@@ -422,7 +423,7 @@ class InputFixer:
                 one_to_one_similarity_score = self.phonetic_search.phonetic_similarity_score(no_format_from_word, no_format_to_word)
                 
                 # If the letters are the same even if there is different punctuation or capitalization, we do not need to track changes
-                if one_to_one_similarity_score == 3:
+                if one_to_one_similarity_score == EXACT_MATCH:
                     to_words_index += 1
                     continue
                 else:
@@ -441,7 +442,7 @@ class InputFixer:
 
                     # Determine if we have hit a similarity threshold that we can determine a possible fix from
                     # Words that are too dissimilar aren't misinterpretations of the speech engine, but rather the user replacing one word for another
-                    if biggest_score < 3 and biggest_score >= 0.5:
+                    if biggest_score < EXACT_MATCH and biggest_score >= CORRECTION_THRESHOLD:
 
                         # Automatically find and persist homophones
                         if (one_to_one_similarity_score >= 1 and one_to_one_similarity_score <= 2) and to_word.lower() not in self.phonetic_search.find_homophones(from_word):
@@ -449,7 +450,7 @@ class InputFixer:
                         
                         # If one to one word replacement is more likely, add a fix for that
                         if one_to_one_similarity_score >= two_to_one_similarity_score and one_to_one_similarity_score >= one_to_two_similarity_score:
-                            if one_to_one_similarity_score >= min(0.5, 1 - (1 / len(to_word))):
+                            if one_to_one_similarity_score >= min(CORRECTION_THRESHOLD, 1 - (1 / len(to_word))):
                                 previous_word = first_previous_word if to_words_index == 0 else to_words[to_words_index - 1]
                                 next_word = first_next_word if to_words_index + 1 >= len(to_words) else to_words[to_words_index + 1]
                                 found_fixes.append((no_format_from_word, to_word, previous_word, next_word))
@@ -457,7 +458,7 @@ class InputFixer:
                         # If the two to one word replacement is more likely, add a fix for that
                         elif two_to_one_similarity_score >= one_to_one_similarity_score and two_to_one_similarity_score >= one_to_two_similarity_score:
 
-                            if two_to_one_similarity_score >= min(0.5, 1 - (1 / len(to_word))):
+                            if two_to_one_similarity_score >= min(CORRECTION_THRESHOLD, 1 - (1 / len(to_word))):
                                 # Skip the next from word checking
                                 used_from_indices.append(index + 1)
 
@@ -468,7 +469,7 @@ class InputFixer:
                         # If the one to two word replacement is more likely, add a fix for that
                         elif one_to_two_similarity_score >= one_to_one_similarity_score and one_to_two_similarity_score >= two_to_one_similarity_score:
 
-                            if one_to_two_similarity_score >= min(0.5, 1 - (1 / len(no_format_to_two_words))):
+                            if one_to_two_similarity_score >= min(CORRECTION_THRESHOLD, 1 - (1 / len(no_format_to_two_words))):
                                 previous_word = first_previous_word if to_words_index == 0 else to_words[to_words_index - 1]
                                 next_word = first_next_word if to_words_index + 2 >= len(to_words) else to_words[to_words_index + 2]
                                 found_fixes.append((no_format_from_word, two_to_words, previous_word, next_word))

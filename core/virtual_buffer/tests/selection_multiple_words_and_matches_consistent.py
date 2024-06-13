@@ -55,4 +55,3 @@ def test_multiple_words_with_multiple_occurrences(assertion):
 
 suite = create_test_suite("Selecting a whole phrase in the virtual buffer that happens multiple times")
 suite.add_test(test_multiple_words_with_multiple_occurrences)
-suite.run()

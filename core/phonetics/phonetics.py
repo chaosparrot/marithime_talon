@@ -1,5 +1,5 @@
 from typing import List, Callable
-from .detection import detect_phonetic_fix_type, phonetic_normalize, levenshtein, syllable_count
+from .detection import detect_phonetic_fix_type, phonetic_normalize, levenshtein, syllable_count, EXACT_MATCH, HOMOPHONE_MATCH, PHONETIC_MATCH
 
 class PhoneticSearch:    
 
@@ -150,24 +150,21 @@ class PhoneticSearch:
         return known_fixes
     
     # Determine a similarity score
-    # An exact match is 3
-    # An exact phonetic match is a 2
-    # A similar phonetic match is a 1 or below
     def phonetic_similarity_score(self, word_a: str, word_b: str) -> float:
         if word_a == word_b:
-            return 3
+            return EXACT_MATCH
         else:
             # Match a known homophone
             homophones = self.find_homophones(word_a)
             if word_b.lower() in homophones:
-                return 2
+                return HOMOPHONE_MATCH
 
             # Attempt to find an unknown homophone
             homophone_a = phonetic_normalize(word_a, True, self.language)
             homophone_b = phonetic_normalize(word_b, True, self.language)
 
             if homophone_a == homophone_b:
-                return 2
+                return HOMOPHONE_MATCH
             else:
                 # Do fuzzy phonetic matching
                 phonetic_a = phonetic_normalize(word_a, False, self.language)

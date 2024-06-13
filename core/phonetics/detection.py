@@ -2,6 +2,12 @@ import re
 from .languages import english, dutch, german
 from ..utils.levenshtein import levenshtein
 
+# These values have been calculated with some deduction
+# And testing using expectations with a set of up to 5 word matches
+EXACT_MATCH = 3 # 1.2 for later when weights are implemented
+HOMOPHONE_MATCH = 2 # 1.15 for later when weights are implemented
+PHONETIC_MATCH = 1
+
 def normalize_text(text: str) -> str:
     return re.sub(r"[^\w\s]", '', text).replace("\n", "")
 

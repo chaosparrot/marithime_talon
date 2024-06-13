@@ -1,6 +1,11 @@
 from dataclasses import dataclass
 from typing import List, Self
 
+# These values have been calculated with some deduction
+# And testing using expectations with a set of up to 5 word matches
+SELECTION_THRESHOLD = 0.66
+CORRECTION_THRESHOLD = 0.5
+
 @dataclass
 class VirtualBufferToken:
     text: str
@@ -28,7 +33,7 @@ class VirtualBufferMatchCalculation:
     max_score: float
     length: float
 
-    def __init__(self, words: List[str], weights: List[str], match_threshold = 0, max_score_per_word = 3):
+    def __init__(self, words: List[str], weights: List[str], match_threshold = 0, max_score_per_word = 1.2):
         self.words = words
         self.length = len(words)
         self.weights = weights
@@ -38,6 +43,7 @@ class VirtualBufferMatchCalculation:
 
     # Calculate the list of possible search branches that can lead to a match, sorted by most likely
     def get_possible_branches(self) -> List[List[int]]:
+
         # TODO IMPROVE IMPOSSIBLE BRANCH DETECTION
         impossible_potential = 0
         for potential in self.potentials:
@@ -116,7 +122,7 @@ class VirtualBufferMatch:
 
     def is_valid_index(self, calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, index: int) -> bool:
         return index >= 0 and index < submatrix.length and index < calculation.length
-    
+
     def reduce_potential(self, max_score: float, score: float, weight: float):
         self.score_potential -= (max_score - score) * weight
 

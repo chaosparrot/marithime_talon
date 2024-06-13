@@ -1,6 +1,8 @@
 from talon import Module, Context, actions, settings, ui, speech_system, app
 from .input_context_manager import InputContextManager
 from .input_fixer import InputFixer
+from .typing import CORRECTION_THRESHOLD, SELECTION_THRESHOLD
+from ..phonetics.detection import EXACT_MATCH
 from typing import List, Union
 import json
 import re
@@ -124,7 +126,8 @@ class VirtualBufferManager:
         if until_end:
             return vb.select_until_end(phrases)
         else:
-            return vb.select_phrases(phrases, for_correction)
+            match_threshold = CORRECTION_THRESHOLD if not for_correction else SELECTION_THRESHOLD
+            return vb.select_phrases(phrases, match_threshold=match_threshold, for_correction=for_correction)
 
     def move_to_phrase(self, phrase: str, character_index: int = -1, keep_selection: bool = False, next_occurrence: bool = True) -> List[str]:
         self.disable_tracking()
@@ -165,7 +168,7 @@ class VirtualBufferManager:
             if self_repair_match is not None:
 
                 # If we are dealing with a continuation, change the insert to remove the first few words
-                if self_repair_match.score / len(self_repair_match.scores) == 3:
+                if self_repair_match.score / len(self_repair_match.scores) == EXACT_MATCH:
                     words = insert.split()
                     if len(words) > len(self_repair_match.scores):
                         insert = " ".join(words[len(self_repair_match.scores):])

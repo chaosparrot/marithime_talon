@@ -4,6 +4,7 @@ from .typing import VirtualBufferToken, VirtualBufferTokenMatch, VirtualBufferMa
 import re
 from typing import List, Dict
 import math
+from functools import cmp_to_key
 
 def normalize_text(text: str) -> str:
     return re.sub(r"[^\w\s]", ' ', text).replace("\n", " ")
@@ -44,12 +45,14 @@ class VirtualBufferMatcher:
         matrix = VirtualBufferMatchMatrix(0, virtual_buffer.tokens)
         submatrices = self.find_potential_submatrices(match_calculation, matrix)
 
-        split_submatrices = self.split_submatrices_by_cursor_position(submatrices, virtual_buffer.determine_leftmost_token_index()[0], virtual_buffer.determine_rightmost_token_index()[0])
+        leftmost_token_index = virtual_buffer.determine_leftmost_token_index()[0]
+        rightmost_token_index = virtual_buffer.determine_rightmost_token_index()[0]
+        split_submatrices = self.split_submatrices_by_cursor_position(submatrices, leftmost_token_index, rightmost_token_index)
         highest_score_achieved = False
         matches = []
 
         for matrix_group in split_submatrices:
-            match_calculation.match_threshold = match_threshold            
+            match_calculation.match_threshold = match_threshold
             matrix_group_matches = []
             highest_match = 0
             for submatrix in matrix_group:
@@ -61,15 +64,19 @@ class VirtualBufferMatcher:
                     highest_score_achieved = highest_match == match_calculation.max_score
 
                 # Do not seek any further if we have reached the highest possible score
+                # Since no improvement is possible
                 if highest_score_achieved:
                     break
+            
+            # Calculate the distance from the cursor
+            for matrix_group_match in matrix_group_matches:
+                matrix_group_match.calculate_distance(leftmost_token_index, rightmost_token_index)
 
             # TODO SORT MATCHES BY DISTANCE WHEN CORRECTING
             #if for_correction:
 
             if selecting and len(matrix_group_matches) > 0:
-                # TODO USE sort_match_trees_by_score
-                matrix_group_matches.sort(lambda x: x.score_potential, reverse=True)
+                matrix_group_matches.sort(key = cmp_to_key(self.compare_match_trees_by_score), reverse=True)
                 matches.append(matrix_group_matches[0])
         
         matches.sort(key=lambda x: x.score_potential, reverse=True)
@@ -197,7 +204,7 @@ class VirtualBufferMatcher:
         for match_root in match_branches:
             searches.extend(self.expand_match_tree(match_root, match_calculation, submatrix))
         filtered_searches = [search for search in searches if search.score_potential >= highest_match]
-        filtered_searches.sort(key=lambda x: x.score_potential, reverse=True)
+        filtered_searches.sort(key = cmp_to_key(self.compare_match_trees_by_score), reverse=True)
 
         return filtered_searches
 
@@ -403,7 +410,7 @@ class VirtualBufferMatcher:
         expanded_tree.reduce_potential(match_calculation.max_score, score, weight)
         return expanded_tree
 
-    def sort_match_trees_by_score(self, a: VirtualBufferMatch, b: VirtualBufferMatch) -> int:
+    def compare_match_trees_by_score(self, a: VirtualBufferMatch, b: VirtualBufferMatch) -> int:
         # Favour the matches without dropped matches over ones with dropped matches
         a_missing_difference = len(a.query_indices) - len(a.buffer_indices)
         b_missing_difference = len(b.query_indices) - len(b.buffer_indices)

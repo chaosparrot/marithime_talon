@@ -122,6 +122,16 @@ class VirtualBufferMatch:
 
     def is_valid_index(self, calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, index: int) -> bool:
         return index >= 0 and index < submatrix.length and index < calculation.length
+    
+    def calculate_distance(self, leftmost_index: int, rightmost_index: int):
+        if len(self.buffer_indices) > 0:
+            if self.buffer_indices[-1][-1] < leftmost_index:
+                self.distance = leftmost_index - self.buffer_indices[-1][-1]
+            elif self.buffer_indices[0][0] > rightmost_index:
+                self.distance = self.buffer_indices[0][0] - rightmost_index
+            else:
+                self.distance = 0
+                # TODO - Implement sub-1 distances to favour one inner match over the other?
 
     def reduce_potential(self, max_score: float, score: float, weight: float):
         self.score_potential -= (max_score - score) * weight

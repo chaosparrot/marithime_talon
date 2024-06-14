@@ -45,7 +45,6 @@ class VirtualBufferMatcher:
         submatrices = self.find_potential_submatrices(match_calculation, matrix)
 
         split_submatrices = self.split_submatrices_by_cursor_position(submatrices, virtual_buffer.determine_leftmost_token_index()[0], virtual_buffer.determine_rightmost_token_index()[0])
-
         highest_score_achieved = False
         matches = []
 
@@ -114,7 +113,7 @@ class VirtualBufferMatcher:
 
         # Sort the matrices before the cursor in the opposite direction,
         # the assumption being that the closest match to the cursor matters most
-        before[0].sort(reverse=True)
+        before.reverse()
 
         return [before, current, after]
 
@@ -380,16 +379,14 @@ class VirtualBufferMatcher:
 
             skipped_scores = [0.0 for _ in skipped_words]
             for skipped_score in skipped_scores:
-                #print( "SKIP SCORES!", skipped_score )
                 expanded_tree.scores.insert(0, skipped_score)
 
-            #print( "UNSKIPPED SCORE", score )
             expanded_tree.scores.insert(0, score)
         else:
             # Add skipped words as well
-            last_buffer_index = buffer_indices[0] + 1
+            last_buffer_index = buffer_indices[0]
             last_found_index = expanded_tree.buffer_indices[-1][-1]
-            for skipped_index in range(last_buffer_index, last_found_index):
+            for skipped_index in range(last_found_index + 1, last_buffer_index):
                 skipped_words.append(submatrix.tokens[skipped_index].phrase)
 
             expanded_tree.query_indices.append(query_indices)
@@ -397,14 +394,13 @@ class VirtualBufferMatcher:
             expanded_tree.query.extend(query_words)
 
             skipped_scores = [0.0 for _ in skipped_words]
+
             for skipped_score in skipped_scores:
                 expanded_tree.scores.append(skipped_score)
-                #print( "SKIPPED SCORE", skipped_score, skipped_words )
 
             skipped_words.extend(buffer_words)
             expanded_tree.buffer.extend(skipped_words)
 
-            #print( "UNSKIPPED SCORE", score)
             expanded_tree.scores.append(score)
 
         expanded_tree.reduce_potential(match_calculation.max_score, score, weight)

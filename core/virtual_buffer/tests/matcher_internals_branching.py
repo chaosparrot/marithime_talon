@@ -98,6 +98,56 @@ def test_check_expand_forward(assertion):
     match_tree = get_single_word_match_tree_root(matcher, calculation, submatrix, 1, 3)
     assertion("    should not be able to expand forward", match_tree.can_expand_forward(calculation, submatrix) == False)
 
+def test_expand_skip_one_forward(assertion):
+    matcher = get_matcher()
+
+    assertion("Using the match 'with' on 'test with the incredibly good match'")
+    calculation = matcher.generate_match_calculation(["with", "incredible"], select_threshold)
+    submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the incredibly good match"))
+    match_tree = get_single_word_match_tree_root(matcher, calculation, submatrix, 0, 1)
+    assertion("    should be able to expand forward", match_tree.can_expand_forward(calculation, submatrix))
+    match_trees = matcher.expand_match_tree_forward(match_tree, calculation, submatrix)
+    assertion("    should have at least one result after expanding", len(match_trees) > 0)
+    if len(match_trees) > 0:
+        match_trees.sort(key=lambda x: x.score_potential, reverse=True)
+        assertion( match_trees )
+        assertion("    should have a lower score potential than before", match_trees[0].score_potential < match_tree.score_potential)
+        assertion("    should still have a score potential bigger than the threshold", match_trees[0].score_potential >= calculation.match_threshold)
+        assertion("    should have two tokens matched", len(match_trees[0].query) == 2 and len(match_trees[0].buffer) == 3 )
+        assertion("    should have queried 'with incredible'", " ".join(match_trees[0].query) == "with incredible" )
+        assertion("    should have matched 'with the incredibly'", " ".join(match_trees[0].buffer) == "with the incredibly" )
+
+    assertion("Using the match 'incredible' on 'test with the incredibly good match'")
+    calculation = matcher.generate_match_calculation(["with", "incredible"], select_threshold)
+    submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the incredibly good match"))
+    match_tree = get_single_word_match_tree_root(matcher, calculation, submatrix, 1, 3)
+    assertion("    should not be able to expand forward", match_tree.can_expand_forward(calculation, submatrix) == False)
+
+def test_expand_skip_one_backward(assertion):
+    matcher = get_matcher()
+
+    assertion("Using the match 'incredible' on 'test with the incredibly good match'")
+    calculation = matcher.generate_match_calculation(["with", "incredible"], select_threshold)
+    submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the incredibly good match"))
+    match_tree = get_single_word_match_tree_root(matcher, calculation, submatrix, 1, 3)
+    assertion("    should be able to expand backward", match_tree.can_expand_backward(submatrix))
+    match_trees = matcher.expand_match_tree_backward(match_tree, calculation, submatrix)
+    assertion("    should have at least one result after expanding", len(match_trees) > 0)
+    if len(match_trees) > 0:
+        match_trees.sort(key=lambda x: x.score_potential, reverse=True)
+        assertion("    should have the same score potential than before, because of the exact match", match_trees[0].score_potential == match_tree.score_potential)
+        assertion("    should still have a score potential bigger than the threshold", match_trees[0].score_potential >= calculation.match_threshold)
+        assertion("    should have two tokens matched", len(match_trees[0].query) == 2 and len(match_trees[0].buffer) == 3 )
+        assertion("    should have queried 'with incredible'", " ".join(match_trees[0].query) == "with incredible" )
+        assertion("    should have matched 'with the incredibly'", " ".join(match_trees[0].buffer) == "with the incredibly" )
+
+    assertion("Using the match 'with' on 'test with the incredibly good match'")
+    calculation = matcher.generate_match_calculation(["with", "incredible"], select_threshold)
+    submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the incredibly good match"))
+    match_tree = get_single_word_match_tree_root(matcher, calculation, submatrix, 0, 1)
+    assertion("    should not be able to expand backward", match_tree.can_expand_backward(submatrix) == False)
+
+
 def test_fully_combined_query_match_tree(assertion):
     matcher = get_matcher()
 
@@ -167,6 +217,9 @@ def test_partially_combined_buffer_match_tree(assertion):
 suite = create_test_suite("Virtual buffer matcher branching")
 suite.add_test(test_check_expand_backward)
 suite.add_test(test_check_expand_forward)
+suite.add_test(test_expand_skip_one_forward)
+suite.add_test(test_expand_skip_one_backward)
+suite.run()
 
 combined_suite = create_test_suite("Virtual buffer matcher branching for combined tokens")
 combined_suite.add_test(test_fully_combined_query_match_tree)

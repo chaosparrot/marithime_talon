@@ -202,6 +202,61 @@ def test_translate_sub_matrix_index_to_matrix_index(assertion):
     assertion("    1 should be 100 when the matrix start at 99", matrix99_2.to_global_index(1) == 100)
     assertion("    2 should be 101 when the matrix start at 99", matrix99_2.to_global_index(2) == 101)
 
+matrix0_2 = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("an incredibly dense"))
+matrix3_5 = VirtualBufferMatchMatrix(3, get_tokens_from_sentence("piece of cake"))
+matrix6_8 = VirtualBufferMatchMatrix(6, get_tokens_from_sentence("that, upon inspection,"))
+matrix9_9 = VirtualBufferMatchMatrix(9, get_tokens_from_sentence("cannot"))
+matrix10_10 = VirtualBufferMatchMatrix(10, get_tokens_from_sentence("even"))    
+matrix11_12 = VirtualBufferMatchMatrix(11, get_tokens_from_sentence("decompose naturally"))
+submatrix_list = [matrix0_2, matrix3_5, matrix6_8, matrix9_9, matrix10_10, matrix11_12]
+
+def test_split_matrices_at_start(assertion):
+    matcher = get_matcher()
+    assertion("Splitting a list of 6 submatrices at the start on the first token")
+    split = matcher.split_submatrices_by_cursor_position(submatrix_list, 0, 0)
+    assertion("    should not have submatrices before the cursor", len(split[0]) == 0)
+    assertion("    should have one submatrix in the current list", len(split[1]) == 1)
+    assertion("    should have 5 submatrices in the after list", len(split[2]) == 5)
+
+    assertion("Splitting a list of 6 submatrices at the start on the first five tokens")
+    split = matcher.split_submatrices_by_cursor_position(submatrix_list, 0, 4)
+    assertion("    should not have submatrices before the cursor", len(split[0]) == 0)
+    assertion("    should have 2 submatrices in the current list", len(split[1]) == 2)
+    assertion("    should have 4 submatrices in the after list", len(split[2]) == 4)
+
+def test_split_matrices_at_end(assertion):
+    matcher = get_matcher()
+    assertion("Splitting a list of 6 submatrices at the end on the first token")
+    split = matcher.split_submatrices_by_cursor_position(submatrix_list, 12, 12)
+    assertion("    should have 5 submatrices before the cursor", len(split[0]) == 5)
+    assertion("    should have one submatrix in the current list", len(split[1]) == 1)
+    assertion("    should not have submatrices in the after list", len(split[2]) == 0)
+    assertion("    should sort the before list in reverse order", split[0][0].end_index > split[0][-1].end_index)
+
+    assertion("Splitting a list of 6 submatrices at the end on the last four tokens")
+    split = matcher.split_submatrices_by_cursor_position(submatrix_list, 9, 12)
+    assertion("    should have 3 submatrices before the cursor", len(split[0]) == 3)
+    assertion("    should have 3 submatrices in the current list", len(split[1]) == 3)
+    assertion("    should not have submatrices in the after list", len(split[2]) == 0)
+    assertion("    should sort the before list in reverse order", split[0][0].end_index > split[0][-1].end_index)
+
+def test_split_matrices_in_the_middle(assertion):
+    matcher = get_matcher()
+    assertion("Splitting a list of 6 submatrices at the middle on the middle token")
+    split = matcher.split_submatrices_by_cursor_position(submatrix_list, 6, 6)
+    assertion("    should have 2 submatrices before the cursor", len(split[0]) == 2)
+    assertion("    should have one submatrix in the current list", len(split[1]) == 1)
+    assertion("    should have 3 submatrices in the after list", len(split[2]) == 3)
+    assertion("    should sort the before list in reverse order", split[0][0].end_index > split[0][-1].end_index)
+
+    assertion("Splitting a list of 6 submatrices at the middle on the middle four tokens")
+    split = matcher.split_submatrices_by_cursor_position(submatrix_list, 6, 9)
+    assertion("    should have 2 submatrices before the cursor", len(split[0]) == 2)
+    assertion("    should have 2 submatrices in the current list", len(split[1]) == 2)
+    assertion("    should have 2 submatrices in the after list", len(split[2]) == 2)
+    assertion("    should sort the before list in reverse order", split[0][0].end_index > split[0][-1].end_index)
+
+
 suite = create_test_suite("Virtual buffer matcher matrix gathering")
 suite.add_test(test_empty_potential_submatrices)
 suite.add_test(test_single_potential_submatrices)
@@ -212,3 +267,8 @@ suite.add_test(test_merge_matrices_overlapping_matrices_end)
 suite.add_test(test_merge_matrices_overlapping_matrices_start)
 suite.add_test(test_merge_matrices_overlapping_matrices_middle)
 suite.add_test(test_translate_sub_matrix_index_to_matrix_index)
+
+splitting_suite = create_test_suite("Virtual buffer matcher matrix splitting")
+splitting_suite.add_test(test_split_matrices_at_start)
+splitting_suite.add_test(test_split_matrices_at_end)
+splitting_suite.add_test(test_split_matrices_in_the_middle)

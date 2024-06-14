@@ -1,6 +1,6 @@
 from ..matcher import VirtualBufferMatcher
 from ...phonetics.phonetics import PhoneticSearch
-from ...phonetics.detection import EXACT_MATCH
+from ...phonetics.detection import EXACT_MATCH, HOMOPHONE_MATCH
 from ..indexer import text_to_virtual_buffer_tokens
 from ..typing import VirtualBufferMatchMatrix, VirtualBufferMatch, SELECTION_THRESHOLD, CORRECTION_THRESHOLD
 from ...utils.test import create_test_suite
@@ -61,8 +61,34 @@ def test_multiple_single_matches(assertion):
     assertion("    should have 'an incredible' as the highest match", " ".join([match for match in matches if len(match.buffer) == 2][0].buffer) == "an incredible")
     assertion( " ".join([match for match in matches if len(match.buffer) == 2][0].buffer) )
 
+def test_sorting_matches(assertion):
+    matcher = get_matcher()
+
+    match_1 = VirtualBufferMatch([[0], [1]], [[0], [1]], ["this", "is"], ["this", "is"], [EXACT_MATCH, EXACT_MATCH], EXACT_MATCH, 0)
+    match_2 = VirtualBufferMatch([[0], [1]], [[10], [11]], ["this", "is"], ["this", "is"], [EXACT_MATCH, EXACT_MATCH], EXACT_MATCH, 0)
+    match_2_missing_one = VirtualBufferMatch([[0], [1]], [[10]], ["this", "is"], ["this"], [EXACT_MATCH], EXACT_MATCH, 0)    
+    match_2_homophone = VirtualBufferMatch([[0], [1]], [[10], [11]], ["dis", "is"], ["this", "is"], [HOMOPHONE_MATCH, EXACT_MATCH], EXACT_MATCH - (EXACT_MATCH - HOMOPHONE_MATCH), 0)
+    match_1_skip = VirtualBufferMatch([[0], [1]], [[0], [2]], ["this", "the"], ["this", "is", "the"], [EXACT_MATCH, 0, EXACT_MATCH], EXACT_MATCH, 0)
+    match_2_skip = VirtualBufferMatch([[0], [1]], [[10], [12]], ["this", "the"], ["this", "is", "the"], [EXACT_MATCH, 0, EXACT_MATCH], EXACT_MATCH, 0)
+
+    assertion("Sorting two matches with where one score is better than the other")
+    assertion("    should favour the one with the better score", matcher.sort_match_trees_by_score(match_1, match_2_homophone) == 1)
+    assertion("    and the order should not matter", matcher.sort_match_trees_by_score(match_2_homophone, match_1) == -1)
+    assertion("Sorting two matches with the same score, but one has more matches")
+    assertion("    should favour the one with the most matches", matcher.sort_match_trees_by_score(match_1, match_2_missing_one) == 1)
+    assertion("    and the order should not matter", matcher.sort_match_trees_by_score(match_2_missing_one, match_1) == -1)
+    assertion("Sorting two matches with the same score and no skips")
+    assertion("    should result in no change in the order", matcher.sort_match_trees_by_score(match_1, match_2) == 0)
+    assertion("    and the order should not matter", matcher.sort_match_trees_by_score(match_2, match_1) == 0)    
+    assertion("Sorting two matches with the same score and the same amount of skips")
+    assertion("    should result in no change in the order", matcher.sort_match_trees_by_score(match_1_skip, match_2_skip) == 0)
+    assertion("    and the order should not matter", matcher.sort_match_trees_by_score(match_2_skip, match_1_skip) == 0)
+    assertion("Sorting two matches with the same score with one having more skips than the other")
+    assertion("    should favour the one with the least skips", matcher.sort_match_trees_by_score(match_1, match_2_skip) == 1)
+    assertion("    and the order should not matter", matcher.sort_match_trees_by_score(match_2_skip, match_1) == -1)
+
 suite = create_test_suite("Virtual buffer matcher submatrix matching")
 suite.add_test(test_no_matches_for_too_high_threshold)
 suite.add_test(test_one_match_for_highest_threshold)
 suite.add_test(test_multiple_single_matches)
-suite.run()
+suite.add_test(test_sorting_matches)

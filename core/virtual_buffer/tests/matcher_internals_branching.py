@@ -219,7 +219,6 @@ suite.add_test(test_check_expand_backward)
 suite.add_test(test_check_expand_forward)
 suite.add_test(test_expand_skip_one_forward)
 suite.add_test(test_expand_skip_one_backward)
-suite.run()
 
 combined_suite = create_test_suite("Virtual buffer matcher branching for combined tokens")
 combined_suite.add_test(test_fully_combined_query_match_tree)

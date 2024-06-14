@@ -68,10 +68,11 @@ class VirtualBufferMatcher:
             #if for_correction:
 
             if selecting and len(matrix_group_matches) > 0:
+                # TODO USE sort_match_trees_by_score
                 matrix_group_matches.sort(lambda x: x.score_potential, reverse=True)
                 matches.append(matrix_group_matches[0])
         
-        matches.sort(lambda x: x.score_potential, reverse=True)
+        matches.sort(key=lambda x: x.score_potential, reverse=True)
         return matches
 
     # Generate a match calculation based on the words to search for weighted by syllable count
@@ -91,8 +92,6 @@ class VirtualBufferMatcher:
             sub_matrices.extend(self.find_potential_submatrices_for_words(matrix, match_calculation, word_index, max_submatrix_size))
 
         sub_matrices = self.simplify_submatrices(sub_matrices)
-
-        # TODO SORT BY DISTANCE FOR EARLY STOPPING?
 
         return sub_matrices
 
@@ -116,8 +115,6 @@ class VirtualBufferMatcher:
         before.reverse()
 
         return [before, current, after]
-
-
     
     def find_matches_in_matrix(self, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, highest_match: float = 0, early_stopping: bool = True) -> List[VirtualBufferMatch]:
         branches = match_calculation.get_possible_branches()
@@ -405,6 +402,31 @@ class VirtualBufferMatcher:
 
         expanded_tree.reduce_potential(match_calculation.max_score, score, weight)
         return expanded_tree
+
+    def sort_match_trees_by_score(self, a: VirtualBufferMatch, b: VirtualBufferMatch) -> int:
+        # Favour the matches without dropped matches over ones with dropped matches
+        a_missing_difference = len(a.query_indices) - len(a.buffer_indices)
+        b_missing_difference = len(b.query_indices) - len(b.buffer_indices)
+        if a_missing_difference == 0 and b_missing_difference != 0:
+            return 1
+        elif a_missing_difference != 0 and b_missing_difference == 0:
+            return -1
+
+        # Favour matches with a higher score than ones with a lower score
+        if a.score_potential > b.score_potential:
+            return 1
+        elif a.score_potential < b.score_potential:
+            return -1
+
+        # Favour matches with the least amount of skips priority over matches with more skips
+        a_skip_difference = len(a.scores) - len(a.query_indices)
+        b_skip_difference = len(b.scores) - len(b.query_indices)
+        if a_skip_difference < b_skip_difference:
+            return 1
+        elif a_skip_difference > b_skip_difference:
+            return -1
+        else:
+            return 0
 
     def find_potential_submatrices_for_words(self, matrix: VirtualBufferMatchMatrix, match_calculation: VirtualBufferMatchCalculation, word_indices: List[int], max_submatrix_size: int) -> List[VirtualBufferMatchMatrix]:
         submatrices = []

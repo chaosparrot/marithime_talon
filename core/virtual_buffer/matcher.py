@@ -65,21 +65,21 @@ class VirtualBufferMatcher:
 
                 # Do not seek any further if we have reached the highest possible score
                 # Since no improvement is possible
-                if highest_score_achieved:
+                # Also do not seek further for correction cases as we never look beyond matches closest to the cursor anyway
+                if highest_score_achieved or (for_correction and len(submatrix_matches) > 0):
                     break
             
             # Calculate the distance from the cursor
             for matrix_group_match in matrix_group_matches:
                 matrix_group_match.calculate_distance(leftmost_token_index, rightmost_token_index)
 
-            # TODO SORT MATCHES BY DISTANCE WHEN CORRECTING
-            #if for_correction:
-
-            if selecting and len(matrix_group_matches) > 0:
-                matrix_group_matches.sort(key = cmp_to_key(self.compare_match_trees_by_score), reverse=True)
+            if len(matrix_group_matches) > 0:
+                if selecting:
+                    matrix_group_matches.sort(key = cmp_to_key(self.compare_match_trees_by_score), reverse=True)
+                if for_correction:
+                    matrix_group_matches.sort(key = cmp_to_key(self.compare_match_trees_by_distance_and_score), reverse=True)
                 matches.append(matrix_group_matches[0])
         
-        matches.sort(key=lambda x: x.score_potential, reverse=True)
         return matches
 
     # Generate a match calculation based on the words to search for weighted by syllable count
@@ -409,6 +409,26 @@ class VirtualBufferMatcher:
 
         expanded_tree.reduce_potential(match_calculation.max_score, score, weight)
         return expanded_tree
+
+    def compare_match_trees_by_distance_and_score(self, a: VirtualBufferMatch, b: VirtualBufferMatch) -> int:
+        sort_by_score = self.compare_match_trees_by_score(a, b)
+        a_overlap_padding = min(1, max(0, round(len(a.buffer_indices) / 3)))
+        a_start = a.buffer_indices[0][0] - a_overlap_padding
+        a_end = a.buffer_indices[-1][-1] + a_overlap_padding
+
+        b_overlap_padding = min(1, max(0, round(len(b.buffer_indices) / 3)))
+        b_start = b.buffer_indices[0][0] - b_overlap_padding
+        b_end = b.buffer_indices[-1][-1] + b_overlap_padding
+
+        # Overlap detected, check score instead
+        if a_start <= b_end and b_start <= a_end:
+            return sort_by_score
+        elif a.distance < b.distance:
+            return 1
+        elif a.distance > b.distance:
+            return -1
+        else:
+            return sort_by_score
 
     def compare_match_trees_by_score(self, a: VirtualBufferMatch, b: VirtualBufferMatch) -> int:
         # Favour the matches without dropped matches over ones with dropped matches

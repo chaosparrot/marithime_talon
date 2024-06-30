@@ -206,6 +206,9 @@ class VirtualBufferMatcher:
         filtered_searches = [search for search in searches if search.score_potential >= highest_match]
         filtered_searches.sort(key = cmp_to_key(self.compare_match_trees_by_score), reverse=True)
 
+        # Use global matrix indices for every match
+        for search in filtered_searches:
+            search.to_global_index(submatrix)
         return filtered_searches
 
     def expand_match_tree(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix) -> List[VirtualBufferMatchMatrix]:
@@ -231,7 +234,6 @@ class VirtualBufferMatcher:
                     expanded_matrices.extend(self.expand_match_tree_forward(match_tree, match_calculation, submatrix))
                 can_expand_forward_count = sum([expanded_matrix.can_expand_forward(match_calculation, submatrix) for expanded_matrix in expanded_matrices])
                 match_trees = expanded_matrices
-
         # TODO FILTER BEST?
 
         return match_trees
@@ -267,6 +269,7 @@ class VirtualBufferMatcher:
         next_buffer_index = match_tree.get_next_buffer_index(submatrix, direction)
         next_buffer_skip_index = match_tree.get_next_buffer_index(submatrix, direction * 2)
 
+        #print("REGULAR", next_buffer_index, match_tree.buffer_indices, submatrix)
         single_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_index], direction)
         expanded_match_trees.append(single_expanded_match_tree)
         expanded_match_trees.extend(self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction, single_expanded_match_tree))
@@ -275,6 +278,7 @@ class VirtualBufferMatcher:
 
         # Skip a single token in the buffer for single and combined query matches
         if submatrix.is_valid_index(next_buffer_skip_index):
+            #print("SKIP ONE")
             single_skipped_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_skip_index], direction)
             expanded_match_trees.append(single_skipped_expanded_match_tree)
             expanded_match_trees.extend(self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_skip_index, direction, single_skipped_expanded_match_tree))
@@ -282,6 +286,7 @@ class VirtualBufferMatcher:
             # Combine buffer with single tokens
             next_buffer_second_skip_index = match_tree.get_next_buffer_index(submatrix, direction * 3)
             if submatrix.is_valid_index(next_buffer_second_skip_index):
+                #print("SKIP ONE COMBINED")
                 expanded_match_trees.extend(self.determine_combined_buffer_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_skip_index, direction, single_skipped_expanded_match_tree))
         
         return expanded_match_trees
@@ -332,6 +337,7 @@ class VirtualBufferMatcher:
                 combined_buffer_indices.append(next_buffer_skip_index)
             
             # Add the combined tokens, but only if the score increases
+            #print( "B COMBINED STAGE 1!", next_buffer_index, submatrix.is_valid_index(next_buffer_index), next_buffer_skip_index, submatrix.is_valid_index(next_buffer_skip_index), submatrix )
             combined_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], combined_buffer_indices, direction)
             if sum(combined_match_tree.scores) == sum(match_tree.scores) or \
                 sum(combined_match_tree.scores) < sum(comparison_match_tree.scores):
@@ -350,6 +356,7 @@ class VirtualBufferMatcher:
                     combined_buffer_indices.append(next_buffer_second_skip_index)
 
                 # Only add if the combined match tree increases the total score
+                #print( "B COMBINED STAGE 2!", submatrix.is_valid_index(next_buffer_second_skip_index))
                 combined_second_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], combined_buffer_indices, direction)
                 if sum(combined_second_match_tree.scores) > sum(combined_match_tree.scores):
                     combined_buffer_match_trees.append(combined_second_match_tree)
@@ -490,7 +497,7 @@ class VirtualBufferMatcher:
             if current_submatrix is not None:
 
                 # Merge and continue on overlap
-                if self.matrices_overlap(current_submatrix, submatrix):
+                if self.can_merge_matrices(current_submatrix, submatrix):
                     current_submatrix = self.merge_matrices(current_submatrix, submatrix)
                     continue
 
@@ -575,11 +582,37 @@ class VirtualBufferMatcher:
                             return best_match
         
         return None
-    
+
+    def find_best_match_by_phrases_2(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, verbose: bool = False) -> List[VirtualBufferToken]:
+        matches = self.find_top_three_matches_in_matrix(virtual_buffer, phrases, match_threshold, selecting, for_correction)
+
+        if len(matches) > 0:
+            best_match_tokens = []
+            best_match = matches[0]
+
+            # TODO SELECT NEXT IN DIRECTION IN CASE OF REPETITION
+
+            if len(matches) > 1:
+                # Sort matches
+                if selecting:
+                    matches.sort(key = cmp_to_key(self.compare_match_trees_by_score), reverse=True)
+                if for_correction:
+                    matches.sort(key = cmp_to_key(self.compare_match_trees_by_distance_and_score), reverse=True)
+                best_match = matches[0]
+
+            for index_list in best_match.buffer_indices:
+                for subindex in index_list:
+                    best_match_tokens.append(virtual_buffer.tokens[subindex])
+
+            return best_match_tokens
+        else:
+            return None
+
+
     def find_best_match_by_phrases(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, verbose: bool = False) -> List[VirtualBufferToken]:
         matches = self.find_matches_by_phrases( virtual_buffer.tokens, phrases, match_threshold, verbose=verbose)
-        if verbose:
-            print( "MATCHES!", matches, match_threshold )
+        #if verbose:
+        #    print( "MATCHES!", matches, match_threshold )
 
         if len(matches) > 0:
 

@@ -83,6 +83,7 @@ class VirtualBufferMatchMatrix:
         return VirtualBufferMatchMatrix(starting_index, submatrix_tokens)
 
     def is_valid_index(self, index) -> bool:
+        #print( "IS VALID SUBMATRIX INDEX?", index, self.length)
         return index >= 0 and index < self.length
 
     def to_global_index(self, index) -> int:
@@ -113,12 +114,14 @@ class VirtualBufferMatch:
         return next_buffer_index
 
     def can_expand_backward(self, submatrix: VirtualBufferMatchMatrix) -> bool:
-        next_query_index = self.get_next_query_index(submatrix, -1 )
-        return next_query_index >= 0
+        next_query_index = self.get_next_query_index(submatrix, -1)
+        next_buffer_index = self.get_next_buffer_index(submatrix, -1)
+        return next_query_index >= 0 and submatrix.is_valid_index(next_buffer_index)
 
     def can_expand_forward(self, calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix) -> bool:
         next_query_index = self.get_next_query_index(submatrix, 1)
-        return next_query_index < submatrix.length and next_query_index < calculation.length
+        next_buffer_index = self.get_next_buffer_index(submatrix, 1)
+        return next_query_index < calculation.length and submatrix.is_valid_index(next_buffer_index)
 
     def is_valid_index(self, calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, index: int) -> bool:
         return index >= 0 and index < submatrix.length and index < calculation.length
@@ -131,10 +134,15 @@ class VirtualBufferMatch:
                 self.distance = self.buffer_indices[0][0] - rightmost_index
             else:
                 self.distance = 0
-                # TODO - Implement sub-1 distances to favour one inner match over the other?
 
     def reduce_potential(self, max_score: float, score: float, weight: float):
         self.score_potential -= (max_score - score) * weight
+
+    def to_global_index(self, submatrix: VirtualBufferMatchMatrix):
+        global_buffer_indices = []
+        for index_list in self.buffer_indices:
+            global_buffer_indices.append([submatrix.to_global_index(index) for index in index_list])
+        self.buffer_indices = global_buffer_indices
 
     def clone(self) -> Self:
         return VirtualBufferMatch(list(self.query_indices), list(self.buffer_indices), list(self.query), list(self.buffer), list(self.scores), self.score_potential, self.distance)

@@ -527,12 +527,12 @@ class VirtualBuffer:
                 if not should_go_to_next_occurrence:
                     break
 
-        best_match = self.matcher.find_best_match_by_phrases(self, phrases, match_threshold, should_go_to_next_occurrence, True, for_correction=for_correction, verbose=verbose)
+        best_match = self.matcher.find_best_match_by_phrases_2(self, phrases, match_threshold, should_go_to_next_occurrence, True, for_correction=for_correction, verbose=verbose)
         if best_match is not None and len(best_match) > 0:
             return self.select_token_range(best_match[0], best_match[-1])
         else:
             return []
-    
+
     def select_token_range(self, start_token: VirtualBufferToken, end_token: VirtualBufferToken, extend_selection: bool = False ) -> List[str]:
         if not extend_selection:
             keys = self.navigate_to_token(start_token, 0)

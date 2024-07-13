@@ -220,18 +220,22 @@ def percentage_tests(assertion):
     # 5 query = 2, improved from 3
     # This clearly hints at improper estimation of impossible branches
 
+    # After removing first branch performance 'improvements'
+    # 146 errors rather than 152 - Improved by 6
+
+
     #for regression in selection_results[3]:
     #    key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
     #    if key not in total_results:
     #        total_results[key] = 0
     #    total_results[key] += 1
         #assertion(regression["buffer"] + " searching '" + regression["query"] + "' does not yield '" + regression["result"] + "' but '" + regression["actual"] + "'")
-    print( total_results ) 
+    print( total_results )
     #selection_tests(assertion, False, True)
 
 suite = create_test_suite("Selecting whole phrases inside of a selection") 
 #suite.add_test(selection_tests)
 #suite.add_test(correction_tests)
 #suite.add_test(selfrepair_tests)
-suite.add_test(percentage_tests) 
-suite.run() 
+suite.add_test(percentage_tests)
+suite.run()

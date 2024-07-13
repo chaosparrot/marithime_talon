@@ -43,7 +43,7 @@ class VirtualBufferMatcher:
     def find_top_three_matches_in_matrix(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, selecting: bool = False, for_correction: bool = False, verbose: bool = False):
         match_calculation = self.generate_match_calculation(phrases, match_threshold)
         matrix = VirtualBufferMatchMatrix(0, virtual_buffer.tokens)
-        submatrices = self.find_potential_submatrices(match_calculation, matrix)
+        submatrices = self.find_potential_submatrices(match_calculation, matrix, verbose=verbose)
 
         leftmost_token_index = virtual_buffer.determine_leftmost_token_index()[0]
         rightmost_token_index = virtual_buffer.determine_rightmost_token_index()[0]
@@ -56,7 +56,7 @@ class VirtualBufferMatcher:
             matrix_group_matches = []
             highest_match = 0
             for submatrix in matrix_group:
-                submatrix_matches = self.find_matches_in_matrix(match_calculation, submatrix, highest_match)
+                submatrix_matches = self.find_matches_in_matrix(match_calculation, submatrix, highest_match, verbose=verbose)
                 if len(submatrix_matches) > 0:
                     highest_match = max(highest_match, submatrix_matches[0].score_potential)
                     match_calculation.match_threshold = highest_match
@@ -66,8 +66,8 @@ class VirtualBufferMatcher:
                 # Do not seek any further if we have reached the highest possible score
                 # Since no improvement is possible
                 # Also do not seek further for correction cases as we never look beyond matches closest to the cursor anyway
-                if highest_score_achieved or (for_correction and len(submatrix_matches) > 0):
-                    break
+                #if highest_score_achieved or (for_correction and len(submatrix_matches) > 0):
+                #    break
             
             if verbose:
                 print( match_calculation.match_threshold, match_calculation.max_score, match_calculation.get_possible_branches() )
@@ -95,12 +95,15 @@ class VirtualBufferMatcher:
         return VirtualBufferMatchCalculation(query_words, weights, threshold, max_score_per_word)
     
     # Generate a list of (sorted) potential submatrices to look through
-    def find_potential_submatrices(self, match_calculation: VirtualBufferMatchCalculation, matrix: VirtualBufferMatchMatrix) -> List[VirtualBufferMatchMatrix]:
+    def find_potential_submatrices(self, match_calculation: VirtualBufferMatchCalculation, matrix: VirtualBufferMatchMatrix, verbose: bool = False) -> List[VirtualBufferMatchMatrix]:
         word_indices = match_calculation.get_possible_branches()
         max_submatrix_size = len(match_calculation.words) * 3
         sub_matrices = []
         for word_index in word_indices:
-            sub_matrices.extend(self.find_potential_submatrices_for_words(matrix, match_calculation, word_index, max_submatrix_size))
+            sub_matrices.extend(self.find_potential_submatrices_for_words(matrix, match_calculation, word_index, max_submatrix_size, verbose=verbose))
+
+        if verbose:
+            print( "FOUND ROOTS FOR THESE MATRICES", len(sub_matrices))
 
         sub_matrices = self.simplify_submatrices(sub_matrices)
 
@@ -127,10 +130,13 @@ class VirtualBufferMatcher:
 
         return [before, current, after]
     
-    def find_matches_in_matrix(self, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, highest_match: float = 0, early_stopping: bool = True) -> List[VirtualBufferMatch]:
+    def find_matches_in_matrix(self, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, highest_match: float = 0, early_stopping: bool = True, verbose: bool = False) -> List[VirtualBufferMatch]:
         branches = match_calculation.get_possible_branches()
         query = match_calculation.words
         buffer = [token.phrase for token in submatrix.tokens]
+
+        if verbose:
+            print("WEEE")
 
         starting_match = VirtualBufferMatch([], [], [], [], [], match_calculation.max_score, 0)
 
@@ -206,6 +212,8 @@ class VirtualBufferMatcher:
         # Filter searches that do not match the previous best and sort by the best score first
         searches = []
         for match_root in match_branches:
+            if verbose:
+                print( "CHECKING!", match_root )
             searches.extend(self.expand_match_tree(match_root, match_calculation, submatrix))
         filtered_searches = [search for search in searches if search.score_potential >= highest_match]
         filtered_searches.sort(key = cmp_to_key(self.compare_match_trees_by_score), reverse=True)
@@ -466,7 +474,9 @@ class VirtualBufferMatcher:
         else:
             return 0
 
-    def find_potential_submatrices_for_words(self, matrix: VirtualBufferMatchMatrix, match_calculation: VirtualBufferMatchCalculation, word_indices: List[int], max_submatrix_size: int) -> List[VirtualBufferMatchMatrix]:
+    def find_potential_submatrices_for_words(self, matrix: VirtualBufferMatchMatrix, match_calculation: VirtualBufferMatchCalculation, word_indices: List[int], max_submatrix_size: int, verbose: bool = False) -> List[VirtualBufferMatchMatrix]:
+        if verbose:
+            print("Using matrix", matrix.tokens)
         submatrices = []
         relative_left_index = -(word_indices[0] + ( max_submatrix_size - match_calculation.length ) / 2)
         relative_right_index = relative_left_index + max_submatrix_size
@@ -474,14 +484,18 @@ class VirtualBufferMatcher:
         # Only search within the viable range ( no cut off matches at the start and end of the matrix )
         # Due to multiple different fuzzy matches being possible, it isn't possible to do token skipping
         # Like in the Boyer–Moore string-search algorithm 
-        for matrix_index in range(word_indices[0], (len(matrix.tokens) - 1) - (match_calculation.length - 1 - word_indices[0])):
+        # TODO - Fix dynamic range, CLEARLY NOT WORKING PROPERLY
+        for matrix_index in range(word_indices[0], (len(matrix.tokens)) - 1):
             matrix_token = matrix.tokens[matrix_index]
             threshold = match_calculation.match_threshold * sum([match_calculation.weights[word_index] for word_index in word_indices])
 
             # TODO DYNAMIC SCORE CALCULATION BASED ON CORRECTION VS SELECTION?
-            score = self.get_memoized_similarity_score(matrix_token.phrase, "".join([match_calculation.words[word_index] for word_index in word_indices]))
+            query_tokens = "".join([match_calculation.words[word_index] for word_index in word_indices])
+            score = self.get_memoized_similarity_score(matrix_token.phrase, query_tokens)
 
             has_starting_match = score >= threshold
+            if verbose:
+                print( "Score for " + query_tokens + " = " + matrix_token.phrase + ": " + str(score), score >= threshold)
             if has_starting_match:
                 starting_index = max(0, round(matrix_index + relative_left_index))
                 ending_index = min(len(matrix.tokens), round(matrix_index + relative_right_index))

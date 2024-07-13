@@ -3,6 +3,7 @@ from ..indexer import text_to_virtual_buffer_tokens
 from ...utils.test import create_test_suite
 import csv
 import os 
+from ..typing import SELECTION_THRESHOLD, CORRECTION_THRESHOLD
 from time import perf_counter
 from talon import resource
 test_path = os.path.dirname(os.path.realpath(__file__))
@@ -24,7 +25,7 @@ def test_selection(assertion, buffer: str, query: str, result: str = "") -> (boo
         query_tokens.extend(text_to_virtual_buffer_tokens(query_token + (" " if index < len(query_text_tokens) - 1 else "")))
 
     vb.insert_tokens(tokens)
-    vb.select_phrases([x.phrase for x in query_tokens], 1, verbose=buffer.startswith("###"))
+    vb.select_phrases([x.phrase for x in query_tokens], SELECTION_THRESHOLD, verbose=buffer.startswith("###"))
     if result != "":
         is_valid = vb.caret_tracker.get_selection_text().strip() == result.strip()
     else:
@@ -223,9 +224,19 @@ def percentage_tests(assertion):
     # After removing first branch performance 'improvements'
     # 146 errors rather than 152 - Improved by 6
 
+    # After fixing the selection threshold
+    # 127 errors rather than 146 - Improved by 19
+    # 6 / 127 = 5% = Expected result, got NOTHING
+    # 87 / 127 = 68% = Expected NOTHING, got result!
+    # 1 query = 13
+    # 2 query = 36
+    # 3 query = 56
+    # 4 query = 18
+    # 5 query = 3
+    # 6 query = 1
 
     #for regression in selection_results[3]:
-    #    key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
+        #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
     #    if key not in total_results:
     #        total_results[key] = 0
     #    total_results[key] += 1
@@ -238,4 +249,4 @@ suite = create_test_suite("Selecting whole phrases inside of a selection")
 #suite.add_test(correction_tests)
 #suite.add_test(selfrepair_tests)
 suite.add_test(percentage_tests)
-suite.run()
+suite.run() 

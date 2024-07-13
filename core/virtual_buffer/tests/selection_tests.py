@@ -24,21 +24,18 @@ def test_selection(assertion, buffer: str, query: str, result: str = "") -> (boo
         query_tokens.extend(text_to_virtual_buffer_tokens(query_token + (" " if index < len(query_text_tokens) - 1 else "")))
 
     vb.insert_tokens(tokens)
-    start = perf_counter()
-    vb.select_phrases([x.phrase for x in query_tokens], 1, verbose=("#!" in buffer))
-    end = perf_counter()
+    vb.select_phrases([x.phrase for x in query_tokens], 1, verbose=buffer.startswith("###"))
     if result != "":
         is_valid = vb.caret_tracker.get_selection_text().strip() == result.strip()
     else:
-        is_valid = vb.caret_tracker.selecting_text == False
+        is_valid = vb.caret_tracker.selecting_text == False 
 
-    if not is_valid:
-        assertion("    Starting with the text '" + buffer + "' and searching for '" + query + "'...")
-        assertion("        Should result in the selection '" + result.strip() + "'", is_valid)
-        assertion("        Found '" + vb.caret_tracker.get_selection_text().strip() + "' instead")
-    else:
-        assertion("    Searching for '" + query + "' finds '" + result.strip() + "'", is_valid)
-    print( end - start, "ms performance for row")
+    #if not is_valid:
+    #    assertion("    Starting with the text '" + buffer + "' and searching for '" + query + "'...")
+    #    assertion("        Should result in the selection '" + result.strip() + "'", is_valid)
+    #    assertion("        Found '" + vb.caret_tracker.get_selection_text().strip() + "' instead")
+    #else:
+    #    assertion("    Searching for '" + query + "' finds '" + result.strip() + "'", is_valid)
     return is_valid, vb.caret_tracker.get_selection_text().strip()
 
 def test_correction(assertion, buffer: str, query: str, result: str = "") -> (bool, str):
@@ -100,6 +97,7 @@ def selection_tests(assertion, skip_known_invalid = True, highlight_only = False
     valid = 0
     regressions = []
     improvements = []
+    invalid = []
     with open(os.path.join(test_path, "testcase_selection.csv"), 'r', newline='') as csv_file:
         reader = csv.DictReader(csv_file, delimiter=";", quotechar='"')
         for row in reader:
@@ -111,17 +109,18 @@ def selection_tests(assertion, skip_known_invalid = True, highlight_only = False
             
             if invalid_query and (pass_highlight or pass_skip_known_invalid):
                 result, actual = test_selection(assertion, row["buffer"], row["query"], row["result"])
-                print( str(rows) + ": queried '" + row["query"] + "', expected '" + row["result"] + "' -> '" + actual + "'")
+                #print( str(rows) + ": queried '" + row["query"] + "', expected '" + row["result"] + "' -> '" + actual + "'")
                 if result:
                     valid += 1
                     if row["buffer"].startswith("#"):
                         improvements.append(row)
                 else:
+                    row["actual"] = actual
+                    invalid.append(row)
                     if not row["buffer"].startswith("#"):
-                        row["actual"] = actual
                         regressions.append(row)
 
-    return [rows, valid, improvements, regressions] 
+    return [rows, valid, improvements, regressions, invalid] 
 
 def correction_tests(assertion, skip_known_invalid = True) -> [int, int, [], []]:
     rows = 0
@@ -189,14 +188,50 @@ def percentage_tests(assertion):
     assertion("Percentage of valid queries: " + str(percentage) + "%, " + reg, valid / total >= 1)
     #for improvement in selection_results[2]:
     #    assertion(improvement["buffer"] + " searching '" + improvement["query"] + "' correctly yields '" + improvement["result"] + "'")
-    #for regression in selection_results[3]: 
-    #    assertion(regression["buffer"] + " searching '" + regression["query"] + "' does not yield '" + regression["result"] + "' but '" + regression["actual"] + "'")
+    total_results = {}
+    for invalid_result in selection_results[4]:
+        key = str(len(invalid_result["query"].split())) + "-" + str(len(invalid_result["result"].split())) + "-" + str(len(invalid_result["actual"].split()))
+        if key not in total_results:
+            total_results[key] = 0
+        total_results[key] += 1
 
+        #if len(invalid_result["actual"].split()) == 0 and len(invalid_result["result"].split()) > 0: 
+        #    assertion(invalid_result["buffer"] + " searching '" + invalid_result["query"] + "' does not yield '" + invalid_result["result"] + "' but '" + invalid_result["actual"] + "'", False)
+
+    # Last check before algo change
+    # 118 / 196 = 60% = Expected result, got NOTHING
+    # 43 / 196 = 21% = Expected NOTHING, got result!
+    # 1 query = 13
+    # 2 query = 54
+    # 3 query = 91
+    # 4 query = 26
+    # 5 query = 3
+    # 6 query = 1
+
+    # After using new selection algorithm for single word selection
+    # 1 query = 5, improved from 13
+    
+    # After including impossible branches
+    # 130 / 152 = 85% = Expected result, got NOTHING
+    # 12 / 152 = 8% = Expected NOTHING, got result!
+    # 2 query = 49, improved from 54
+    # 3 query = 73, improved from 91
+    # 4 query = 22, improved from 26
+    # 5 query = 2, improved from 3
+    # This clearly hints at improper estimation of impossible branches
+
+    #for regression in selection_results[3]:
+    #    key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
+    #    if key not in total_results:
+    #        total_results[key] = 0
+    #    total_results[key] += 1
+        #assertion(regression["buffer"] + " searching '" + regression["query"] + "' does not yield '" + regression["result"] + "' but '" + regression["actual"] + "'")
+    print( total_results ) 
     #selection_tests(assertion, False, True)
 
 suite = create_test_suite("Selecting whole phrases inside of a selection") 
 #suite.add_test(selection_tests)
 #suite.add_test(correction_tests)
 #suite.add_test(selfrepair_tests)
-#suite.add_test(percentage_tests)
-#suite.run()
+suite.add_test(percentage_tests) 
+suite.run() 

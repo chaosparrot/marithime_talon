@@ -40,7 +40,7 @@ class VirtualBufferMatcher:
 
         return False
 
-    def find_top_three_matches_in_matrix(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, selecting: bool = False, for_correction: bool = False):
+    def find_top_three_matches_in_matrix(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, selecting: bool = False, for_correction: bool = False, verbose: bool = False):
         match_calculation = self.generate_match_calculation(phrases, match_threshold)
         matrix = VirtualBufferMatchMatrix(0, virtual_buffer.tokens)
         submatrices = self.find_potential_submatrices(match_calculation, matrix)
@@ -69,6 +69,10 @@ class VirtualBufferMatcher:
                 if highest_score_achieved or (for_correction and len(submatrix_matches) > 0):
                     break
             
+            if verbose:
+                print( match_calculation.match_threshold, match_calculation.max_score, match_calculation.get_possible_branches() )
+                print( matrix_group_matches )
+
             # Calculate the distance from the cursor
             for matrix_group_match in matrix_group_matches:
                 matrix_group_match.calculate_distance(leftmost_token_index, rightmost_token_index)
@@ -158,7 +162,7 @@ class VirtualBufferMatcher:
                     next_word = ""
 
                     # Combine two words
-                    if buffer_index + 1 <= max_buffer_search:
+                    if buffer_index + 1 <= max_buffer_search and buffer_index + 1 < len(buffer):
                         next_word = buffer[buffer_index + 1]
                         next_forward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), buffer_word + next_word)
                         if next_forward_score > highest_match_score:
@@ -166,7 +170,7 @@ class VirtualBufferMatcher:
                             buffer_indices_to_use = [buffer_index, buffer_index + 1]
 
                     # Combine three words
-                    if buffer_index + 2 <= max_buffer_search and len(buffer_indices_to_use) == 2:
+                    if buffer_index + 2 <= max_buffer_search and buffer_index + 2 < len(buffer) and len(buffer_indices_to_use) == 2:
                         second_next_word = buffer[buffer_index + 2]
                         next_forward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), buffer_word + next_word + second_next_word)
                         if next_forward_score > highest_match_score:
@@ -584,7 +588,7 @@ class VirtualBufferMatcher:
         return None
 
     def find_best_match_by_phrases_2(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, verbose: bool = False) -> List[VirtualBufferToken]:
-        matches = self.find_top_three_matches_in_matrix(virtual_buffer, phrases, match_threshold, selecting, for_correction)
+        matches = self.find_top_three_matches_in_matrix(virtual_buffer, phrases, match_threshold, selecting, for_correction, verbose)
 
         if len(matches) > 0:
             best_match_tokens = []

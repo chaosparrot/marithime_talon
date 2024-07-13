@@ -44,11 +44,11 @@ class VirtualBufferMatchCalculation:
     # Calculate the list of possible search branches that can lead to a match, sorted by most likely
     def get_possible_branches(self) -> List[List[int]]:
 
-        # TODO IMPROVE IMPOSSIBLE BRANCH DETECTION
+        # TODO FIX IMPOSSIBLE BRANCH DETECTION
         impossible_potential = 0
         for potential in self.potentials:
             if self.max_score - potential < self.match_threshold:
-                impossible_potential = max(potential, impossible_potential)
+                impossible_potential = 0#max(potential, impossible_potential)
         
         # Add two-word combinations as well
         combined_potentials = []

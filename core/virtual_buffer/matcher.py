@@ -108,8 +108,9 @@ class VirtualBufferMatcher:
 
         if verbose:
             print( "    - FOUND ROOTS FOR THESE MATRICES", len(sub_matrices))
-
         sub_matrices = self.simplify_submatrices(sub_matrices)
+        if verbose:
+            print("    - Simplified to these matrices", len(sub_matrices))
 
         return sub_matrices
 
@@ -213,7 +214,7 @@ class VirtualBufferMatcher:
         # Filter searches that do not match the previous best and sort by the best score first
         searches = []
         if verbose:
-            print("MATCH BREANCHES", match_branches )
+            print("MATCH BRANCHES", match_branches )
         for match_root in match_branches:
             if verbose:
                 print( "CHECKING ROOT ", match_root )
@@ -543,7 +544,7 @@ class VirtualBufferMatcher:
 
         if current_submatrix is not None:
             merged_matrices.append(current_submatrix)
-        return submatrices
+        return merged_matrices
     
     def can_merge_matrices(self, a: VirtualBufferMatchMatrix, b: VirtualBufferMatchMatrix) -> bool:
         return a.index <= b.end_index and b.index <= a.end_index

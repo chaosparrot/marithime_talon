@@ -235,6 +235,18 @@ def percentage_tests(assertion):
     # 5 query = 3
     # 6 query = 1
 
+    # After fixing the submatrix simplification
+    # 105 errors rather than 127 - Improved by 22
+    # 7 / 105 = 7% = Expected result, got NOTHING
+    # 76 / 105 = 72% = Expected NOTHING, got result!
+    # 1 query = 13
+    # 2 query = 36
+    # 3 query = 40
+    # 4 query = 10
+    # 5 query = 2
+    # 6 query = 0
+    # Missing 4 errors above, doesn't really matter for the result
+
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
     #    if key not in total_results:
@@ -249,4 +261,4 @@ suite = create_test_suite("Selecting whole phrases inside of a selection")
 #suite.add_test(correction_tests)
 #suite.add_test(selfrepair_tests)
 suite.add_test(percentage_tests)
-suite.run() 
+suite.run()

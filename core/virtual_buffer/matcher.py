@@ -143,6 +143,8 @@ class VirtualBufferMatcher:
         starting_match = VirtualBufferMatch([], [], [], [], [], match_calculation.max_score, 0)
 
         # Initial branches
+        if verbose:
+            print(" - Starting branches", branches)
         match_branches = []
         for branch in branches:
             query_match_branch = starting_match.clone()
@@ -150,12 +152,19 @@ class VirtualBufferMatcher:
             query_match_branch.query.extend([query[index] for index in branch])
             combined_weight = sum([match_calculation.weights[index] for index in branch])
             is_multiple_query_match = len(branch) > 1
+            highest_match_score = 0
 
             word_index = branch[0]
-            max_buffer_search = len(buffer) - (len(query) - 1)
-            for buffer_index in range(word_index, word_index + max_buffer_search):
+            end_word_index = branch[-1]
+            max_buffer_search = len(buffer) - (len(query))
+            if verbose:
+                print(" - Attempting", query_match_branch.query, combined_weight)
+
+            for buffer_index in range(word_index, end_word_index + max_buffer_search + 1):
                 buffer_word = buffer[buffer_index]
                 score = self.get_memoized_similarity_score("".join(query_match_branch.query), buffer_word)
+                if verbose:
+                    print( "     - Score with " + buffer_word + ": " + str(score))
 
                 # Only add a match branch for a combined query search if the combined search scores higher than individual scores
                 if is_multiple_query_match:
@@ -214,10 +223,10 @@ class VirtualBufferMatcher:
         # Filter searches that do not match the previous best and sort by the best score first
         searches = []
         if verbose:
-            print("MATCH BRANCHES", match_branches )
+            print("Found matched branches", match_branches )
         for match_root in match_branches:
             if verbose:
-                print( "CHECKING ROOT ", match_root )
+                print( "Expand root for ", match_root )
             expanded_tree = self.expand_match_tree(match_root, match_calculation, submatrix, verbose=verbose)
             searches.extend(expanded_tree)
         filtered_searches = [search for search in searches if search.score_potential >= highest_match]
@@ -513,7 +522,7 @@ class VirtualBufferMatcher:
 
             has_starting_match = score >= threshold
             if verbose:
-                print( "Score for " + query_tokens + " = " + matrix_token.phrase + ": " + str(score), score >= threshold)
+                print( "Score for " + query_tokens + " = " + matrix_token.phrase + ": " + str(score) + " with weighted thresh:" + str(threshold), score >= threshold)
             if has_starting_match:
                 starting_index = max(0, round(matrix_index + relative_left_index))
                 ending_index = min(len(matrix.tokens), round(matrix_index + relative_right_index))

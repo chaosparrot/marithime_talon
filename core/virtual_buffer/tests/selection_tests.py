@@ -247,12 +247,23 @@ def percentage_tests(assertion):
     # 6 query = 0
     # Missing 4 errors above, doesn't really matter for the result
 
-    #for regression in selection_results[3]:
+    # After fixing the search space for branch roots within submatrices
+    # 99 errors rather than 105 - Improved by 6
+    # 2 / 99 = 2% = Expected result, got NOTHING
+    # 80 / 99 = 81% = Expected NOTHING, got result!
+    # 1 query = 13
+    # 2 query = 34
+    # 3 query = 38
+    # 4 query = 11
+    # 5 query = 2
+    # 6 query = 0
+
+    for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
     #    if key not in total_results:
     #        total_results[key] = 0
     #    total_results[key] += 1
-        #assertion(regression["buffer"] + " searching '" + regression["query"] + "' does not yield '" + regression["result"] + "' but '" + regression["actual"] + "'")
+        assertion(regression["buffer"] + " searching '" + regression["query"] + "' does not yield '" + regression["result"] + "' but '" + regression["actual"] + "'")
     print( total_results )
     #selection_tests(assertion, False, True)
 

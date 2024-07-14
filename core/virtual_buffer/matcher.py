@@ -41,6 +41,11 @@ class VirtualBufferMatcher:
         return False
 
     def find_top_three_matches_in_matrix(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, selecting: bool = False, for_correction: bool = False, verbose: bool = False):
+        # Taper the threshold according to the amount of queried words
+        # So we are more stringent with single words than double words
+        # After 3 it is settled
+        match_threshold += 0.1 * max(0, (3 - len(phrases)))
+
         match_calculation = self.generate_match_calculation(phrases, match_threshold)
         matrix = VirtualBufferMatchMatrix(0, virtual_buffer.tokens)
         submatrices = self.find_potential_submatrices(match_calculation, matrix, verbose=verbose)
@@ -308,19 +313,24 @@ class VirtualBufferMatcher:
 
         single_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_index], direction)
         expanded_match_trees.append(single_expanded_match_tree)
-        expanded_match_trees.extend(self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction, single_expanded_match_tree))
         if verbose:
-            print( "- EXPANDING", expanded_match_trees )
+            print( " - SINGLE EXPANSION", single_expanded_match_tree )
+        combined_query_matches = self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction, single_expanded_match_tree)
+        expanded_match_trees.extend(combined_query_matches)
+        if verbose:
+            print( " - COMBINED QUERY EXPANSION", combined_query_matches)
 
         if submatrix.is_valid_index(next_buffer_skip_index):
-            expanded_match_trees.extend(self.determine_combined_buffer_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction, single_expanded_match_tree))
+            combined_buffer_matches = self.determine_combined_buffer_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction, single_expanded_match_tree, verbose=verbose)
+            expanded_match_trees.extend(combined_buffer_matches)
             if verbose:
-                print( "- EXPANDING COMBINED BUFFER", expanded_match_trees )
+                print( " - EXPANDING COMBINED BUFFER", combined_buffer_matches )
 
         # Skip a single token in the buffer for single and combined query matches
         if submatrix.is_valid_index(next_buffer_skip_index):
-            #print("SKIP ONE")
             single_skipped_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_skip_index], direction)
+            if verbose:
+                print( " - SINGLE SKIP EXPANSION", single_skipped_expanded_match_tree )
             expanded_match_trees.append(single_skipped_expanded_match_tree)
             expanded_match_trees.extend(self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_skip_index, direction, single_skipped_expanded_match_tree))
 
@@ -328,7 +338,10 @@ class VirtualBufferMatcher:
             next_buffer_second_skip_index = match_tree.get_next_buffer_index(submatrix, direction * 3)
             if submatrix.is_valid_index(next_buffer_second_skip_index):
                 #print("SKIP ONE COMBINED")
-                expanded_match_trees.extend(self.determine_combined_buffer_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_skip_index, direction, single_skipped_expanded_match_tree))
+                skipped_combined_buffer_matches = self.determine_combined_buffer_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_skip_index, direction, single_skipped_expanded_match_tree, verbose=verbose)
+                expanded_match_trees.extend(skipped_combined_buffer_matches)
+                if verbose:
+                    print( " - EXPANDING SKIPPED COMBINED BUFFER", skipped_combined_buffer_matches)
         
         return expanded_match_trees
     
@@ -367,7 +380,7 @@ class VirtualBufferMatcher:
                     combined_match_trees.append(combined_second_match_tree)
         return combined_match_trees
     
-    def determine_combined_buffer_matches(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, next_query_index: int, next_buffer_index: int, direction: int, comparison_match_tree: VirtualBufferMatch) -> List[VirtualBufferMatch]:
+    def determine_combined_buffer_matches(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, next_query_index: int, next_buffer_index: int, direction: int, comparison_match_tree: VirtualBufferMatch, verbose: bool = False) -> List[VirtualBufferMatch]:
         combined_buffer_match_trees = []
         next_buffer_skip_index = next_buffer_index + direction
         if submatrix.is_valid_index(next_buffer_skip_index):
@@ -376,14 +389,31 @@ class VirtualBufferMatcher:
                 combined_buffer_indices.insert(0, next_buffer_skip_index)
             else:
                 combined_buffer_indices.append(next_buffer_skip_index)
+
+            # If we exceed the to-match syllables, exclude the matches?            
+            query_syllable_count = self.phonetic_search.syllable_count(match_calculation.words[next_query_index])
+            combined_buffer_words = submatrix.tokens[combined_buffer_indices[0]].phrase + submatrix.tokens[combined_buffer_indices[-1]].phrase
+            combined_syllabe_count = self.phonetic_search.syllable_count(combined_buffer_words)
+            if query_syllable_count < combined_syllabe_count:
+                if verbose:
+                    print( " - DISCARDED BECAUSE INCREASING SYLLABLES " + str(query_syllable_count) + " < " + str(combined_syllabe_count))
+                return combined_buffer_match_trees
+            elif verbose:
+                print( "SYLLABLE CHECK " + "".join([token.phrase for token in submatrix.tokens[next_buffer_index:next_buffer_skip_index]]) )
             
             # Add the combined tokens, but only if the score increases
-            #print( "B COMBINED STAGE 1!", next_buffer_index, submatrix.is_valid_index(next_buffer_index), next_buffer_skip_index, submatrix.is_valid_index(next_buffer_skip_index), submatrix )
+            # Compared to the single matches
             combined_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], combined_buffer_indices, direction)
+            skipped_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_skip_index], direction)
             if sum(combined_match_tree.scores) == sum(match_tree.scores) or \
-                sum(combined_match_tree.scores) < sum(comparison_match_tree.scores):
+                sum(combined_match_tree.scores) <= sum(comparison_match_tree.scores) or \
+                sum(combined_match_tree.scores) <= sum(skipped_match_tree.scores):
+                if verbose:
+                    print( " - DISCARDED COMBINED BUFFER " + str(sum(combined_match_tree.scores)) + " <= " + str(sum(comparison_match_tree.scores)) + "|" + str(sum(skipped_match_tree.scores)))
                 return combined_buffer_match_trees
             combined_buffer_match_trees.append(combined_match_tree)
+            if verbose:
+                print( " - KEPT COMBINED BUFFER " + str(sum(combined_match_tree.scores)) + " > " + str(sum(match_tree.scores)) )
 
             # Combine three if possible
             next_buffer_second_skip_index = next_buffer_index + (direction * 2)
@@ -400,7 +430,11 @@ class VirtualBufferMatcher:
                 #print( "B COMBINED STAGE 2!", submatrix.is_valid_index(next_buffer_second_skip_index))
                 combined_second_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], combined_buffer_indices, direction)
                 if sum(combined_second_match_tree.scores) > sum(combined_match_tree.scores):
+                    if verbose:
+                        print( " - KEPT DOUBLE COMBINED BUFFER " + str(sum(combined_second_match_tree.scores)) + " > " + str(sum(combined_match_tree.scores)))
                     combined_buffer_match_trees.append(combined_second_match_tree)
+                elif verbose:
+                    print( " - DISCARD DOUBLE COMBINED BUFFER " + str(sum(combined_second_match_tree.scores)) + " > " + str(sum(combined_match_tree.scores)))
 
         return combined_buffer_match_trees
 

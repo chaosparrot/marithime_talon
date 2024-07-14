@@ -196,8 +196,7 @@ def percentage_tests(assertion):
             total_results[key] = 0
         total_results[key] += 1
 
-        #if len(invalid_result["actual"].split()) == 0 and len(invalid_result["result"].split()) > 0: 
-        #    assertion(invalid_result["buffer"] + " searching '" + invalid_result["query"] + "' does not yield '" + invalid_result["result"] + "' but '" + invalid_result["actual"] + "'", False)
+        assertion(invalid_result["buffer"] + " searching '" + invalid_result["query"] + "' does not yield '" + invalid_result["result"] + "' but '" + invalid_result["actual"] + "'", False)
 
     # Last check before algo change
     # 118 / 196 = 60% = Expected result, got NOTHING
@@ -258,12 +257,34 @@ def percentage_tests(assertion):
     # 5 query = 2
     # 6 query = 0
 
-    for regression in selection_results[3]:
+    # After improving combined buffer skip logic ( disallowing expanding with more syllables, checking if skip outperforms double combination )
+    # 90 errors rather than 99 - Improved by 9
+    # 2 / 90 = 2% = Expected result, got NOTHING
+    # 71 / 90 = 78% = Expected NOTHING, got result!
+    # 1 query = 13
+    # 2 query = 33
+    # 3 query = 31
+    # 4 query = 11
+    # 5 query = 2
+    # 6 query = 0
+
+    # After tapering threshold for length of query ( single phrase queries need more stringent checks than 3 phrase words )
+    # 65 errors rather than 90 - Improved by 25
+    # 3 / 65 = 5% = Expected result, got NOTHING
+    # 46 / 65 = 71% = Expected NOTHING, got result!
+    # 1 query = 2
+    # 2 query = 19
+    # 3 query = 31
+    # 4 query = 11
+    # 5 query = 2
+    # 6 query = 0
+
+    #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
     #    if key not in total_results:
     #        total_results[key] = 0
     #    total_results[key] += 1
-        assertion(regression["buffer"] + " searching '" + regression["query"] + "' does not yield '" + regression["result"] + "' but '" + regression["actual"] + "'")
+    #    assertion(regression["buffer"] + " searching '" + regression["query"] + "' does not yield '" + regression["result"] + "' but '" + regression["actual"] + "'")
     print( total_results )
     #selection_tests(assertion, False, True)
 

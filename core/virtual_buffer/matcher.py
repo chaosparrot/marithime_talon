@@ -280,10 +280,11 @@ class VirtualBufferMatcher:
 
         # Filter out results with multiple consecutive bad results
         low_score_threshold = match_calculation.match_threshold / 2
-        consecutive_low_score_threshold = 1 if len(match_calculation.words) <= 3 else 2
+        consecutive_low_score_threshold = 1 if len(match_calculation.words) <= 2 else 2
         filtered_trees = []
         for match_tree in match_trees:
             consecutive_low_scores = 0
+            threshold_met = True
             for index, query_index in enumerate(match_tree.query_indices):
                 # Calculate the weighted score
                 score = match_tree.scores[index]
@@ -298,9 +299,10 @@ class VirtualBufferMatcher:
                     consecutive_low_scores = 0
 
                 if consecutive_low_scores >= consecutive_low_score_threshold:
+                    threshold_met = False
                     break
             
-            if consecutive_low_scores < consecutive_low_score_threshold:
+            if threshold_met:
                 filtered_trees.append(match_tree)
             elif verbose:
                 print( "--- FILTERING OUT BECAUSE OF BAD CONSECUTIVE SCORES", match_tree)

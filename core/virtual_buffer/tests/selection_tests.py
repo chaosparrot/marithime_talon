@@ -305,7 +305,7 @@ def percentage_tests(assertion):
     # 31 / 45 = 69% = Expected NOTHING, got result
     # 1 query = 0
     # 2 query = 8
-    # 3 query = 19
+    # 3 query = 27
     # 4 query = 8
     # 5 query = 2
 

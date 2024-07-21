@@ -12,7 +12,8 @@ def homophone_normalize(text: str, strict = False) -> str:
     text = text.replace("ph", "f")
     text = text.replace("lve", "lf").replace("ce", "se")
     text = text.replace("cks", "x").replace("ks", "x")
-    text = text.replace("wh", "w")
+    text = text.replace("who", "ho").replace("wh", "w")
+    text = text.replace("tch", "ch").replace("nch", "nsh")
     text = text.replace("kn", "n")
     text = text.replace("wr", "r")
 
@@ -25,6 +26,9 @@ def homophone_normalize(text: str, strict = False) -> str:
         text = text.replace("ch", "k").replace("qu", "k").replace("ck", "k")
         text = text.replace("cr", "kr").replace("kh", "k").replace("mm", "n").replace("m", "n").replace("ng", "n").replace("g", "k")
         text = text.replace("sh", "s").replace("zh", "s").replace("z", "s").replace("c", "k").replace("nce", "ns")
+
+        # Vowels
+        text = text.replace("an", "en").replace("ap", "ep").replace("akt", "ekt")
 
     # Deduplication
     text = text.replace("dd", "d").replace("pp", "p").replace("cc", "k").replace("tt", "t").replace("ss", "s").replace("gg", "g") \

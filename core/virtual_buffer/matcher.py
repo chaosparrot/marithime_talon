@@ -44,7 +44,9 @@ class VirtualBufferMatcher:
         # Taper the threshold according to the amount of queried words
         # So we are more stringent with single words than double words
         # After 3 it is settled
+
         match_threshold += 0.1 * max(0, (3 - len(phrases)))
+        match_threshold = min(0.83, match_threshold)
 
         match_calculation = self.generate_match_calculation(phrases, match_threshold)
         matrix = VirtualBufferMatchMatrix(0, virtual_buffer.tokens)
@@ -101,7 +103,7 @@ class VirtualBufferMatcher:
         total_syllables = max(sum(syllables_per_word), 1)
         weights = [syllable_count / total_syllables for syllable_count in syllables_per_word]
 
-        return VirtualBufferMatchCalculation(query_words, weights, threshold, max_score_per_word)
+        return VirtualBufferMatchCalculation(query_words, weights, syllables_per_word, threshold, max_score_per_word)
     
     # Generate a list of (sorted) potential submatrices to look through
     def find_potential_submatrices(self, match_calculation: VirtualBufferMatchCalculation, matrix: VirtualBufferMatchMatrix, verbose: bool = False) -> List[VirtualBufferMatchMatrix]:
@@ -276,9 +278,33 @@ class VirtualBufferMatcher:
         elif verbose:
             print( "---- Match tree cannot expand forward from the start")
 
-        # TODO FILTER BEST?
+        # Filter out results with multiple consecutive bad results
+        low_score_threshold = match_calculation.match_threshold / 2
+        consecutive_low_score_threshold = 1 if len(match_calculation.words) <= 3 else 2
+        filtered_trees = []
+        for match_tree in match_trees:
+            consecutive_low_scores = 0
+            for index, query_index in enumerate(match_tree.query_indices):
+                # Calculate the weighted score
+                score = match_tree.scores[index]
+                weight = 0
+                for inner_index, _ in enumerate(query_index):
+                    weight += match_calculation.weights[inner_index]
+                weighted_low_score_threshold = low_score_threshold * weight
 
-        return match_trees
+                if score * weight <= weighted_low_score_threshold:
+                    consecutive_low_scores += 1
+                else:
+                    consecutive_low_scores = 0
+
+                if consecutive_low_scores >= consecutive_low_score_threshold:
+                    break
+            
+            if consecutive_low_scores < consecutive_low_score_threshold:
+                filtered_trees.append(match_tree)
+            elif verbose:
+                print( "--- FILTERING OUT BECAUSE OF BAD CONSECUTIVE SCORES", match_tree)
+        return filtered_trees
 
     def expand_match_tree_backward(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, verbose: bool = False) -> List[VirtualBufferMatch]:
         expanded_match_trees = []
@@ -327,7 +353,8 @@ class VirtualBufferMatcher:
                 print( " - EXPANDING COMBINED BUFFER", combined_buffer_matches )
 
         # Skip a single token in the buffer for single and combined query matches
-        if submatrix.is_valid_index(next_buffer_skip_index):
+        # But only for queries longer than 3 syllables
+        if sum(match_calculation.syllables) > 3 and submatrix.is_valid_index(next_buffer_skip_index):
             single_skipped_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_skip_index], direction)
             if verbose:
                 print( " - SINGLE SKIP EXPANSION", single_skipped_expanded_match_tree )
@@ -342,7 +369,7 @@ class VirtualBufferMatcher:
                 expanded_match_trees.extend(skipped_combined_buffer_matches)
                 if verbose:
                     print( " - EXPANDING SKIPPED COMBINED BUFFER", skipped_combined_buffer_matches)
-        
+
         return expanded_match_trees
     
     def determine_combined_query_matches(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, next_query_index: int, next_buffer_index: int, direction: int, comparison_match_tree: VirtualBufferMatch) -> List[VirtualBufferMatch]:
@@ -552,11 +579,11 @@ class VirtualBufferMatcher:
 
             # TODO DYNAMIC SCORE CALCULATION BASED ON CORRECTION VS SELECTION?
             query_tokens = "".join([match_calculation.words[word_index] for word_index in word_indices])
-            score = self.get_memoized_similarity_score(matrix_token.phrase, query_tokens)
+            score = self.get_memoized_similarity_score(matrix_token.phrase.replace(" ", ""), query_tokens)
 
             has_starting_match = score >= threshold
             if verbose:
-                print( "Score for " + query_tokens + " = " + matrix_token.phrase + ": " + str(score) + " with weighted thresh:" + str(threshold), score >= threshold)
+                print( "Score for " + query_tokens + " = " + matrix_token.phrase.replace(" ", "") + ": " + str(score) + " with weighted thresh:" + str(threshold), score >= threshold)
             if has_starting_match:
                 starting_index = max(0, round(matrix_index + relative_left_index))
                 ending_index = min(len(matrix.tokens), round(matrix_index + relative_right_index))

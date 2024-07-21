@@ -4,8 +4,8 @@ from ..utils.levenshtein import levenshtein
 
 # These values have been calculated with some deduction
 # And testing using expectations with a set of up to 5 word matches
-EXACT_MATCH = 1.2 # 1.2 for later when weights are implemented
-HOMOPHONE_MATCH = 1.15 # 1.15 for later when weights are implemented
+EXACT_MATCH = 1.2 # Used to be 3
+HOMOPHONE_MATCH = 1.16 # Used to be 2
 PHONETIC_MATCH = 1
 
 def normalize_text(text: str) -> str:

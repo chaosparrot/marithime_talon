@@ -1,7 +1,7 @@
 from ..matcher import VirtualBufferMatcher
 from ...phonetics.phonetics import PhoneticSearch
 from ..indexer import text_to_virtual_buffer_tokens
-from ..typing import VirtualBufferMatchMatrix, VirtualBufferMatchCalculation
+from ..typing import VirtualBufferMatchCalculation
 from ...utils.test import create_test_suite
 from typing import List
 

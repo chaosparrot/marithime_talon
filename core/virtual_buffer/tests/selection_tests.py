@@ -279,6 +279,36 @@ def percentage_tests(assertion):
     # 5 query = 2
     # 6 query = 0
 
+    # After adding no consecutive low score rule + no skip rule for queries shorter than 3 words
+    # 55 errors, rather than 65 - Improved by 10
+    # 2 / 55 = 4% = Expected result, got NOTHING
+    # 42 / 55 = 76% = Expected NOTHING, got result
+    # 1 query = 2
+    # 2 query = 15
+    # 3 query = 27
+    # 4 query = 9
+    # 5 query = 2
+
+    # After vowel homophone tweaks and making thresholds slightly more forgiving
+    # 52 errors, rather than 55 - Improved by 3
+    # 0 / 52 = 0% = Expected result, got NOTHING
+    # 29 / 52 = 55% = Expected NOTHING, got result
+    # 1 query = 0
+    # 2 query = 15
+    # 3 query = 26
+    # 4 query = 8
+    # 5 query = 2
+
+    # After tweaking the low score rule to be less forgiving for fewer words
+    # 45 errors, rather than 52 - Improved by 7
+    # 2 / 45 = 4% = Expected result, got NOTHING
+    # 31 / 45 = 69% = Expected NOTHING, got result
+    # 1 query = 0
+    # 2 query = 8
+    # 3 query = 19
+    # 4 query = 8
+    # 5 query = 2
+
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
     #    if key not in total_results:

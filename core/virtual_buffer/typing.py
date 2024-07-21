@@ -3,8 +3,8 @@ from typing import List, Self
 
 # These values have been calculated with some deduction
 # And testing using expectations with a set of up to 5 word matches
-SELECTION_THRESHOLD = 0.66
-CORRECTION_THRESHOLD = 0.5
+SELECTION_THRESHOLD = 0.655 # 0.66 with a slight grace threshold
+CORRECTION_THRESHOLD = 0.495 # 0.5 with a slgiht grace threshold
 
 @dataclass
 class VirtualBufferToken:
@@ -30,13 +30,15 @@ class VirtualBufferMatchCalculation:
     weights: List[float]
     potentials: List[float]
     match_threshold: float
+    syllables: List[int]
     max_score: float
     length: float
 
-    def __init__(self, words: List[str], weights: List[str], match_threshold = 0, max_score_per_word = 1.2):
+    def __init__(self, words: List[str], weights: List[str], syllabes: List[int], match_threshold = 0, max_score_per_word = 1.2):
         self.words = words
         self.length = len(words)
         self.weights = weights
+        self.syllables = syllabes
         self.match_threshold = match_threshold
         self.max_score = max_score_per_word
         self.potentials = [weight * max_score_per_word for weight in weights]
@@ -50,11 +52,13 @@ class VirtualBufferMatchCalculation:
             if self.max_score - potential < self.match_threshold:
                 impossible_potential = 0#max(potential, impossible_potential)
         
-        # Add two-word combinations as well
+        # Add two- and three-word combinations as well
         combined_potentials = []
         for index, potential in enumerate(self.potentials):
             if index + 1 < len(self.potentials) and self.potentials[index] + self.potentials[index + 1] >= impossible_potential:
                 combined_potentials.append({"index": [index, index + 1], "potential": self.potentials[index] + self.potentials[index + 1]})
+            if index + 2 < len(self.potentials) and self.potentials[index] + self.potentials[index + 1] + + self.potentials[index + 2] >= impossible_potential:
+                combined_potentials.append({"index": [index, index + 1, index + 2], "potential": self.potentials[index] + self.potentials[index + 1] + self.potentials[index + 2]})
 
         sorted_potentials = [{"index": [index], "potential": potential} for index, potential in enumerate(self.potentials) if potential >= impossible_potential]
         sorted_potentials.extend(combined_potentials)

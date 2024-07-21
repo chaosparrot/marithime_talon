@@ -115,6 +115,7 @@ def selection_tests(assertion, skip_known_invalid = True, highlight_only = False
                     valid += 1
                     if row["buffer"].startswith("#"):
                         improvements.append(row)
+                    row["actual"] = actual
                 else:
                     row["actual"] = actual
                     invalid.append(row)
@@ -308,6 +309,15 @@ def percentage_tests(assertion):
     # 3 query = 27
     # 4 query = 8
     # 5 query = 2
+
+    # Distribution of correct results of the current algorithm
+    # 109 - Expected nothing, got nothing!
+    # 1 query = 48 = 100% positive rate
+    # 2 query = 137 = 94.5% positive rate
+    # 3 query = 207 = 89% positive rate
+    # 4 query = 57 = 88% positive rate
+    # 5 query = 4 = 66% positive rate ( Low sample size )
+    # 6 query = 1 = 100% positive rate ( Low sample size )
 
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))

@@ -236,7 +236,7 @@ class VirtualBufferMatcher:
                 print( "Expand root for ", match_root )
             expanded_tree = self.expand_match_tree(match_root, match_calculation, submatrix, verbose=verbose)
             searches.extend(expanded_tree)
-        filtered_searches = [search for search in searches if search.score_potential >= highest_match]
+        filtered_searches = [search for search in searches if search.score_potential >= highest_match and len(search.query) == len(match_calculation.words)]
         filtered_searches.sort(key = cmp_to_key(self.compare_match_trees_by_score), reverse=True)
 
         # Use global matrix indices for every match
@@ -280,18 +280,31 @@ class VirtualBufferMatcher:
 
         # Filter out results with multiple consecutive bad results
         low_score_threshold = match_calculation.match_threshold / 2
+        
         consecutive_low_score_threshold = 1 if len(match_calculation.words) <= 2 else 2
         filtered_trees = []
         for match_tree in match_trees:
             consecutive_low_scores = 0
             threshold_met = True
+            buffer_index = -1
+            index_offset = 0
             for index, query_index in enumerate(match_tree.query_indices):
                 # Calculate the weighted score
-                score = match_tree.scores[index]
+                if buffer_index == -1:
+                    buffer_index = 0
+                else:
+                    buffer_index += 1
+
+                    # Skip found - Add another score index
+                    if match_tree.buffer_indices[buffer_index - 1][-1] != match_tree.buffer_indices[buffer_index][0] - 1:
+                        index_offset += 1
+
+                score = match_tree.scores[index + index_offset]
                 weight = 0
                 for inner_index, _ in enumerate(query_index):
                     weight += match_calculation.weights[inner_index]
-                weighted_low_score_threshold = low_score_threshold * weight
+                
+                weighted_low_score_threshold = low_score_threshold * weight / 1.5
 
                 if score * weight <= weighted_low_score_threshold:
                     consecutive_low_scores += 1
@@ -355,12 +368,23 @@ class VirtualBufferMatcher:
                 print( " - EXPANDING COMBINED BUFFER", combined_buffer_matches )
 
         # Skip a single token in the buffer for single and combined query matches
-        # But only for queries longer than 3 syllables
-        if sum(match_calculation.syllables) > 3 and submatrix.is_valid_index(next_buffer_skip_index):
+        if submatrix.is_valid_index(next_buffer_skip_index):
             single_skipped_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_skip_index], direction)
-            if verbose:
-                print( " - SINGLE SKIP EXPANSION", single_skipped_expanded_match_tree )
-            expanded_match_trees.append(single_skipped_expanded_match_tree)
+
+            # TODO IMPROVE SKIP CHECK
+            previous_word = submatrix.tokens[next_buffer_index - (1 * direction)].phrase
+            skipped_word = submatrix.tokens[next_buffer_index].phrase
+            next_word = submatrix.tokens[next_buffer_skip_index].phrase
+            previous_word_syllables = self.phonetic_search.syllable_count(previous_word)
+            skipped_word_syllables = self.phonetic_search.syllable_count(skipped_word)
+            next_word_syllables = self.phonetic_search.syllable_count(next_word)
+            if next_word_syllables < 3:
+                if verbose:
+                    print( " - SINGLE SKIP EXPANSION", single_skipped_expanded_match_tree )
+                expanded_match_trees.append(single_skipped_expanded_match_tree)
+            elif verbose:
+                print( "DISCARDED SINGLE SKIPPED DUE TO LOW SCORE", single_skipped_expanded_match_tree, match_calculation.match_threshold )
+
             expanded_match_trees.extend(self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_skip_index, direction, single_skipped_expanded_match_tree))
 
             # Combine buffer with single tokens
@@ -371,6 +395,8 @@ class VirtualBufferMatcher:
                 expanded_match_trees.extend(skipped_combined_buffer_matches)
                 if verbose:
                     print( " - EXPANDING SKIPPED COMBINED BUFFER", skipped_combined_buffer_matches)
+        elif verbose:
+            print( " - SKIPPED SKIP CHECKS" )
 
         return expanded_match_trees
     
@@ -495,6 +521,7 @@ class VirtualBufferMatcher:
             skipped_scores = [0.0 for _ in skipped_words]
             for skipped_score in skipped_scores:
                 expanded_tree.scores.insert(0, skipped_score)
+                expanded_tree.score_potential -= 0.08 # TODO DYNAMIC SCORE PENALTY?
 
             expanded_tree.scores.insert(0, score)
         else:
@@ -512,6 +539,7 @@ class VirtualBufferMatcher:
 
             for skipped_score in skipped_scores:
                 expanded_tree.scores.append(skipped_score)
+                expanded_tree.score_potential -= 0.08 # TODO DYNAMIC SCORE PENALTY?
 
             skipped_words.extend(buffer_words)
             expanded_tree.buffer.extend(skipped_words)

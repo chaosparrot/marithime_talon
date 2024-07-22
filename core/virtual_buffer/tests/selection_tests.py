@@ -115,7 +115,6 @@ def selection_tests(assertion, skip_known_invalid = True, highlight_only = False
                     valid += 1
                     if row["buffer"].startswith("#"):
                         improvements.append(row)
-                    row["actual"] = actual
                 else:
                     row["actual"] = actual
                     invalid.append(row)
@@ -196,7 +195,6 @@ def percentage_tests(assertion):
         if key not in total_results:
             total_results[key] = 0
         total_results[key] += 1
-
         assertion(invalid_result["buffer"] + " searching '" + invalid_result["query"] + "' does not yield '" + invalid_result["result"] + "' but '" + invalid_result["actual"] + "'", False)
 
     # Last check before algo change
@@ -319,6 +317,40 @@ def percentage_tests(assertion):
     # 5 query = 4 = 66% positive rate ( Low sample size )
     # 6 query = 1 = 100% positive rate ( Low sample size )
 
+    # After changing the skip rule to check the syllable count of the skipped word
+    # 37 errors, rather than 45 - Improved by 8
+    # 5 / 37 = 14% = Expected result, got NOTHING
+    # 27 / 37 = 73% = Expected NOTHING, got result
+    # 1 query = 0
+    # 2 query = 8
+    # 3 query = 22
+    # 4 query = 5
+    # 5 query = 2
+
+    # After fixing the bug where skips were checked for lowest consecutive score
+    # 41 errors, up from 37
+    # 4 / 41 = 10% = Expected result, got NOTHING
+    # 31 / 41 = 75% = Expected NOTHING, got result
+    # 1 query = 0
+    # 2 query = 11
+    # 3 query = 22
+    # 4 query = 5
+    # 5 query = 2
+
+    # After some result fixes, the errors were back down at 37
+    # 19 of 37 errors ( 51% ) are because of faulty skips, or a skip being included
+    # Meaning we can fix a lot of bugs if we find a logical ruleset for skips being allowed or not
+
+    # After adding a constant penalty for a skipped word
+    # 35 errors / down from 37
+    # 0 / 35 = 0% = Expected result, got NOTHING
+    # 35 = 100% = Expected NOTHING, got result
+    # 1 query = 0
+    # 2 query = 9
+    # 3 query = 18
+    # 4 query = 6
+    # 5 query = 2
+
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
     #    if key not in total_results:
@@ -328,7 +360,7 @@ def percentage_tests(assertion):
     print( total_results )
     #selection_tests(assertion, False, True)
 
-suite = create_test_suite("Selecting whole phrases inside of a selection") 
+suite = create_test_suite("Selecting whole phrases inside of a selection")
 #suite.add_test(selection_tests)
 #suite.add_test(correction_tests)
 #suite.add_test(selfrepair_tests)

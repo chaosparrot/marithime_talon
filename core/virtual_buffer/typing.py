@@ -43,7 +43,7 @@ class VirtualBufferMatchCalculation:
         self.match_threshold = match_threshold
         self.max_score = max_score_per_word
         self.potentials = [weight * max_score_per_word for weight in weights]
-        self.allowed_skips = len(words) - 2
+        self.allowed_skips = len(words) - 1 # - 2 for select
 
     # Calculate the list of possible search branches that can lead to a match, sorted by most likely
     def get_possible_branches(self) -> List[List[int]]:

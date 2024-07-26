@@ -52,7 +52,7 @@ def test_correction(assertion, buffer: str, query: str, result: str = "") -> (bo
         query_tokens.extend(text_to_virtual_buffer_tokens(query_token + (" " if index < len(query_text_tokens) - 1 else "")))
 
     vb.insert_tokens(tokens)
-    vb.select_phrases([x.phrase for x in query_tokens], 1, for_correction=True)
+    vb.select_phrases([x.phrase for x in query_tokens], CORRECTION_THRESHOLD, for_correction=True, verbose=buffer.startswith("###"))
     if result != "":
         is_valid = vb.caret_tracker.get_selection_text().strip() == result.strip()
     else:
@@ -93,7 +93,7 @@ def test_selfrepair(assertion, buffer: str, query: str, result: str = "") -> (bo
         assertion("    Selfrepairing '" + buffer + "' with '" + query.strip() + "' works as expected", is_valid)
     return is_valid, "" if match is None else " ".join(match.comparisons[1]).replace("  ", " ").strip()
 
-def selection_tests(assertion, skip_known_invalid = True, highlight_only = False) -> [int, int, [], []]:
+def selection_tests(assertion, skip_known_invalid = True, highlight_only = False) -> [int, int, [], [], []]:
     rows = 0
     valid = 0
     regressions = []
@@ -110,7 +110,6 @@ def selection_tests(assertion, skip_known_invalid = True, highlight_only = False
             
             if invalid_query and (pass_highlight or pass_skip_known_invalid):
                 result, actual = test_selection(assertion, row["buffer"], row["query"], row["result"])
-                #print( str(rows) + ": queried '" + row["query"] + "', expected '" + row["result"] + "' -> '" + actual + "'")
                 if result:
                     valid += 1
                     if row["buffer"].startswith("#"):
@@ -123,11 +122,12 @@ def selection_tests(assertion, skip_known_invalid = True, highlight_only = False
 
     return [rows, valid, improvements, regressions, invalid] 
 
-def correction_tests(assertion, skip_known_invalid = True) -> [int, int, [], []]:
+def correction_tests(assertion, skip_known_invalid = True) -> [int, int, [], [], []]:
     rows = 0
     valid = 0
     regressions = []
     improvements = []
+    invalid = []
     with open(os.path.join(test_path, "testcase_correction.csv"), 'r', newline='') as csv_file:
         reader = csv.DictReader(csv_file, delimiter=";", quotechar='"')
         for row in reader:
@@ -139,11 +139,12 @@ def correction_tests(assertion, skip_known_invalid = True) -> [int, int, [], []]
                     if row["buffer"].startswith("#"):
                         improvements.append(row)
                 else:
+                    row["actual"] = actual
+                    invalid.append(row)
                     if not row["buffer"].startswith("#"):
-                        row["actual"] = actual
                         regressions.append(row)
 
-    return [rows, valid, improvements, regressions]
+    return [rows, valid, improvements, regressions, invalid]
 
 def selfrepair_tests(assertion, skip_known_invalid = True) -> [int, int, [], []]:
     rows = 0
@@ -174,14 +175,14 @@ def noop_assertion_with_highlights(assertion):
     return lambda buffer, is_valid = False, assertion=assertion: assertion(buffer, is_valid) if is_valid == False and "#!" in buffer else noop_assertion(buffer, is_valid)
 
 def percentage_tests(assertion):
-    selection_results = selection_tests(noop_assertion_with_highlights(assertion), False)
-    #correction_results = correction_tests(noop_assertion_with_highlights(assertion), False)
+    #selection_results = selection_tests(noop_assertion_with_highlights(assertion), False)
+    correction_results = correction_tests(noop_assertion_with_highlights(assertion), False)
     #selfrepair_results = selfrepair_tests(noop_assertion_with_highlights(assertion), False)
     
-    total = selection_results[0]# + correction_results[0] + selfrepair_results[0]
-    valid = selection_results[1]# + correction_results[1] + selfrepair_results[1]
-    improvement_count = len(selection_results[2])# + len(correction_results[2]) + len(selfrepair_results[2])    
-    regression_count = len(selection_results[3])# + len(correction_results[3]) + len(selfrepair_results[3])
+    total = correction_results[0] # selection_results[0]# + correction_results[0] + selfrepair_results[0]
+    valid = correction_results[1] #selection_results[1]# + correction_results[1] + selfrepair_results[1]
+    improvement_count = len(correction_results[2])# + len(selection_results[2]) + len(selfrepair_results[2])    
+    regression_count = len(correction_results[3])# + len(selection_results[3]) + len(selfrepair_results[3])
     
     percentage = round((valid / total) * 1000) / 10
     reg = "Regressions: " + str(regression_count) + ", improvements: " + str(improvement_count) + ", invalid: " + str(total - valid)
@@ -190,12 +191,12 @@ def percentage_tests(assertion):
     #for improvement in selection_results[2]:
     #    assertion(improvement["buffer"] + " searching '" + improvement["query"] + "' correctly yields '" + improvement["result"] + "'")
     total_results = {}
-    for invalid_result in selection_results[4]:
-        key = str(len(invalid_result["query"].split())) + "-" + str(len(invalid_result["result"].split())) + "-" + str(len(invalid_result["actual"].split()))
+    for invalid_result in correction_results[4]:
+        key = str(len(invalid_result["correction"].split())) + "-" + str(len(invalid_result["result"].split())) + "-" + str(len(invalid_result["actual"].split()))
         if key not in total_results:
             total_results[key] = 0
         total_results[key] += 1
-        assertion(invalid_result["buffer"] + " searching '" + invalid_result["query"] + "' does not yield '" + invalid_result["result"] + "' but '" + invalid_result["actual"] + "'", False)
+        assertion(invalid_result["buffer"] + " correcting '" + invalid_result["correction"] + "' does not yield '" + invalid_result["result"] + "' but '" + invalid_result["actual"] + "'", False)
 
     # Last check before algo change
     # 118 / 196 = 60% = Expected result, got NOTHING
@@ -383,6 +384,55 @@ def percentage_tests(assertion):
     # 4 query = 2
     # 5 query = 1
     # 6 query = 0
+
+    # Satisfied with 96% accuracy - Starting improvements for correction
+
+    # Correction results from the above changes - 57.8% accuracy
+    # 211 errors counted
+    # 191 / 211 = 90% = Expected result, got NOTHING
+    # 1 / 211 = <1% = Expected NOTHING, got result
+    # 1 correction = 8
+    # 2 correction = 25
+    # 3 correction = 63
+    # 4 correction = 51
+    # 5 correction = 38
+    # 6 correction = 10
+    # 7 correction = 7
+
+    # After removing skip protection
+    # 176 errors / down from 211 - 64.8% accuracy
+    # 152 / 176 = 86% = Expected result, got NOTHING
+    # 1 / 176 = <1% = Expected NOTHING, got result
+    # 1 correction = 8
+    # 2 correction = 22
+    # 3 correction = 55
+    # 4 correction = 43
+    # 5 correction = 33
+    # 6 correction = 10
+    # 7 correction = 5
+
+    # After using the correct correction threshold ( doh )
+    # 66 errors / down from 176 - 86.8%
+
+    # After fixing some invalid results in the test set
+    # 54 errors / down from 66 - 89.2%
+    # 10 / 54 = 19% = Expected result, got NOTHING
+    # 12 / 54 = 22% = Expected NOTHING, got result
+    # Unexpected results = 59%
+    # 1 correction = 3
+    # 2 correction = 8
+    # 3 correction = 18
+    # 4 correction = 9
+    # 5 correciton = 8
+    # 6 correction = 2
+    # 7 correction = 2
+    # Missed a couple
+
+    # TODO - Discourage combination with punctuations?
+    # TODO - Add boost for starting syllable?
+
+    # Tweaked controversial results and added some small changes
+    # 95% accuracy for correction
 
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))

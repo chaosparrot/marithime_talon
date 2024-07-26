@@ -45,8 +45,9 @@ class VirtualBufferMatcher:
         # So we are more stringent with single words than double words
         # After 3 it is settled
 
-        match_threshold += 0.1 * max(0, (3 - len(phrases)))
-        match_threshold = min(0.83, match_threshold)
+        # Don't change the match threshold for corrections
+        #match_threshold += 0.1 * max(0, (3 - len(phrases)))
+        #match_threshold = min(0.83, match_threshold)
 
         match_calculation = self.generate_match_calculation(phrases, match_threshold)
         matrix = VirtualBufferMatchMatrix(0, virtual_buffer.tokens)
@@ -280,16 +281,19 @@ class VirtualBufferMatcher:
 
         # Filter out results with multiple consecutive bad results
         low_score_threshold = match_calculation.match_threshold / 2
-        single_word_score_threshold = 0.29
-        combined_word_score_threshold = 0.5
+        is_correction = True
+        single_word_score_threshold = -1 if is_correction else 0.29
+        combined_word_score_threshold = 0.1 if is_correction else 0.5
         
         consecutive_low_score_threshold = 1 if len(match_calculation.words) <= 2 else 2
+        if is_correction:
+            consecutive_low_score_threshold = 2
         filtered_trees = []
         for match_tree in match_trees:
             consecutive_low_scores = 0
 
             # Cannot start or end with a 0 / skip
-            threshold_met = match_tree.scores[0] > 0.0 and match_tree.scores[-1] > 0.0
+            threshold_met = match_tree.scores[0] > 0.0 and match_tree.scores[-1] > 0.0 if not is_correction else True
             buffer_index = -1
             index_offset = 0
             for index, query_index in enumerate(match_tree.query_indices):
@@ -319,9 +323,13 @@ class VirtualBufferMatcher:
                 single_threshold = combined_word_score_threshold if matches_muliple_words else single_word_score_threshold
                 if score > 0.0 and score <= single_threshold:
                     threshold_met = False
+                    if verbose:
+                        print("SKIPPED BECAUSE SINGLE THRESHOLD NOT MET")
 
                 if consecutive_low_scores >= consecutive_low_score_threshold:
                     threshold_met = False
+                    if verbose:
+                        print("SKIPPED BECAUSE CONSECUTIVE THRESHOLD NOT MET")
                 
                 if not threshold_met:
                     break
@@ -363,6 +371,9 @@ class VirtualBufferMatcher:
         next_buffer_index = match_tree.get_next_buffer_index(submatrix, direction)
         next_buffer_skip_index = match_tree.get_next_buffer_index(submatrix, direction * 2)
 
+        if verbose:
+            print("- Attempting expand with " + match_calculation.words[next_query_index])
+
         single_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_index], direction)
         expanded_match_trees.append(single_expanded_match_tree)
         if verbose:
@@ -394,10 +405,14 @@ class VirtualBufferMatcher:
                 print( " - SKIP! NEXT '" + next_word + "'", next_word_syllables )
 
             long_word_skip_rule = skipped_word_syllables <= previous_word_syllables and skipped_word_syllables <= next_word_syllables
-            perfect_skip_rule = single_skipped_expanded_match_tree.scores[-1 if direction > 0 else 0] >= 1 and \
-                single_skipped_expanded_match_tree.scores[-3 if direction > 0 else 2] >= 1
+            perfect_skip_rule = single_skipped_expanded_match_tree.scores[-1 if direction > 0 else 0] >= PHONETIC_MATCH and \
+                single_skipped_expanded_match_tree.scores[-3 if direction > 0 else 2] >= PHONETIC_MATCH
             within_allowed_skip_count = match_tree.scores.count(0.0) + 1 <= match_calculation.allowed_skips
-            if within_allowed_skip_count and ( long_word_skip_rule or perfect_skip_rule ):
+
+            # TODO SWITCH BETWEEN CORRECTION AND SELECTION MODES
+            check_for_select = within_allowed_skip_count and ( long_word_skip_rule or perfect_skip_rule )
+            check_for_correction =  within_allowed_skip_count
+            if check_for_correction:
                 if verbose:
                     print( " - SINGLE SKIP EXPANSION", single_skipped_expanded_match_tree )
                 expanded_match_trees.append(single_skipped_expanded_match_tree)
@@ -569,11 +584,11 @@ class VirtualBufferMatcher:
 
     def compare_match_trees_by_distance_and_score(self, a: VirtualBufferMatch, b: VirtualBufferMatch) -> int:
         sort_by_score = self.compare_match_trees_by_score(a, b)
-        a_overlap_padding = min(1, max(0, round(len(a.buffer_indices) / 3)))
+        a_overlap_padding = min(1, max(0, round(len(a.buffer_indices))))
         a_start = a.buffer_indices[0][0] - a_overlap_padding
         a_end = a.buffer_indices[-1][-1] + a_overlap_padding
 
-        b_overlap_padding = min(1, max(0, round(len(b.buffer_indices) / 3)))
+        b_overlap_padding = min(1, max(0, round(len(b.buffer_indices))))
         b_start = b.buffer_indices[0][0] - b_overlap_padding
         b_end = b.buffer_indices[-1][-1] + b_overlap_padding
 

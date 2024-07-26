@@ -280,12 +280,16 @@ class VirtualBufferMatcher:
 
         # Filter out results with multiple consecutive bad results
         low_score_threshold = match_calculation.match_threshold / 2
+        single_word_score_threshold = 0.29
+        combined_word_score_threshold = 0.5
         
         consecutive_low_score_threshold = 1 if len(match_calculation.words) <= 2 else 2
         filtered_trees = []
         for match_tree in match_trees:
             consecutive_low_scores = 0
-            threshold_met = True
+
+            # Cannot start or end with a 0 / skip
+            threshold_met = match_tree.scores[0] > 0.0 and match_tree.scores[-1] > 0.0
             buffer_index = -1
             index_offset = 0
             for index, query_index in enumerate(match_tree.query_indices):
@@ -311,10 +315,17 @@ class VirtualBufferMatcher:
                 else:
                     consecutive_low_scores = 0
 
+                matches_muliple_words = len(query_index) > 1 or len(match_tree.buffer_indices[buffer_index]) > 1
+                single_threshold = combined_word_score_threshold if matches_muliple_words else single_word_score_threshold
+                if score > 0.0 and score <= single_threshold:
+                    threshold_met = False
+
                 if consecutive_low_scores >= consecutive_low_score_threshold:
                     threshold_met = False
+                
+                if not threshold_met:
                     break
-            
+
             if threshold_met:
                 filtered_trees.append(match_tree)
             elif verbose:
@@ -370,15 +381,23 @@ class VirtualBufferMatcher:
         # Skip a single token in the buffer for single and combined query matches
         if submatrix.is_valid_index(next_buffer_skip_index):
             single_skipped_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_skip_index], direction)
-
-            # TODO IMPROVE SKIP CHECK
             previous_word = submatrix.tokens[next_buffer_index - (1 * direction)].phrase
             skipped_word = submatrix.tokens[next_buffer_index].phrase
             next_word = submatrix.tokens[next_buffer_skip_index].phrase
             previous_word_syllables = self.phonetic_search.syllable_count(previous_word)
             skipped_word_syllables = self.phonetic_search.syllable_count(skipped_word)
             next_word_syllables = self.phonetic_search.syllable_count(next_word)
-            if next_word_syllables < 3:
+
+            if verbose:
+                print( " - SKIP! PREVIOUS '" + previous_word + "'", previous_word_syllables )
+                print( " - SKIP! CURRENT '" + skipped_word + "'", skipped_word_syllables )
+                print( " - SKIP! NEXT '" + next_word + "'", next_word_syllables )
+
+            long_word_skip_rule = skipped_word_syllables <= previous_word_syllables and skipped_word_syllables <= next_word_syllables
+            perfect_skip_rule = single_skipped_expanded_match_tree.scores[-1 if direction > 0 else 0] >= 1 and \
+                single_skipped_expanded_match_tree.scores[-3 if direction > 0 else 2] >= 1
+            within_allowed_skip_count = match_tree.scores.count(0.0) + 1 <= match_calculation.allowed_skips
+            if within_allowed_skip_count and ( long_word_skip_rule or perfect_skip_rule ):
                 if verbose:
                     print( " - SINGLE SKIP EXPANSION", single_skipped_expanded_match_tree )
                 expanded_match_trees.append(single_skipped_expanded_match_tree)
@@ -390,7 +409,6 @@ class VirtualBufferMatcher:
             # Combine buffer with single tokens
             next_buffer_second_skip_index = match_tree.get_next_buffer_index(submatrix, direction * 3)
             if submatrix.is_valid_index(next_buffer_second_skip_index):
-                #print("SKIP ONE COMBINED")
                 skipped_combined_buffer_matches = self.determine_combined_buffer_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_skip_index, direction, single_skipped_expanded_match_tree, verbose=verbose)
                 expanded_match_trees.extend(skipped_combined_buffer_matches)
                 if verbose:

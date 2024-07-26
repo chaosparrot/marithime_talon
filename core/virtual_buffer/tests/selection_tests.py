@@ -351,6 +351,39 @@ def percentage_tests(assertion):
     # 4 query = 6
     # 5 query = 2
 
+    # After not allowing skips with words that are longer than the surrounding words
+    # 31 errors / Down from 35
+    # 6 / 31 = 20% = Expected result, got NOTHING
+    # 21 / 31 = 68% = Expected NOTHING, got result
+    # 1 query = 0
+    # 2 query = 7
+    # 3 query = 18
+    # 4 query = 5
+    # 5 query = 0
+    # 6 query = 1
+
+    # After increasing the max mismatch score to be 0.25
+    # 25 errors / Down from 31
+    # 5 / 25 = 20% = Expected result, got NOTHING
+    # 20 / 25 = 80% = Expected NOTHING, got result
+    # 1 query = 0
+    # 2 query = 9
+    # 3 query = 14
+    # 4 query = 1
+    # 5 query = 1
+    # 6 query = 0
+
+    # After adding max mismatch score for combined words ( 0.5 ) and disallowing 0 scores at the start or end
+    # 20 errors / Down from 20
+    # 8 / 20 = 40% = Expected result, got NOTHING
+    # 11 / 20 = 55% = Expected NOTHING, got result
+    # 1 query = 0
+    # 2 query = 8
+    # 3 query = 9
+    # 4 query = 2
+    # 5 query = 1
+    # 6 query = 0
+
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
     #    if key not in total_results:

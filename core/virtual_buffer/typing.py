@@ -135,10 +135,10 @@ class VirtualBufferMatch:
     
     def calculate_distance(self, leftmost_index: int, rightmost_index: int):
         if len(self.buffer_indices) > 0:
-            if self.buffer_indices[0][0] < leftmost_index:
-                self.distance = leftmost_index - self.buffer_indices[0][0]
-            elif self.buffer_indices[-1][-1] > rightmost_index:
-                self.distance = self.buffer_indices[-1][-1] - rightmost_index
+            if self.buffer_indices[-1][-1] < leftmost_index:
+                self.distance = leftmost_index - self.buffer_indices[-1][-1]
+            elif self.buffer_indices[0][0] > rightmost_index:
+                self.distance = self.buffer_indices[0][0] - rightmost_index
             else:
                 self.distance = 0
 

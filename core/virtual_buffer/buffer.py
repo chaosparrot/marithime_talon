@@ -32,7 +32,7 @@ class VirtualBuffer:
         return self.caret_tracker.is_selecting()
     
     def is_phrase_selected(self, phrase: str) -> bool:
-        return self.matcher.has_matching_phrase(self, phrase)
+        return self.matcher.is_phrase_selected(self, phrase)
 
     def clear_tokens(self):
         self.set_tokens()
@@ -523,9 +523,9 @@ class VirtualBuffer:
                 if not should_go_to_next_occurrence:
                     break
 
-        best_match = self.matcher.find_best_match_by_phrases_2(self, phrases, match_threshold, should_go_to_next_occurrence, True, for_correction=for_correction, verbose=verbose)
+        best_match = self.matcher.find_best_match_by_phrases_2(self, phrases, match_threshold, should_go_to_next_occurrence, selecting=True, for_correction=for_correction, verbose=verbose)
         if best_match is not None and len(best_match) > 0:
-            return self.select_token_range(best_match[0], best_match[-1])
+            return self.select_token_range(best_match[0], best_match[-1], extend_selection=extend_selection)
         else:
             return []
 
@@ -537,10 +537,6 @@ class VirtualBuffer:
         keys.extend( self.select_token(end_token, True))
 
         return keys
-
-    def select_phrase(self, phrase: str, extend_selection: bool = False) -> List[str]:        
-        token = self.find_token_by_phrase(phrase, 0, not extend_selection and self.matcher.is_phrase_selected(self, phrase), True)
-        return self.select_token(token, extend_selection)
     
     def select_token(self, token: VirtualBufferToken, extend_selection: bool = False) -> List[str]:
         if token:

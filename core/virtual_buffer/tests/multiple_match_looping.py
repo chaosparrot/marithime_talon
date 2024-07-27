@@ -73,11 +73,11 @@ def test_looping_to(assertion):
 def test_looping_new(assertion):
     vb = get_filled_vb()
     assertion( "    Moving from the end to the buffer to selecting the first occurrence of 'new'...") 
-    keys = vb.select_phrase("new")
+    keys = vb.select_phrases(["new"])
     assertion( "        Should move to the left until we have reached the word 'new'", keys[0] == "left:44")
     assertion( "        Should move to the right until we have reached the end of the word 'new'", keys[1] == "shift-right:4")
     assertion( "    Repeating the search for 'new' again...")
-    keys = vb.select_phrase("new")
+    keys = vb.select_phrases(["new"])
     assertion( "        Should move to the left until we have reached the second occurrence", keys[1] == "left:29")
     assertion( "        Should move to the right until we have reached the end of the word 'new'", keys[2] == "shift-right:4")
 
@@ -86,3 +86,4 @@ suite.add_test(test_looping_sentence)
 suite.add_test(test_looping_new_sentence)
 suite.add_test(test_looping_to)
 suite.add_test(test_looping_new)
+suite.run()

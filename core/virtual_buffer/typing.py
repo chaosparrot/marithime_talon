@@ -34,8 +34,9 @@ class VirtualBufferMatchCalculation:
     max_score: float
     length: float
     allowed_skips: int
+    purpose: str
 
-    def __init__(self, words: List[str], weights: List[str], syllables: List[int], match_threshold = 0, max_score_per_word = 1.2):
+    def __init__(self, words: List[str], weights: List[str], syllables: List[int], match_threshold = 0, max_score_per_word = 1.2, purpose = "selection"):
         self.words = words
         self.length = len(words)
         self.weights = weights
@@ -43,7 +44,8 @@ class VirtualBufferMatchCalculation:
         self.match_threshold = match_threshold
         self.max_score = max_score_per_word
         self.potentials = [weight * max_score_per_word for weight in weights]
-        self.allowed_skips = len(words) - 1 # - 2 for select
+        self.purpose = purpose
+        self.allowed_skips = len(words) - (1 if purpose == "correction" else 2 )
 
     # Calculate the list of possible search branches that can lead to a match, sorted by most likely
     def get_possible_branches(self) -> List[List[int]]:
@@ -89,7 +91,6 @@ class VirtualBufferMatchMatrix:
         return VirtualBufferMatchMatrix(starting_index, submatrix_tokens)
 
     def is_valid_index(self, index) -> bool:
-        #print( "IS VALID SUBMATRIX INDEX?", index, self.length)
         return index >= 0 and index < self.length
 
     def to_global_index(self, index) -> int:
@@ -134,10 +135,10 @@ class VirtualBufferMatch:
     
     def calculate_distance(self, leftmost_index: int, rightmost_index: int):
         if len(self.buffer_indices) > 0:
-            if self.buffer_indices[-1][-1] < leftmost_index:
-                self.distance = leftmost_index - self.buffer_indices[-1][-1]
-            elif self.buffer_indices[0][0] > rightmost_index:
-                self.distance = self.buffer_indices[0][0] - rightmost_index
+            if self.buffer_indices[0][0] < leftmost_index:
+                self.distance = leftmost_index - self.buffer_indices[0][0]
+            elif self.buffer_indices[-1][-1] > rightmost_index:
+                self.distance = self.buffer_indices[-1][-1] - rightmost_index
             else:
                 self.distance = 0
 

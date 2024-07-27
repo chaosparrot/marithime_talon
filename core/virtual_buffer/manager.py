@@ -99,22 +99,7 @@ class VirtualBufferManager:
                 return vbm.navigate_to_token(last_token, -1, keep_selection)
         else:
             return ["end"]
-        
-    def select_phrase(self, phrase: str, until_end = False) -> List[str]:
-        self.disable_tracking()
-        self.context.ensure_viable_context()
-        self.enable_tracking()
 
-        vb = self.context.get_current_context().buffer
-
-        if self.has_phrase(phrase):
-            self.context.should_use_last_formatter(False)
-
-        if until_end:
-            return vb.select_until_end(phrase)
-        else:
-            return vb.select_phrase(phrase)
-        
     def select_phrases(self, phrases: List[str], until_end = False, for_correction=False) -> List[str]:
         self.disable_tracking()
         self.context.ensure_viable_context()
@@ -417,23 +402,13 @@ class Actions:
         """Move the caret to the given phrase and select it"""
         global mutator
 
-        if isinstance(phrase, List):
-            keys = mutator.select_phrases(phrase)
-            mutator.disable_tracking()
-            if keys:
-                for key in keys:
-                    actions.key(key)
-            mutator.enable_tracking()
-        else:
-            if mutator.has_phrase(phrase):
-                keys = mutator.select_phrase(phrase)
-                mutator.disable_tracking()
-                if keys:
-                    for key in keys:
-                        actions.key(key)
-                mutator.enable_tracking()
-            else:
-                raise RuntimeError("Input phrase '" + phrase + "' could not be found in the buffer")
+        phrases = phrase if isinstance(phrase, List) else [phrase]
+        keys = mutator.select_phrases(phrases)
+        mutator.disable_tracking()
+        if keys:
+            for key in keys:
+                actions.key(key)
+        mutator.enable_tracking()
             
     def virtual_buffer_correction(selection_and_correction: List[str]):
         """Select a fuzzy match of the words and apply the given words"""

@@ -57,7 +57,6 @@ def test_similarity_scores(assertion):
     assertion("    should give a score lower than 0.5 for 'crab' and 'nack' ( too dissimilar )", round(phonetic_search.phonetic_similarity_score("crab", "nack") * 10) / 10 < 0.5)
     assertion("    should give a score higher than 0.5 for 'ensemble' and 'assemble' ( very similar )", round(phonetic_search.phonetic_similarity_score("ensemble", "assemble") * 10) / 10 > 0.5)
     assertion("    should give a score lower than 0.5 for 'egg' and 'tremble' ( too dissimilar )", round(phonetic_search.phonetic_similarity_score("egg", "tremble") * 10) / 10 < 0.5)
-    assertion( phonetic_search.phonetic_similarity_score("that", "dad"))
 
 suite = create_test_suite("Phonetic similarity state")
 suite.add_test(test_detect_fixes)

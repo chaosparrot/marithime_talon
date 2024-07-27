@@ -183,7 +183,10 @@ class PhoneticSearch:
                 if homophone_distance < longest_homophone_length:
                     homophone_score = (longest_homophone_length - homophone_distance ) / longest_homophone_length
 
-                return (phonetics_score + homophone_score ) / 2
+                if len(word_a) <= 3 and len(word_b) <= 3 and homophone_distance < phonetics_distance:
+                    return homophone_score
+                else:
+                    return (phonetics_score + homophone_score ) / 2
 
     def syllable_count(self, word_a: str) -> int:
         return syllable_count(word_a, self.language)

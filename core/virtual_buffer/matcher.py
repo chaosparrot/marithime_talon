@@ -28,7 +28,7 @@ class VirtualBufferMatcher:
     def is_phrase_selected(self, virtual_buffer, phrase: str) -> bool:
         if virtual_buffer.is_selecting():
             selection = virtual_buffer.caret_tracker.get_selection_text()
-            return self.phonetic_search.phonetic_similarity_score(normalize_text(selection).replace(" ", ''), phrase) >= 2
+            return self.phonetic_search.phonetic_similarity_score(normalize_text(selection).replace(" ", ''), phrase) >= PHONETIC_MATCH
         return False
 
     def has_matching_phrase(self, virtual_buffer, phrase: str) -> bool:
@@ -41,15 +41,16 @@ class VirtualBufferMatcher:
         return False
 
     def find_top_three_matches_in_matrix(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, selecting: bool = False, for_correction: bool = False, verbose: bool = False):
-        # Taper the threshold according to the amount of queried words
-        # So we are more stringent with single words than double words
-        # After 3 it is settled
-
         # Don't change the match threshold for corrections
-        #match_threshold += 0.1 * max(0, (3 - len(phrases)))
-        #match_threshold = min(0.83, match_threshold)
+        if not for_correction:
 
-        match_calculation = self.generate_match_calculation(phrases, match_threshold)
+            # Taper the threshold according to the amount of queried words
+            # So we are more stringent with single words than double words
+            # After 3 it is settled
+            match_threshold += 0.1 * max(0, (3 - len(phrases)))
+            match_threshold = min(0.83, match_threshold)
+
+        match_calculation = self.generate_match_calculation(phrases, match_threshold, purpose=("correction" if for_correction else "selection"))
         matrix = VirtualBufferMatchMatrix(0, virtual_buffer.tokens)
         submatrices = self.find_potential_submatrices(match_calculation, matrix, verbose=verbose)
 
@@ -91,20 +92,28 @@ class VirtualBufferMatcher:
 
             if len(matrix_group_matches) > 0:
                 if selecting:
-                    matrix_group_matches.sort(key = cmp_to_key(self.compare_match_trees_by_score), reverse=True)
+                    matrix_group_matches.sort(key = cmp_to_key(self.compare_match_trees_for_selection), reverse=True)
                 if for_correction:
-                    matrix_group_matches.sort(key = cmp_to_key(self.compare_match_trees_by_distance_and_score), reverse=True)
+                    matrix_group_matches.sort(key = cmp_to_key(self.compare_match_trees_for_correction), reverse=True)
                 matches.append(matrix_group_matches[0])
         
         return matches
 
     # Generate a match calculation based on the words to search for weighted by syllable count
-    def generate_match_calculation(self, query_words: List[str], threshold: float = SELECTION_THRESHOLD, max_score_per_word: float = EXACT_MATCH) -> VirtualBufferMatchCalculation:
+    def generate_match_calculation(self, query_words: List[str], threshold: float = SELECTION_THRESHOLD, max_score_per_word: float = EXACT_MATCH, purpose: str = "selection") -> VirtualBufferMatchCalculation:
         syllables_per_word = [self.phonetic_search.syllable_count(word) for word in query_words]
         total_syllables = max(sum(syllables_per_word), 1)
         weights = [syllable_count / total_syllables for syllable_count in syllables_per_word]
 
-        return VirtualBufferMatchCalculation(query_words, weights, syllables_per_word, threshold, max_score_per_word)
+        # TODO - Perhaps give more weight to starting and ending words
+        # If we are dealing with a heavy ^ shaped weights for correction, mellow out the weights
+        if purpose == "correction" and len(query_words) == 3 and weights[1] > weights[0] and weights[1] > weights[2]:
+            rescaled_syllable_count = syllables_per_word[1] - 1
+            rescaled_syllables = [min(rescaled_syllable_count, syllable_count) for syllable_count in syllables_per_word]
+            total_syllables = sum(rescaled_syllables)
+            weights = [syllable_count / total_syllables for syllable_count in rescaled_syllables]
+
+        return VirtualBufferMatchCalculation(query_words, weights, syllables_per_word, threshold, max_score_per_word, purpose)
     
     # Generate a list of (sorted) potential submatrices to look through
     def find_potential_submatrices(self, match_calculation: VirtualBufferMatchCalculation, matrix: VirtualBufferMatchMatrix, verbose: bool = False) -> List[VirtualBufferMatchMatrix]:
@@ -282,18 +291,19 @@ class VirtualBufferMatcher:
         # Filter out results with multiple consecutive bad results
         low_score_threshold = match_calculation.match_threshold / 2
         is_correction = True
-        single_word_score_threshold = -1 if is_correction else 0.29
-        combined_word_score_threshold = 0.1 if is_correction else 0.5
+        single_word_score_threshold = -1 if match_calculation.purpose == "correction" else 0.29
+        combined_word_score_threshold = 0.1 if match_calculation.purpose == "correction" else 0.5
         
-        consecutive_low_score_threshold = 1 if len(match_calculation.words) <= 2 else 2
-        if is_correction:
+        if match_calculation.purpose == "correction":
             consecutive_low_score_threshold = 2
+        else:
+            consecutive_low_score_threshold = 1 if len(match_calculation.words) <= 2 else 2
         filtered_trees = []
         for match_tree in match_trees:
             consecutive_low_scores = 0
 
-            # Cannot start or end with a 0 / skip
-            threshold_met = match_tree.scores[0] > 0.0 and match_tree.scores[-1] > 0.0 if not is_correction else True
+            # Cannot start or end with a 0 / skip for selections
+            threshold_met = match_calculation.purpose == "correction" or ( match_tree.scores[0] > 0.0 and match_tree.scores[-1] > 0.0 )
             buffer_index = -1
             index_offset = 0
             for index, query_index in enumerate(match_tree.query_indices):
@@ -409,10 +419,10 @@ class VirtualBufferMatcher:
                 single_skipped_expanded_match_tree.scores[-3 if direction > 0 else 2] >= PHONETIC_MATCH
             within_allowed_skip_count = match_tree.scores.count(0.0) + 1 <= match_calculation.allowed_skips
 
-            # TODO SWITCH BETWEEN CORRECTION AND SELECTION MODES
             check_for_select = within_allowed_skip_count and ( long_word_skip_rule or perfect_skip_rule )
             check_for_correction =  within_allowed_skip_count
-            if check_for_correction:
+            skip_check = check_for_select if match_calculation.purpose == "selection" else check_for_correction
+            if skip_check:
                 if verbose:
                     print( " - SINGLE SKIP EXPANSION", single_skipped_expanded_match_tree )
                 expanded_match_trees.append(single_skipped_expanded_match_tree)
@@ -529,6 +539,8 @@ class VirtualBufferMatcher:
     def add_tokens_to_match_tree(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, query_indices: List[int], buffer_indices: List[int], direction: int = 1) -> VirtualBufferMatch:
         expanded_tree = match_tree.clone()
 
+        skip_score_penalty = 0.08 # Found using trial and error
+
         query_words = [match_calculation.words[query_index] for query_index in query_indices]
         buffer_words = [submatrix.tokens[buffer_index].phrase for buffer_index in buffer_indices]
         weight = sum([match_calculation.weights[query_index] for query_index in query_indices])
@@ -554,7 +566,7 @@ class VirtualBufferMatcher:
             skipped_scores = [0.0 for _ in skipped_words]
             for skipped_score in skipped_scores:
                 expanded_tree.scores.insert(0, skipped_score)
-                expanded_tree.score_potential -= 0.08 # TODO DYNAMIC SCORE PENALTY?
+                expanded_tree.score_potential -= skip_score_penalty
 
             expanded_tree.scores.insert(0, score)
         else:
@@ -572,7 +584,7 @@ class VirtualBufferMatcher:
 
             for skipped_score in skipped_scores:
                 expanded_tree.scores.append(skipped_score)
-                expanded_tree.score_potential -= 0.08 # TODO DYNAMIC SCORE PENALTY?
+                expanded_tree.score_potential -= skip_score_penalty
 
             skipped_words.extend(buffer_words)
             expanded_tree.buffer.extend(skipped_words)
@@ -582,7 +594,7 @@ class VirtualBufferMatcher:
         expanded_tree.reduce_potential(match_calculation.max_score, score, weight)
         return expanded_tree
 
-    def compare_match_trees_by_distance_and_score(self, a: VirtualBufferMatch, b: VirtualBufferMatch) -> int:
+    def compare_match_trees_for_correction(self, a: VirtualBufferMatch, b: VirtualBufferMatch) -> int:
         sort_by_score = self.compare_match_trees_by_score(a, b)
         a_overlap_padding = min(1, max(0, round(len(a.buffer_indices))))
         a_start = a.buffer_indices[0][0] - a_overlap_padding
@@ -601,6 +613,15 @@ class VirtualBufferMatcher:
             return -1
         else:
             return sort_by_score
+        
+    def compare_match_trees_for_selection(self, a: VirtualBufferMatch, b: VirtualBufferMatch) -> int:
+        result = self.compare_match_trees_by_score(a, b)
+        if result == 0:
+            if a.distance < b.distance:
+                return 1
+            elif a.distance > b.distance:
+                return -1
+        return result
 
     def compare_match_trees_by_score(self, a: VirtualBufferMatch, b: VirtualBufferMatch) -> int:
         # Favour the matches without dropped matches over ones with dropped matches
@@ -721,7 +742,7 @@ class VirtualBufferMatcher:
                         tokens_from_last_punctuation = []
 
                 if len(tokens_from_last_punctuation) > 0:
-                    matches = self.find_matches_by_phrases(tokens_from_last_punctuation, phrases, CORRECTION_THRESHOLD, 'most_direct_matches')
+                    matches = self.find_best_match_by_phrases(virtual_buffer, phrases, CORRECTION_THRESHOLD, 'most_direct_matches')
                     starting_offset = index_offset + max(0, current_index[0] - len(tokens_from_last_punctuation))
 
                     # Get the match with the most matches, closest to the end
@@ -755,23 +776,37 @@ class VirtualBufferMatcher:
     def find_best_match_by_phrases_2(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, verbose: bool = False) -> List[VirtualBufferToken]:
         matches = self.find_top_three_matches_in_matrix(virtual_buffer, phrases, match_threshold, selecting, for_correction, verbose)
 
+        if verbose:
+            print( "All available matches:", matches, next_occurrence )
+
         if len(matches) > 0:
             best_match_tokens = []
             best_match = matches[0]
 
-            # TODO SELECT NEXT IN DIRECTION IN CASE OF REPETITION
-
             if len(matches) > 1:
                 # Sort matches
                 if selecting:
-                    matches.sort(key = cmp_to_key(self.compare_match_trees_by_score), reverse=True)
+                    matches.sort(key = cmp_to_key(self.compare_match_trees_for_selection), reverse=True)
                 if for_correction:
-                    matches.sort(key = cmp_to_key(self.compare_match_trees_by_distance_and_score), reverse=True)
+                    matches.sort(key = cmp_to_key(self.compare_match_trees_for_correction), reverse=True)
+
+                # TODO SELECT NEXT IN DIRECTION IN CASE OF REPETITION
+                # For now it will just skip between two nearest elements
+                if verbose:
+                    print( "After sorting", matches)
+                if next_occurrence and len(matches) > 1:
+                    if verbose:
+                        print( "Discarding first item due to it being selected", matches )
+                    matches.pop(0)
+
                 best_match = matches[0]
 
             for index_list in best_match.buffer_indices:
                 for subindex in index_list:
                     best_match_tokens.append(virtual_buffer.tokens[subindex])
+
+            if verbose:
+                print( "BEST MATCH TOKENS", best_match_tokens )
 
             return best_match_tokens
         else:

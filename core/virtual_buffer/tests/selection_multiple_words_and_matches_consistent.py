@@ -30,7 +30,7 @@ def get_filled_vb():
 def test_multiple_words_with_multiple_occurrences(assertion):
     vb = get_filled_vb()
     assertion( "    Starting from the end and searching for 'previous sentence'...")
-    keys = vb.select_phrases(["previous", "sentence"])
+    keys = vb.select_phrases(["previous", "sentence"], verbose=False)
     assertion( "        Should have the text 'previous sentence ' selected", vb.caret_tracker.get_selection_text() == 'previous sentence ')
     assertion( "        Should go left 64 times to go to the start of 'previous sentence '", keys[0] == "left:64")
     assertion( "        And then go right until 'previous sentence ' is selected", keys[1] == "shift-right:18")

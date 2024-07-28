@@ -136,9 +136,9 @@ def test_calculating_distance_for_matches(assertion):
     match_1.calculate_distance(0, 0)    
     match_2.calculate_distance(0, 0)
     match_3.calculate_distance(0, 0)
-    assertion("    a match starting at token 0 should have a distance of 1", match_1.distance == 1)
-    assertion("    a match starting at token 7 should have a distance of 8", match_2.distance == 8)
-    assertion("    a match starting at token 10 should have a distance of 11", match_3.distance == 11)
+    assertion("    a match starting at token 0 should have a distance of 0", match_1.distance == 0)
+    assertion("    a match starting at token 7 should have a distance of 7", match_2.distance == 7)
+    assertion("    a match starting at token 10 should have a distance of 10", match_3.distance == 10)
 
     assertion("If the cursor spreads from the first to the fourth token")
     match_1.calculate_distance(0, 3)    

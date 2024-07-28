@@ -530,12 +530,23 @@ class VirtualBuffer:
             return []
 
     def select_token_range(self, start_token: VirtualBufferToken, end_token: VirtualBufferToken, extend_selection: bool = False ) -> List[str]:
+        should_extend_right = True
+        # When our end token isn't past the rightmost cursor
+        # We do not want to extend to the end token
+        # Because it would reset the existing selection to just our current query
+        if extend_selection and self.is_selecting():
+            right_index = self.caret_tracker.get_rightmost_caret_index()
+            if right_index[0] < end_token.line_index or \
+                ( right_index[0] == end_token.line_index and right_index[1] < end_token.index_from_line_end ):
+                should_extend_right = False
+
         if not extend_selection:
             keys = self.navigate_to_token(start_token, 0)
         else:
-            keys = self.select_token(start_token, extend_selection)
-        keys.extend( self.select_token(end_token, True))
+            keys = self.select_token(start_token, extend_selection)            
 
+        if should_extend_right:
+            keys.extend( self.select_token(end_token, True))
         return keys
     
     def select_token(self, token: VirtualBufferToken, extend_selection: bool = False) -> List[str]:
@@ -574,7 +585,7 @@ class VirtualBuffer:
                     if caret_on_left_side:
                         reset_selection = True
 
-                if not reset_selection:                    
+                if not reset_selection:
                     after_keys = self.navigate_to_token(token, token_caret_end, True)
                     keys.extend(after_keys)
 
@@ -584,14 +595,14 @@ class VirtualBuffer:
                     for key in key_events:
                         self.apply_key(key)
                     keys.extend(key_events)
-
+                    
                     select_key_events = self.caret_tracker.navigate_to_position(right_caret[0], right_caret[1], False, True)
                     for key in select_key_events:
                         self.apply_key(key)
                     keys.extend(select_key_events)
             
             # New selection - just go to the token and select it
-            else:                
+            else:
                 before_keys = self.navigate_to_token(token, 0, False)
                 keys.extend(before_keys)
                 after_keys = self.navigate_to_token(token, -1, True)

@@ -585,7 +585,7 @@ class CaretTracker:
                 chosen_index = selection_index
 
         return chosen_index
-    
+
     def get_rightmost_caret_index(self, check_coarse = False) -> (int, int):
         leftmost_index = self.get_leftmost_caret_index(check_coarse)
         return self.get_caret_index(check_coarse) if not self.is_selecting() or self.get_caret_index(check_coarse) != leftmost_index else self.selection_caret_marker

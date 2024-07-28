@@ -153,7 +153,7 @@ class VirtualBufferManager:
             if self_repair_match is not None:
 
                 # If we are dealing with a continuation, change the insert to remove the first few words
-                if self_repair_match.score / len(self_repair_match.scores) == EXACT_MATCH:
+                if self_repair_match.score_potential == EXACT_MATCH:
                     words = insert.split()
                     if len(words) > len(self_repair_match.scores):
                         insert = " ".join(words[len(self_repair_match.scores):])
@@ -164,25 +164,25 @@ class VirtualBufferManager:
                 # We do not support replacing initial words, only inserting, as replacing initial words requires more context about meaning
                 # ( We have no -> We have a , but not, We have no -> They have no )
                 else:
-                    first_index = self_repair_match.indices[0]
+                    first_index = self_repair_match.buffer_indices[0][0]
                     allow_initial_replacement = False
                     if first_index - 1 >= 0:
                         allow_initial_replacement = any(punc in vbm.tokens[first_index - 1].text for punc in (".", "?", "!"))
                     else:
                         allow_initial_replacement = True
-                    replacement_index = 0 if allow_initial_replacement else -1
+                    replacement_index = 0 if allow_initial_replacement else 1
 
                     # Make sure that we only replace words from the first matching word instead of allowing a full replacement
                     if not allow_initial_replacement:
                         for index, score in enumerate(self_repair_match.scores):
-                            if score >= 1:
+                            if score == EXACT_MATCH:
                                 replacement_index = index
                                 insert = " ".join(insert.split()[index:])
                                 break
                     
                     if replacement_index >= 0:
-                        start_index = self_repair_match.indices[replacement_index]
-                        end_index = self_repair_match.indices[-1]
+                        start_index = self_repair_match.buffer_indices[replacement_index][0]
+                        end_index = self_repair_match.buffer_indices[-1][-1]
 
                         tokens = vbm.tokens
                         if start_index < len(tokens) and end_index < len(tokens):

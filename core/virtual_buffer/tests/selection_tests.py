@@ -80,18 +80,19 @@ def test_selfrepair(assertion, buffer: str, query: str, result: str = "") -> (bo
 
     vb.insert_tokens(tokens)
     match = vb.find_self_repair([x.phrase for x in query_tokens])
+    buffer_tokens = [] if match is None else vb.tokens[match.buffer_indices[0][0]:(match.buffer_indices[-1][-1] + 1)]
     if result != "":
-        is_valid = match is not None and " ".join(match.comparisons[1]).replace("  ", " ").strip() == result.strip()
+        is_valid = match is not None and " ".join([token.text for token in buffer_tokens]).replace("  ", " ").strip() == result.strip()
     else:
         is_valid = match is None
 
     if not is_valid:
         assertion("    Selfrepairing '" + buffer + "' with '" + query.strip() + "' does not works as expected", is_valid)
-        found_result = "" if match is None else " ".join(match.comparisons[1]).replace("  ", " ")
+        found_result = "" if match is None else " ".join([token.text for token in buffer_tokens]).replace("  ", " ")
         assertion("        Selected '" + found_result + "' but expected '" + result.strip() + "'")
     else:
         assertion("    Selfrepairing '" + buffer + "' with '" + query.strip() + "' works as expected", is_valid)
-    return is_valid, "" if match is None else " ".join(match.comparisons[1]).replace("  ", " ").strip()
+    return is_valid, "" if match is None else " ".join([token.text for token in buffer_tokens]).replace("  ", " ").strip()
 
 def selection_tests(assertion, skip_known_invalid = True, highlight_only = False) -> [int, int, [], [], []]:
     rows = 0
@@ -177,26 +178,26 @@ def noop_assertion_with_highlights(assertion):
     return lambda buffer, is_valid = False, assertion=assertion: assertion(buffer, is_valid) if is_valid == False and "#!" in buffer else noop_assertion(buffer, is_valid)
 
 def percentage_tests(assertion):
-    selection_results = selection_tests(noop_assertion_with_highlights(assertion), False)
-    correction_results = correction_tests(noop_assertion_with_highlights(assertion), False)
-    #selfrepair_results = selfrepair_tests(noop_assertion_with_highlights(assertion), False)
+    #selection_results = selection_tests(noop_assertion_with_highlights(assertion), False)
+    #correction_results = correction_tests(noop_assertion_with_highlights(assertion), False)
+    selfrepair_results = selfrepair_tests(noop_assertion_with_highlights(assertion), False)
     
-    total = correction_results[0] + selection_results[0]# + correction_results[0] + selfrepair_results[0]
-    valid = correction_results[1] + selection_results[1]# + correction_results[1] + selfrepair_results[1]
-    improvement_count = len(selection_results[2]) + len(correction_results[2])# + len(selfrepair_results[2])    
-    regression_count = len(selection_results[3]) + len(correction_results[3])# + len(selfrepair_results[3])
+    total = selfrepair_results[0]#correction_results[0] + selection_results[0]# + correction_results[0] + selfrepair_results[0]
+    valid = selfrepair_results[1]#correction_results[1] + selection_results[1]# + correction_results[1] + selfrepair_results[1]
+    improvement_count = len(selfrepair_results[2])#len(selection_results[2]) + len(correction_results[2])# + len(selfrepair_results[2])    
+    regression_count = len(selfrepair_results[3])#len(selection_results[3]) + len(correction_results[3])# + len(selfrepair_results[3])
     
     percentage = round((valid / total) * 1000) / 10
     reg = "Regressions: " + str(regression_count) + ", improvements: " + str(improvement_count) + ", invalid: " + str(total - valid)
-    assertion("Percentage of valid queries: " + str(percentage) + "%, " + reg, valid / total >= 0.95)
+    assertion("Percentage of valid queries: " + str(percentage) + "%, " + reg, valid / total >= 1)
     #for improvement in selection_results[2]:
     #    assertion(improvement["buffer"] + " searching '" + improvement["query"] + "' correctly yields '" + improvement["result"] + "'")
     total_results = {}
-    #for invalid_result in selfrepair_results[4]:
-    #    key = str(len(invalid_result["inserted"].split())) + "-" + str(len(invalid_result["selfrepaired"].split())) + "-" + str(len(invalid_result["actual"].split()))
-    #    if key not in total_results:
-    #        total_results[key] = 0
-    #    total_results[key] += 1
+    for invalid_result in selfrepair_results[4]:
+        key = str(len(invalid_result["inserted"].split())) + "-" + str(len(invalid_result["selfrepaired"].split())) + "-" + str(len(invalid_result["actual"].split()))
+        if key not in total_results:
+            total_results[key] = 0
+        total_results[key] += 1
     #    assertion(invalid_result["buffer"] + " correcting '" + invalid_result["inserted"] + "' does not yield '" + invalid_result["selfrepaired"] + "' but '" + invalid_result["actual"] + "'", False)
 
     # Last check before algo change
@@ -448,18 +449,36 @@ def percentage_tests(assertion):
     # 6 correction = 1
     # 7 correction = 0
 
+    # After fixing unit tests and reconnecting self-repair to the new algorithm
+    # 73.4% accuracy - 133 errors
+    # 106 = 80% = Expected result, got NOTHING
+    # 22 = 17% = Expected NOTHING, got result
+    # Unexpected results = 3%
+    # 1 correction = 2
+    # 2 correction = 7
+    # 3 correction = 32
+    # 4 correction = 25
+    # 5 correction = 25
+    # 6 correction = 19
+    # 7 correction = 9
+    # 8 correction = 6
+    # 9 correction = 3
+    # 10 correction = 1
+    # 11 correction = 3
+    # 12 correction = 1
+
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
     #    if key not in total_results:
     #        total_results[key] = 0
     #    total_results[key] += 1
     #    assertion(regression["buffer"] + " searching '" + regression["query"] + "' does not yield '" + regression["result"] + "' but '" + regression["actual"] + "'")
-    #print( total_results )
+    print( total_results )
     #selection_tests(assertion, False, True)
 
 suite = create_test_suite("Selecting whole phrases inside of a selection")
 #suite.add_test(selection_tests)
 #suite.add_test(correction_tests)
 #suite.add_test(selfrepair_tests)
-#suite.add_test(percentage_tests)
-#suite.run()
+suite.add_test(percentage_tests)
+suite.run()

@@ -153,12 +153,12 @@ class VirtualBuffer:
         if reindex:
             self.reformat_tokens()
 
-    def find_self_repair(self, phrase: List[str]):
-        self_repair_matches = self.matcher.find_self_repair_match(self, phrase)
+    def find_self_repair(self, phrase: List[str], verbose: bool = False):
+        self_repair_matches = self.matcher.find_self_repair_match(self, phrase, verbose=verbose)
         return self_repair_matches
 
-    def detect_self_repair(self, phrase: List[str]) -> bool:
-        return self.find_self_repair(phrase) is not None
+    def detect_self_repair(self, phrase: List[str], verbose: bool = False) -> bool:
+        return self.find_self_repair(phrase, verbose=verbose) is not None
 
     def detect_merge_strategy(self, token_index: int, token_character_index: int, token: VirtualBufferToken) -> (int, int, int):
         current_strategy = MERGE_STRATEGY_IGNORE
@@ -523,9 +523,9 @@ class VirtualBuffer:
                 if not should_go_to_next_occurrence:
                     break
 
-        best_match = self.matcher.find_best_match_by_phrases_2(self, phrases, match_threshold, should_go_to_next_occurrence, selecting=True, for_correction=for_correction, verbose=verbose)
-        if best_match is not None and len(best_match) > 0:
-            return self.select_token_range(best_match[0], best_match[-1], extend_selection=extend_selection)
+        best_match_tokens, best_match = self.matcher.find_best_match_by_phrases_2(self, phrases, match_threshold, should_go_to_next_occurrence, selecting=True, for_correction=for_correction, verbose=verbose)
+        if best_match_tokens is not None and len(best_match_tokens) > 0:
+            return self.select_token_range(best_match_tokens[0], best_match_tokens[-1], extend_selection=extend_selection)
         else:
             return []
 

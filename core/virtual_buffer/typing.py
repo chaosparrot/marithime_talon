@@ -84,11 +84,12 @@ class VirtualBufferMatchMatrix:
         self.length = len(tokens)
 
     def get_submatrix(self, starting_index: int, ending_index: int):
-        max_index = self.index + len(self.tokens)
+        # These use local indices that get translated to global indices later
+        max_index = len(self.tokens)
         submatrix_tokens = []
-        if starting_index <= ending_index and starting_index >= self.index and ending_index <= max_index:
+        if starting_index <= ending_index and starting_index >= 0 and ending_index <= max_index:
             submatrix_tokens = self.tokens[starting_index:ending_index]
-        return VirtualBufferMatchMatrix(starting_index, submatrix_tokens)
+        return VirtualBufferMatchMatrix(self.index + starting_index, submatrix_tokens)
 
     def is_valid_index(self, index) -> bool:
         return index >= 0 and index < self.length

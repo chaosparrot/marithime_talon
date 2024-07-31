@@ -79,7 +79,7 @@ def test_selfrepair(assertion, buffer: str, query: str, result: str = "") -> (bo
         query_tokens.extend(text_to_virtual_buffer_tokens(query_token + (" " if index < len(query_text_tokens) - 1 else "")))
 
     vb.insert_tokens(tokens)
-    match = vb.find_self_repair([x.phrase for x in query_tokens])
+    match = vb.find_self_repair([x.phrase for x in query_tokens], verbose = buffer.startswith("###"))
     buffer_tokens = [] if match is None else vb.tokens[match.buffer_indices[0][0]:(match.buffer_indices[-1][-1] + 1)]
     if result != "":
         is_valid = match is not None and " ".join([token.text for token in buffer_tokens]).replace("  ", " ").strip() == result.strip()
@@ -198,7 +198,7 @@ def percentage_tests(assertion):
         if key not in total_results:
             total_results[key] = 0
         total_results[key] += 1
-    #    assertion(invalid_result["buffer"] + " correcting '" + invalid_result["inserted"] + "' does not yield '" + invalid_result["selfrepaired"] + "' but '" + invalid_result["actual"] + "'", False)
+        #assertion(invalid_result["buffer"] + " correcting '" + invalid_result["inserted"] + "' does not yield '" + invalid_result["selfrepaired"] + "' but '" + invalid_result["actual"] + "'", False)
 
     # Last check before algo change
     # 118 / 196 = 60% = Expected result, got NOTHING
@@ -466,6 +466,46 @@ def percentage_tests(assertion):
     # 10 correction = 1
     # 11 correction = 3
     # 12 correction = 1
+
+    # After changing the first match requirement to be over the correction threshold
+    # 83% accuracy - 85 errors - Down from 133
+    # 46 = 54% = Expected result, got NOTHING
+    # 29 = 34% = Expected NOTHING, got result
+    # Unexpected results = 12%
+    # 1 correction = 0
+    # 2 correction = 3
+    # 3 correction = 23
+    # 4 correction = 16
+    # 5 correction = 15
+    # 6 correction = 14
+    # 7 correction = 5
+    # 8 correction = 5
+    # 9 correction = 2
+    # 10 correction = 0
+    # 11 correction = 1
+    # 12 correction = 1
+
+    # After adding an exception for first match not being good but the rest being excellent
+    # 88.8% accuracy - 56 errors - Down from 85
+    # 12 = 21% = Expected result, got NOTHING
+    # 29 = 52% = Expected NOTHING, got result
+    # Unexpected results = 27%
+    # 1 correction = 0
+    # 2 correction = 2
+    # 3 correction = 19
+    # 4 correction = 7
+    # 5 correction = 11
+    # 6 correction = 10
+    # 7 correction = 2
+    # 8 correction = 2
+    # 9 correction = 0
+    # 10 correction = 0
+    # 11 correction = 1
+    # 12 correction = 1
+
+    # TODO IMPLEMENT PUNCTUATION WITHIN QUERY CHECK
+    # After correcting some mistakes in the test set
+    # 90.4% accuracy
 
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))

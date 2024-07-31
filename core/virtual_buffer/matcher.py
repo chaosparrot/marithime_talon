@@ -758,8 +758,13 @@ class VirtualBufferMatcher:
                             final_token_matches = best_match.buffer_indices[-1][-1] >= current_index[0]
 
                             # When the first word of the match isn't exact it is not a self repair
-                            first_token_matches = best_match.scores[0] >= PHONETIC_MATCH
-                            if final_token_matches and first_token_matches:
+                            first_token_matches = best_match.scores[0] >= CORRECTION_THRESHOLD
+
+                            # If it is only the first token that doesn't match, but the rest is very confident
+                            # We expect we need to replace the first item
+                            first_token_doesnt_match_but_others_high = best_match.scores[0] < CORRECTION_THRESHOLD and \
+                                best_match.score_potential > SELECTION_THRESHOLD
+                            if final_token_matches and (first_token_matches or first_token_doesnt_match_but_others_high):
                                 if verbose:
                                     print("FOUND SELF-REPAIR MATCH", best_match)
                                 return best_match

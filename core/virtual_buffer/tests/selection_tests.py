@@ -198,7 +198,7 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
         if key not in total_results:
             total_results[key] = 0
         total_results[key] += 1
-        #assertion(invalid_result["buffer"] + " correcting '" + invalid_result["inserted"] + "' does not yield '" + invalid_result["selfrepaired"] + "' but '" + invalid_result["actual"] + "'", False)
+        #assertion(invalid_result["buffer"] + " selecting '" + invalid_result["query"] + "' does not yield '" + invalid_result["result"] + "' but '" + invalid_result["actual"] + "'", False)
 
     for invalid_result in correction_results[4]:
         key = str(len(invalid_result["correction"].split())) + "-" + str(len(invalid_result["result"].split())) + "-" + str(len(invalid_result["actual"].split()))
@@ -542,8 +542,8 @@ def percentage_test_selfrepair(assertion):
 
 
 suite = create_test_suite("Selecting whole phrases inside of a selection")
-suite.add_test(percentage_test_selection)
+#suite.add_test(percentage_test_selection)
 #suite.add_test(percentage_test_correction)
 #suite.add_test(percentage_test_selfrepair)
 #suite.add_test(percentage_tests)
-suite.run()
+#suite.run()

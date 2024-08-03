@@ -80,7 +80,7 @@ class VirtualBufferMatcher:
                     highest_match = max(highest_match, submatrix_matches[0].score_potential)
                     #if verbose:
                     #    print( "- Updating threshold to: " + str(highest_match))
-                    match_calculation.match_threshold = highest_match
+                    #match_calculation.match_threshold = highest_match
                     matrix_group_matches.extend(submatrix_matches)
                     if not for_correction:
                         highest_score_achieved = highest_match == match_calculation.max_score
@@ -172,22 +172,22 @@ class VirtualBufferMatcher:
 
         # Initial branches
         if verbose:
-            print(" - Starting branches", branches, match_calculation.starting_branches)
+            print(" - Starting branches", branches)
         match_branches = []
         for branch in branches:
-            if branch.score >= match_calculation.match_threshold:
+            combined_weight = sum([match_calculation.weights[index] for index in branch.query_indices])
+            if branch.score_potential >= match_calculation.match_threshold:
                 match_branch = starting_match.clone()
                 match_branch.query_indices.append(branch.query_indices)
                 match_branch.query.extend([query[index] for index in branch.query_indices])
-                combined_weight = sum([match_calculation.weights[index] for index in branch.query_indices])
                 normalized_buffer_indices = [index - submatrix.index for index in branch.buffer_indices]
                 match_branch.buffer_indices.append(normalized_buffer_indices)
                 match_branch.buffer.extend([buffer[buffer_index] for buffer_index in normalized_buffer_indices])
                 match_branch.scores.append(branch.score)
                 match_branch.reduce_potential(match_calculation.max_score, branch.score, combined_weight) 
                 match_branches.append(match_branch)
-
-                is_multiple_query_match = len(branch.query_indices) > 1                
+            elif verbose:
+                print( "Branch rejected because ", branch.score_potential, "<", match_calculation.match_threshold, branch )
 
 
             #word_index = branch.query_indices[0]

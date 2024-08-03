@@ -30,6 +30,7 @@ class VirtualBufferInitialBranch:
     query_indices: List[int]
     buffer_indices: List[int]
     score: float = 0.0
+    score_potential: float = 0.0
 
     def __hash__(self):
         return hash("_".join(map(str, self.query_indices)) + "-" + "_".join(map(str, self.buffer_indices)))
@@ -60,8 +61,6 @@ class VirtualBufferMatchCalculation:
 
     # Calculate the list of possible search branches that can lead to a match, sorted by most likely
     def get_possible_branches(self) -> List[List[int]]:
-
-        # TODO FIX IMPOSSIBLE BRANCH DETECTION
         impossible_potential = 0
         for potential in self.potentials:
             if self.max_score - potential < self.match_threshold:
@@ -82,12 +81,12 @@ class VirtualBufferMatchCalculation:
         return [potential["index"] for potential in sorted_potentials]
     
     def append_starting_branch(self, query_indices: List[int], buffer_indices: List[int], score: float):
-        if score >= self.match_threshold:
-            self.starting_branches.append(VirtualBufferInitialBranch(query_indices, buffer_indices, score))
-            self.starting_branches = sorted(set(self.starting_branches), key=lambda branch: branch.score, reverse=True)
+        combined_weight = sum([self.weights[index] for index in query_indices])
+        reduced_potential = (self.max_score - score) * combined_weight
+        self.starting_branches.append(VirtualBufferInitialBranch(query_indices, buffer_indices, score, self.max_score - reduced_potential))
 
     def get_starting_branches(self, submatrix) -> List[VirtualBufferInitialBranch]:
-        return list(set([branch for branch in self.starting_branches if submatrix.is_valid_index(branch.buffer_indices[0] - submatrix.index)]))
+        return sorted(list(set([branch for branch in self.starting_branches if submatrix.is_valid_index(branch.buffer_indices[0] - submatrix.index)])), key=lambda branch: branch.score, reverse=True)
 
 @dataclass
 class VirtualBufferMatchMatrix:

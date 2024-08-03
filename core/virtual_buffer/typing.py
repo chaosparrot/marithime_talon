@@ -25,6 +25,15 @@ class VirtualBufferTokenMatch:
     syllable_scores: List[float]
     distance: float = 0.0
 
+@dataclass
+class VirtualBufferInitialBranch:
+    query_indices: List[int]
+    buffer_indices: List[int]
+    score: float = 0.0
+
+    def __hash__(self):
+        return hash("_".join(map(str, self.query_indices)) + "-" + "_".join(map(str, self.buffer_indices)))
+
 class VirtualBufferMatchCalculation:
     words: List[str]
     weights: List[float]
@@ -35,6 +44,7 @@ class VirtualBufferMatchCalculation:
     length: float
     allowed_skips: int
     purpose: str
+    starting_branches: List[VirtualBufferInitialBranch]
 
     def __init__(self, words: List[str], weights: List[str], syllables: List[int], match_threshold = 0, max_score_per_word = 1.2, purpose = "selection"):
         self.words = words
@@ -46,6 +56,7 @@ class VirtualBufferMatchCalculation:
         self.potentials = [weight * max_score_per_word for weight in weights]
         self.purpose = purpose
         self.allowed_skips = len(words) - (1 if purpose == "correction" else 2 )
+        self.starting_branches = []
 
     # Calculate the list of possible search branches that can lead to a match, sorted by most likely
     def get_possible_branches(self) -> List[List[int]]:
@@ -54,7 +65,7 @@ class VirtualBufferMatchCalculation:
         impossible_potential = 0
         for potential in self.potentials:
             if self.max_score - potential < self.match_threshold:
-                impossible_potential = 0#max(potential, impossible_potential)
+                impossible_potential = max(potential, impossible_potential)
         
         # Add two- and three-word combinations as well
         combined_potentials = []
@@ -69,6 +80,14 @@ class VirtualBufferMatchCalculation:
         sorted_potentials.sort(key=lambda x: x["potential"], reverse=True)
 
         return [potential["index"] for potential in sorted_potentials]
+    
+    def append_starting_branch(self, query_indices: List[int], buffer_indices: List[int], score: float):
+        if score >= self.match_threshold:
+            self.starting_branches.append(VirtualBufferInitialBranch(query_indices, buffer_indices, score))
+            self.starting_branches = sorted(set(self.starting_branches), key=lambda branch: branch.score, reverse=True)
+
+    def get_starting_branches(self, submatrix) -> List[VirtualBufferInitialBranch]:
+        return [branch for branch in self.starting_branches if submatrix.is_valid_index(branch.buffer_indices[0] - submatrix.index)]
 
 @dataclass
 class VirtualBufferMatchMatrix:
@@ -96,6 +115,9 @@ class VirtualBufferMatchMatrix:
 
     def to_global_index(self, index) -> int:
         return self.index + index
+    
+    def __hash__(self) -> int:
+        return hash(str(self.index) + "_" + str(self.length))
 
 @dataclass
 class VirtualBufferMatch:
@@ -154,6 +176,12 @@ class VirtualBufferMatch:
 
     def clone(self) -> Self:
         return VirtualBufferMatch(list(self.query_indices), list(self.buffer_indices), list(self.query), list(self.buffer), list(self.scores), self.score_potential, self.distance)
+
+    def __hash__(self):
+        query_indices = "-".join(map(str, ["".join(str(index)) for index in self.query_indices]))
+        buffer_indices = "-".join(map(str, ["".join(str(index)) for index in self.buffer_indices]))
+        return hash(query_indices + "-" + buffer_indices)
+
 
 @dataclass
 class VirtualBufferTokenContext:

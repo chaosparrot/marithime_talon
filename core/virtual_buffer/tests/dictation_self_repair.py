@@ -83,4 +83,3 @@ def test_add_known_self_repair_examples(assertion):
 suite = create_test_suite("Self repair in dictation")
 suite.add_test(test_detect_self_repair)
 suite.add_test(test_add_known_self_repair_examples)
-suite.run()

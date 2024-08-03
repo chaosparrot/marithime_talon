@@ -177,22 +177,37 @@ def noop_assertion(_, _2 = False):
 def noop_assertion_with_highlights(assertion):
     return lambda buffer, is_valid = False, assertion=assertion: assertion(buffer, is_valid) if is_valid == False and "#!" in buffer else noop_assertion(buffer, is_valid)
 
-def percentage_tests(assertion):
-    #selection_results = selection_tests(noop_assertion_with_highlights(assertion), False)
-    #correction_results = correction_tests(noop_assertion_with_highlights(assertion), False)
-    selfrepair_results = selfrepair_tests(noop_assertion_with_highlights(assertion), False)
+def percentage_tests(assertion, selection = True, correction = True, selfrepair = True, desired_threshold = 1):
+    selection_results = selection_tests(noop_assertion_with_highlights(assertion), False) if selection else [0, 0, [], [], []]
+    correction_results = correction_tests(noop_assertion_with_highlights(assertion), False) if correction else [0, 0, [], [], []]
+    selfrepair_results = selfrepair_tests(noop_assertion_with_highlights(assertion), False) if selfrepair else [0, 0, [], [], []]
     
-    total = selfrepair_results[0]#correction_results[0] + selection_results[0]# + correction_results[0] + selfrepair_results[0]
-    valid = selfrepair_results[1]#correction_results[1] + selection_results[1]# + correction_results[1] + selfrepair_results[1]
-    improvement_count = len(selfrepair_results[2])#len(selection_results[2]) + len(correction_results[2])# + len(selfrepair_results[2])    
-    regression_count = len(selfrepair_results[3])#len(selection_results[3]) + len(correction_results[3])# + len(selfrepair_results[3])
+    total = selfrepair_results[0] + correction_results[0] + selection_results[0]
+    valid = selfrepair_results[1] + correction_results[1] + selection_results[1]
+    improvement_count = len(selfrepair_results[2]) + len(selection_results[2]) + len(correction_results[2])
+    regression_count = len(selfrepair_results[3]) + len(selection_results[3]) + len(correction_results[3])
     
     percentage = round((valid / total) * 1000) / 10
     reg = "Regressions: " + str(regression_count) + ", improvements: " + str(improvement_count) + ", invalid: " + str(total - valid)
-    assertion("Percentage of valid queries: " + str(percentage) + "%, " + reg, valid / total >= 1)
+    assertion("Percentage of valid queries: " + str(percentage) + "%, " + reg, valid / total >= desired_threshold)
     #for improvement in selection_results[2]:
     #    assertion(improvement["buffer"] + " searching '" + improvement["query"] + "' correctly yields '" + improvement["result"] + "'")
     total_results = {}
+    for invalid_result in selection_results[4]:
+        key = str(len(invalid_result["query"].split())) + "-" + str(len(invalid_result["result"].split())) + "-" + str(len(invalid_result["actual"].split()))
+        if key not in total_results:
+            total_results[key] = 0
+        total_results[key] += 1
+        #assertion(invalid_result["buffer"] + " correcting '" + invalid_result["inserted"] + "' does not yield '" + invalid_result["selfrepaired"] + "' but '" + invalid_result["actual"] + "'", False)
+
+    for invalid_result in correction_results[4]:
+        key = str(len(invalid_result["correction"].split())) + "-" + str(len(invalid_result["result"].split())) + "-" + str(len(invalid_result["actual"].split()))
+        if key not in total_results:
+            total_results[key] = 0
+        total_results[key] += 1
+        #assertion(invalid_result["buffer"] + " correcting '" + invalid_result["inserted"] + "' does not yield '" + invalid_result["selfrepaired"] + "' but '" + invalid_result["actual"] + "'", False)
+
+
     for invalid_result in selfrepair_results[4]:
         key = str(len(invalid_result["inserted"].split())) + "-" + str(len(invalid_result["selfrepaired"].split())) + "-" + str(len(invalid_result["actual"].split()))
         if key not in total_results:
@@ -513,12 +528,22 @@ def percentage_tests(assertion):
     #        total_results[key] = 0
     #    total_results[key] += 1
     #    assertion(regression["buffer"] + " searching '" + regression["query"] + "' does not yield '" + regression["result"] + "' but '" + regression["actual"] + "'")
-    print( total_results )
+    #print( total_results )
     #selection_tests(assertion, False, True)
 
+def percentage_test_selection(assertion):
+    percentage_tests(assertion, True, False, False, 0.9)
+
+def percentage_test_correction(assertion):
+    percentage_tests(assertion, False, True, False, 0.9)
+
+def percentage_test_selfrepair(assertion):
+    percentage_tests(assertion, False, False, True, 0.9)
+
+
 suite = create_test_suite("Selecting whole phrases inside of a selection")
-#suite.add_test(selection_tests)
-#suite.add_test(correction_tests)
-#suite.add_test(selfrepair_tests)
-suite.add_test(percentage_tests)
-suite.run()
+#suite.add_test(percentage_test_selection)
+suite.add_test(percentage_test_correction)
+#suite.add_test(percentage_test_selfrepair)
+#suite.add_test(percentage_tests)
+#suite.run()

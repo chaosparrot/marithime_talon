@@ -39,17 +39,18 @@ class VirtualBufferMatcher:
                 return True
 
         return False
+    
+    def get_threshold_for_selection(self, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD) -> float:
+        # Taper the threshold according to the amount of queried words
+        # So we are more stringent with single words than double words
+        # After 3 it is settled
+        match_threshold += 0.1 * max(0, (3 - len(phrases)))
+        return min(0.83, match_threshold)
 
     def find_top_three_matches_in_matrix(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, selecting: bool = False, for_correction: bool = False, for_selfrepair: bool = False, verbose: bool = False):
         # Don't change the match threshold for corrections
         if not for_correction:
-
-            # Taper the threshold according to the amount of queried words
-            # So we are more stringent with single words than double words
-            # After 3 it is settled
-            match_threshold += 0.1 * max(0, (3 - len(phrases)))
-            match_threshold = min(0.83, match_threshold)
-
+            match_threshold = self.get_threshold_for_selection(phrases, match_threshold)
         match_calculation = self.generate_match_calculation(phrases, match_threshold, purpose=("correction" if for_correction else "selection"))
 
         leftmost_token_index = virtual_buffer.determine_leftmost_token_index()[0]
@@ -60,7 +61,7 @@ class VirtualBufferMatcher:
             starting_index = max(0, rightmost_token_index + 1 - (len(phrases) * 2))
             ending_index = rightmost_token_index + 1
         matrix = VirtualBufferMatchMatrix(starting_index, virtual_buffer.tokens[starting_index:ending_index])
-        submatrices = self.find_potential_submatrices(match_calculation, matrix, verbose=verbose)
+        submatrices, match_calculation = self.find_potential_submatrices(match_calculation, matrix, verbose=verbose)
 
         split_submatrices = self.split_submatrices_by_cursor_position(submatrices, leftmost_token_index, rightmost_token_index)
         highest_score_achieved = False
@@ -79,9 +80,10 @@ class VirtualBufferMatcher:
                     highest_match = max(highest_match, submatrix_matches[0].score_potential)
                     #if verbose:
                     #    print( "- Updating threshold to: " + str(highest_match))
-                    #match_calculation.match_threshold = highest_match
+                    match_calculation.match_threshold = highest_match
                     matrix_group_matches.extend(submatrix_matches)
-                    highest_score_achieved = highest_match == match_calculation.max_score
+                    if not for_correction:
+                        highest_score_achieved = highest_match == match_calculation.max_score
 
                 # Do not seek any further if we have reached the highest possible score
                 # Since no improvement is possible
@@ -122,20 +124,23 @@ class VirtualBufferMatcher:
         return VirtualBufferMatchCalculation(query_words, weights, syllables_per_word, threshold, max_score_per_word, purpose)
     
     # Generate a list of (sorted) potential submatrices to look through
-    def find_potential_submatrices(self, match_calculation: VirtualBufferMatchCalculation, matrix: VirtualBufferMatchMatrix, verbose: bool = False) -> List[VirtualBufferMatchMatrix]:
+    def find_potential_submatrices(self, match_calculation: VirtualBufferMatchCalculation, matrix: VirtualBufferMatchMatrix, verbose: bool = False):
         word_indices = match_calculation.get_possible_branches()
         max_submatrix_size = len(match_calculation.words) * 3
         sub_matrices = []
         for word_index in word_indices:
-            sub_matrices.extend(self.find_potential_submatrices_for_words(matrix, match_calculation, word_index, max_submatrix_size, verbose=verbose))
+            potential_submatrices, match_calculation = self.find_potential_submatrices_for_words(matrix, match_calculation, word_index, max_submatrix_size, verbose=verbose)
+            sub_matrices.extend(potential_submatrices)
 
         if verbose:
             print( "    - FOUND ROOTS FOR THESE MATRICES", len(sub_matrices))
+            print( match_calculation.starting_branches )
+
         sub_matrices = self.simplify_submatrices(sub_matrices)
         if verbose:
             print("    - Simplified to these matrices", len(sub_matrices))
 
-        return sub_matrices
+        return sub_matrices, match_calculation
 
     # Split the submatrices up into three zones that are important for selection
     # The zone before, on and after the caret
@@ -159,7 +164,7 @@ class VirtualBufferMatcher:
         return [before, current, after]
     
     def find_matches_in_matrix(self, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, highest_match: float = 0, early_stopping: bool = True, verbose: bool = False) -> List[VirtualBufferMatch]:
-        branches = match_calculation.get_possible_branches()
+        branches = match_calculation.get_starting_branches(submatrix)
         query = match_calculation.words
         buffer = [token.phrase for token in submatrix.tokens]
 
@@ -167,81 +172,89 @@ class VirtualBufferMatcher:
 
         # Initial branches
         if verbose:
-            print(" - Starting branches", branches)
+            print(" - Starting branches", branches, match_calculation.starting_branches)
         match_branches = []
         for branch in branches:
-            query_match_branch = starting_match.clone()
-            query_match_branch.query_indices.append(branch)
-            query_match_branch.query.extend([query[index] for index in branch])
-            combined_weight = sum([match_calculation.weights[index] for index in branch])
-            is_multiple_query_match = len(branch) > 1
-            highest_match_score = 0
+            if branch.score >= match_calculation.match_threshold:
+                match_branch = starting_match.clone()
+                match_branch.query_indices.append(branch.query_indices)
+                match_branch.query.extend([query[index] for index in branch.query_indices])
+                combined_weight = sum([match_calculation.weights[index] for index in branch.query_indices])
+                normalized_buffer_indices = [index - submatrix.index for index in branch.buffer_indices]
+                match_branch.buffer_indices.append(normalized_buffer_indices)
+                match_branch.buffer.extend([buffer[buffer_index] for buffer_index in normalized_buffer_indices])
+                match_branch.scores.append(branch.score)
+                match_branch.reduce_potential(match_calculation.max_score, branch.score, combined_weight) 
+                match_branches.append(match_branch)
 
-            word_index = branch[0]
-            end_word_index = branch[-1]
-            max_buffer_search = len(buffer) - (len(query))
-            if verbose:
-                print(" - Attempting", query_match_branch.query, combined_weight)
+                is_multiple_query_match = len(branch.query_indices) > 1                
 
-            for buffer_index in range(word_index, end_word_index + max_buffer_search + 1):
-                buffer_word = buffer[buffer_index]
-                score = self.get_memoized_similarity_score("".join(query_match_branch.query), buffer_word)
-                if verbose:
-                    print( "     - Score with " + buffer_word + ": " + str(score))
+
+            #word_index = branch.query_indices[0]
+            #end_word_index = branch.query_indices[-1]
+            #max_buffer_search = len(buffer) - (len(query))
+            #if verbose:
+            #    print(" - Attempting", query_match_branch.query, combined_weight)
+
+            #for buffer_index in range(word_index, end_word_index + max_buffer_search + 1):
+            #    buffer_word = buffer[buffer_index]
+            #    score = self.get_memoized_similarity_score("".join(query_match_branch.query), buffer_word)
+            #    if verbose:
+            #        print( "     - Score with " + buffer_word + ": " + str(score))
 
                 # Only add a match branch for a combined query search if the combined search scores higher than individual scores
-                if is_multiple_query_match:
-                    individual_scores = [self.get_memoized_similarity_score(word, buffer_word) for word in match_calculation.words]
-                    if max(individual_scores) > score:
-                        continue
+            #    if is_multiple_query_match:
+            #        individual_scores = [self.get_memoized_similarity_score(word, buffer_word) for word in match_calculation.words]
+            #        if max(individual_scores) > score:
+            #            continue
 
                 # Attempt multi-buffer matches if they score higher than the single match buffer case
-                highest_match_score = score
-                buffer_indices_to_use = [buffer_index]
-                if not is_multiple_query_match:
-                    next_word = ""
+            #    highest_match_score = score
+            #    buffer_indices_to_use = [buffer_index]
+            #    if not is_multiple_query_match:
+            #        next_word = ""
 
                     # Combine two words
-                    if buffer_index + 1 <= max_buffer_search and buffer_index + 1 < len(buffer):
-                        next_word = buffer[buffer_index + 1]
-                        next_forward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), buffer_word + next_word)
-                        if next_forward_score > highest_match_score:
-                            highest_match_score = next_forward_score
-                            buffer_indices_to_use = [buffer_index, buffer_index + 1]
+            #        if buffer_index + 1 <= max_buffer_search and buffer_index + 1 < len(buffer):
+            #            next_word = buffer[buffer_index + 1]
+            #            next_forward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), buffer_word + next_word)
+            #            if next_forward_score > highest_match_score:
+            #                highest_match_score = next_forward_score
+            #                buffer_indices_to_use = [buffer_index, buffer_index + 1]
 
                     # Combine three words
-                    if buffer_index + 2 <= max_buffer_search and buffer_index + 2 < len(buffer) and len(buffer_indices_to_use) == 2:
-                        second_next_word = buffer[buffer_index + 2]
-                        next_forward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), buffer_word + next_word + second_next_word)
-                        if next_forward_score > highest_match_score:
-                            highest_match_score = next_forward_score
-                            buffer_indices_to_use = [buffer_index, buffer_index + 1, buffer_index + 2]
+            #        if buffer_index + 2 <= max_buffer_search and buffer_index + 2 < len(buffer) and len(buffer_indices_to_use) == 2:
+            #            second_next_word = buffer[buffer_index + 2]
+            #            next_forward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), buffer_word + next_word + second_next_word)
+            #            if next_forward_score > highest_match_score:
+            #                highest_match_score = next_forward_score
+            #                buffer_indices_to_use = [buffer_index, buffer_index + 1, buffer_index + 2]
 
                     # Combine two words backward
-                    if buffer_index - 1 >= word_index:
-                        previous_word = buffer[buffer_index - 1]
-                        previous_backward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), previous_word + buffer_word)
-                        if previous_backward_score > highest_match_score:
-                            highest_match_score = previous_backward_score
-                            buffer_indices_to_use = [buffer_index - 1, buffer_index]
+            #        if buffer_index - 1 >= word_index:
+            #            previous_word = buffer[buffer_index - 1]
+            #            previous_backward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), previous_word + buffer_word)
+            #            if previous_backward_score > highest_match_score:
+            #                highest_match_score = previous_backward_score
+            #                buffer_indices_to_use = [buffer_index - 1, buffer_index]
 
                     # Combine three words backward
-                    if buffer_index - 2 >= word_index and len(buffer_indices_to_use) == 2:
-                        second_previous_word = buffer[buffer_index - 2]
-                        previous_backward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), second_previous_word + previous_word + buffer_word)
-                        if previous_backward_score > highest_match_score:
-                            highest_match_score = previous_backward_score
-                            buffer_indices_to_use = [buffer_index - 2, buffer_index - 1, buffer_index]
-                
+            #        if buffer_index - 2 >= word_index and len(buffer_indices_to_use) == 2:
+            #            second_previous_word = buffer[buffer_index - 2]
+            #            previous_backward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), second_previous_word + previous_word + buffer_word)
+            #            if previous_backward_score > highest_match_score:
+            #                highest_match_score = previous_backward_score
+            #                buffer_indices_to_use = [buffer_index - 2, buffer_index - 1, buffer_index]
+
                 # Add only a single combination even if multiple options might have a better overall chance
                 # Only if the words compare well enough will we continue searching
-                if highest_match_score >= match_calculation.match_threshold:
-                    match_branch = query_match_branch.clone()
-                    match_branch.buffer_indices.append(buffer_indices_to_use)
-                    match_branch.buffer.extend([buffer[buffer_index] for buffer_index in buffer_indices_to_use])
-                    match_branch.scores.append(highest_match_score)
-                    match_branch.reduce_potential(match_calculation.max_score, score, combined_weight) 
-                    match_branches.append(match_branch)
+            #    if highest_match_score >= match_calculation.match_threshold:
+            #        match_branch = query_match_branch.clone()
+            #        match_branch.buffer_indices.append(buffer_indices_to_use)
+            #        match_branch.buffer.extend([buffer[buffer_index] for buffer_index in buffer_indices_to_use])
+            #        match_branch.scores.append(highest_match_score)
+            #        match_branch.reduce_potential(match_calculation.max_score, score, combined_weight) 
+            #        match_branches.append(match_branch)
 
         # Filter searches that do not match the previous best and sort by the best score first
         searches = []
@@ -272,7 +285,7 @@ class VirtualBufferMatcher:
                 for match_tree in match_trees:
                     expanded_matrices.extend(self.expand_match_tree_backward(match_tree, match_calculation, submatrix, verbose=verbose))
                 can_expand_backward_count = sum([expanded_matrix.can_expand_backward(submatrix) for expanded_matrix in expanded_matrices])
-                match_trees = expanded_matrices
+                match_trees = list(set(expanded_matrices))
             
             if verbose:
                 print( "---- BACKWARD", match_trees )
@@ -287,7 +300,7 @@ class VirtualBufferMatcher:
                 for match_tree in match_trees:
                     expanded_matrices.extend(self.expand_match_tree_forward(match_tree, match_calculation, submatrix, verbose=verbose))
                 can_expand_forward_count = sum([expanded_matrix.can_expand_forward(match_calculation, submatrix) for expanded_matrix in expanded_matrices])
-                match_trees = expanded_matrices
+                match_trees = list(set(expanded_matrices))
             
             if verbose:
                 print( "---- FORWARD", match_trees )
@@ -296,7 +309,6 @@ class VirtualBufferMatcher:
 
         # Filter out results with multiple consecutive bad results
         low_score_threshold = match_calculation.match_threshold / 2
-        is_correction = True
         single_word_score_threshold = -1 if match_calculation.purpose == "correction" else 0.29
         combined_word_score_threshold = 0.1 if match_calculation.purpose == "correction" else 0.5
         
@@ -662,13 +674,14 @@ class VirtualBufferMatcher:
         # Only search within the viable range ( no cut off matches at the start and end of the matrix )
         # Due to multiple different fuzzy matches being possible, it isn't possible to do token skipping
         # Like in the Boyer–Moore string-search algorithm 
-        # TODO - Fix dynamic range, CLEARLY NOT WORKING PROPERLY
         for matrix_index in range(word_indices[0], len(matrix.tokens)):
             matrix_token = matrix.tokens[matrix_index]
             threshold = match_calculation.match_threshold * sum([match_calculation.weights[word_index] for word_index in word_indices])
 
             query_tokens = "".join([match_calculation.words[word_index] for word_index in word_indices])
             score = self.get_memoized_similarity_score(matrix_token.phrase.replace(" ", ""), query_tokens)
+
+
 
             has_starting_match = score >= threshold
             if verbose:
@@ -679,11 +692,13 @@ class VirtualBufferMatcher:
                 submatrix = matrix.get_submatrix(starting_index, ending_index)
                 if (len(submatrix.tokens) > 0):
                     submatrices.append(submatrix)
+                    match_calculation.append_starting_branch(word_indices, [matrix.index + matrix_index], score)
 
-        return submatrices
+        return submatrices, match_calculation
 
     def simplify_submatrices(self, submatrices: List[VirtualBufferMatchMatrix]) -> List[VirtualBufferMatchMatrix]:
         # Sort by index so it is easier to merge by index later
+        submatrices = list(set(submatrices))
         submatrices.sort(key=lambda x: x.index)
 
         merged_matrices = []
@@ -758,7 +773,10 @@ class VirtualBufferMatcher:
                             final_token_matches = best_match.buffer_indices[-1][-1] >= current_index[0]
 
                             # When the first word of the match isn't exact it is not a self repair
-                            first_token_matches = best_match.scores[0] >= CORRECTION_THRESHOLD
+                            if len(best_match.scores) <= 2:
+                                first_token_matches = best_match.scores[0] >= self.get_threshold_for_selection([token.phrase for token in tokens], SELECTION_THRESHOLD)
+                            else:
+                                first_token_matches = best_match.scores[0] >= CORRECTION_THRESHOLD
 
                             # If it is only the first token that doesn't match, but the rest is very confident
                             # We expect we need to replace the first item
@@ -810,237 +828,7 @@ class VirtualBufferMatcher:
             return (best_match_tokens, best_match)
         else:
             return (None, None)
-
-
-    def find_best_match_by_phrases(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, verbose: bool = False) -> List[VirtualBufferToken]:
-        matches = self.find_matches_by_phrases( virtual_buffer.tokens, phrases, match_threshold, verbose=verbose)
-        #if verbose:
-        #    print( "MATCHES!", matches, match_threshold )
-
-        if len(matches) > 0:
-
-            # For selection only, we want the best possible match score wise
-            # Before getting the closest distance wise
-            if not for_correction:
-                max_score = max([match.syllable_score - match.distance for match in matches])
-                matches = [match for match in matches if match.syllable_score - match.distance >= max_score]
-
-            best_match = matches[0]
-
-            if len(matches) > 1:
-                current_index = virtual_buffer.determine_token_index()
-                if current_index[0] != -1:
-                    # Get the closest item to the caret in the case of multiple matches
-                    distance = 1000000
-                    for match in matches:
-                        end_index = max(match.indices)
-                        start_index = min(match.indices)
-                        
-                        distance_from_found_end = abs(end_index - current_index[0])
-                        distance_from_found_start = abs(start_index - current_index[0])
-                        
-                        if distance_from_found_end < distance:
-                            best_match = match
-                            distance = distance_from_found_end
-                        
-                        elif distance_from_found_start < distance:
-                            best_match = match
-                            distance = distance_from_found_start
-            
-            best_match_tokens = []
-            for index in best_match.indices:
-                best_match_tokens.append(virtual_buffer.tokens[index])
-
-            return best_match_tokens
-        else:
-            return None
-
-    def find_matches_by_phrases(self, tokens: List[VirtualBufferToken], phrases: List[str], match_threshold: float = 2.5, strategy='highest_score', verbose=False) -> List[VirtualBufferTokenMatch]:
-        matrix = self.generate_similarity_matrix(tokens, phrases)
-        #verbose = False
-
-        # Scale match threshold based on amount of phrases and syllable count
-        phrase_syllable_counts = [self.phonetic_search.syllable_count(phrase) for phrase in phrases]
-        phrase_syllable_count = sum(phrase_syllable_counts)
-        phrase_weights = [count / phrase_syllable_count for count in phrase_syllable_counts]
-        match_threshold = match_threshold if len(phrases) > 2 else match_threshold + (0.8 / len(phrases))
-        #match_threshold = (match_threshold * (len(phrases) / phrase_syllable_count))
-        if verbose:
-            print("SYLLABLE COUNT FOR " + " ".join(phrases), phrase_syllable_count, match_threshold)
-
-        needed_average_score = match_threshold * len(phrases)
-        used_indices = {}
-
-        matches = []
-        for phrase_index, phrase in enumerate(phrases):
-            if not str(phrase_index) in used_indices:
-                used_indices[str(phrase_index)] = [0 for _ in range(0, len(matrix[phrase]))]
-            skip_count = 0
-
-            current_match = None
-            for index, score in enumerate(matrix[phrase]):
-                # Skip indices that we have already checked for this phrase
-                if used_indices[str(phrase_index)][index] == 1:
-                    skip_count += 1
-                    continue
-
-                if score >= match_threshold:
-                    syllable_score = self.calculate_syllable_score(score, phrase, tokens[index].text)
-                    current_match = VirtualBufferTokenMatch(phrase_index, [index], [[phrase], [tokens[index].text]], score, [score], syllable_score, [syllable_score])
-
-                    # Keep a list of used indexes to know which to skip for future passes
-                    used_indices[str(phrase_index)][index] = 1
-                    missed_phrase_length = 0
-
-                    current_word_index = index
-                    current_phrase_index = phrase_index
-                    missing_end_indices = []
-                    last_matching_index = -1
-                    while(current_phrase_index + 1 < len(phrases)):                        
-                        tokens_left = len(phrases) - current_phrase_index - 1
-                        current_word_index += 1
-                        current_phrase_index += 1 
-                        if not str(current_phrase_index) in used_indices:
-                            used_indices[str(current_phrase_index)] = [0 for _ in range(0, len(matrix[phrase]))]
-
-                        # Calculate the minimum threshold required to meet the average match threshold in the next sequence
-                        if tokens_left > 0:
-                            min_threshold_to_meet_average = max(0.2, ((needed_average_score - current_match.score ) / tokens_left) - 1)
-                            
-                        next_index = self.match_next_in_phrases(matrix, current_word_index, phrases, current_phrase_index, min_threshold_to_meet_average)
-                        if next_index[0] != -1:
-                            last_matching_index = next_index[0]
-                            current_match.comparisons[0].append(phrases[current_phrase_index - missed_phrase_length])
-                            current_match.comparisons[1].append(tokens[next_index[0]].phrase)
-                            current_match.distance += next_index[0] - current_word_index
-
-                            # Add the score of the missed phrases in between the matches
-                            while missed_phrase_length > 0:
-                                # Make sure we only count item scores in between words rather than skipped words entirely
-                                if next_index[0] - missed_phrase_length > current_match.indices[-1]:
-                                    current_match.distance -= 1
-                                    current_match.indices.append(next_index[0] - missed_phrase_length)
-                                    added_score = matrix[phrases[current_phrase_index - missed_phrase_length]][next_index[0] - missed_phrase_length]
-                                    current_match.comparisons[0].append(phrases[current_phrase_index - missed_phrase_length])
-                                    current_match.comparisons[1].append(tokens[next_index[0] - missed_phrase_length].phrase)
-                                    current_match.score += added_score
-                                    current_match.scores.append( added_score )
-                                    
-                                    syllable_score = self.calculate_syllable_score(added_score, phrases[current_phrase_index - missed_phrase_length], tokens[next_index[0] - missed_phrase_length].phrase)
-                                    current_match.syllable_score += syllable_score
-                                    current_match.syllable_scores.append( syllable_score)
-
-                                missed_phrase_length -= 1
-
-                            current_match.indices.append(next_index[0])
-                            current_match.score += next_index[1]
-                            current_match.scores.append( next_index[1] )
-                            
-                            syllable_score = self.calculate_syllable_score(next_index[1], phrases[current_phrase_index - missed_phrase_length], tokens[next_index[0]].phrase)
-                            current_match.syllable_score += syllable_score
-                            current_match.syllable_scores.append( syllable_score)
-
-                            current_word_index = next_index[0]
-
-                            # Keep a list of used indexes to know which to skip for future passes
-                            used_indices[str(current_phrase_index)][next_index[0]] = 1
-                            missed_phrase_length = 0
-                            missing_end_indices = []
-                        else:
-                            missed_phrase_length += 1
-                            missing_end_indices.append(current_phrase_index)
-
-                    # Do a simple look back without another search
-                    if current_match != None and phrase_index > 0:
-                        previous_indices = []
-                        previous_score = 0
-                        previous_syllable_score = 0
-                        current_phrase_index = phrase_index
-                        prepend_index = -1
-                        for previous_phrase_index in range(0 - phrase_index, 0):
-                            if index + previous_phrase_index >= 0:
-                                previous_indices.append(index + previous_phrase_index)
-                                previous_phrase = phrases[phrase_index + previous_phrase_index]
-                                new_previous_score = matrix[previous_phrase][index + previous_phrase_index]
-                                previous_score += new_previous_score
-                                current_match.comparisons[0].insert(prepend_index, previous_phrase)
-                                current_match.comparisons[1].insert(prepend_index, tokens[index + previous_phrase_index].phrase)
-                                current_match.scores.insert(prepend_index, new_previous_score)
-
-                                syllable_score = self.calculate_syllable_score(new_previous_score, previous_phrase, tokens[index + previous_phrase_index].phrase)
-                                previous_syllable_score += syllable_score
-                                current_match.syllable_scores.insert(prepend_index, new_previous_score)                                
-                            prepend_index += 1
-                        
-                        previous_indices.extend(current_match.indices)
-                        current_match.indices = previous_indices
-                        current_match.score += previous_score
-                        current_match.syllable_score += previous_syllable_score
-
-                    # Add score of missing matches at the end
-                    if current_match != None and last_matching_index > -1 and len(missing_end_indices) > 0:
-                        next_score = 0
-                        next_syllable_score = 0
-                        next_indices = []
-                        for next_index in missing_end_indices:
-                            last_matching_index += 1
-                            if last_matching_index < len(tokens):
-                                next_phrase = phrases[next_index]
-                                next_indices.append(last_matching_index)
-                                new_next_score = matrix[next_phrase][last_matching_index]
-                                next_score += new_next_score
-                                current_match.scores.append(new_next_score)
-                                current_match.comparisons[0].append(next_phrase)
-                                current_match.comparisons[1].append(tokens[last_matching_index].phrase)
-
-                                syllable_score = self.calculate_syllable_score(new_next_score, next_phrase, tokens[last_matching_index].phrase)
-                                next_syllable_score += syllable_score
-                                current_match.syllable_scores.append(syllable_score)                                
-
-                        current_match.indices.extend(next_indices)
-                        current_match.score += next_score
-                        current_match.syllable_score += next_syllable_score
-
-                # Syllable score is a weighted sum
-                syllable_score = 0
-                if current_match is not None:
-                    for index, weight in enumerate(phrase_weights):
-                        syllable_score += 0 if len(current_match.syllable_scores) <= index else current_match.syllable_scores[index] * weight
-                    current_match.syllable_score = syllable_score
-
-                # Prune out matches below the average score threshold
-                # And with a distance between words that is larger than forgetting a word in between every word
-                if current_match != None and (current_match.distance <= len(phrases) - 1) and strategy == 'most_direct_matches':
-                    if verbose:
-                        print("CAN ADD, BECAUSE DISTANCE ", current_match.distance , "<=", len(phrases) - 1)
-                    matches.append(current_match)
-                elif current_match != None and (current_match.syllable_score / (len(phrases) + current_match.distance / 2)) >= match_threshold / len(phrases) and (current_match.distance <= len(phrases) - 1):
-                    if verbose:
-                        print( "CAN ADD, BECAUSE score ", (current_match.syllable_score / (len(phrases) + current_match.distance / 2)), " >= ", match_threshold, " and distance ", current_match.distance, "<=", len(phrases) - 1 )
-                    matches.append(current_match)
-                elif current_match != None and verbose:
-                    print( "No match, score ", (current_match.syllable_score / (len(phrases) + current_match.distance / 2)), " >= ", match_threshold, " and distance ", current_match.distance, "<=", len(phrases) - 1, current_match )
-                
-                current_match = None
-
-        if strategy == 'highest_score':
-            matches = sorted(matches, key=lambda match: match.syllable_score - (match.distance / len(match.indices)), reverse=True)
-
-        # Place the highest direct matches on top
-        elif strategy == 'most_direct_matches':
-            matches = sorted(matches, key=lambda match: len(list(filter(lambda x: x >= 0.8, match.syllable_scores))) - (match.distance / len(match.indices)), reverse=True)
-        return matches
     
-    def match_next_in_phrases(self, matrix, matrix_index: int, phrases: List[str], phrase_index: int, match_threshold: float):
-        phrase = phrases[phrase_index]
-
-        for i in range(matrix_index, len(matrix[phrase])):
-            score = matrix[phrase][i]
-            if score >= match_threshold:
-                return (i, score)
-        
-        return (-1, -1)
-
     def find_single_match_by_phrase(self, virtual_buffer, phrase: str, char_position: int = -1, next_occurrence: bool = True, selecting: bool = False) -> VirtualBufferToken:
         exact_matching_tokens: List[(int, VirtualBufferToken)] = []
         fuzzy_matching_tokens: List[(int, VirtualBufferToken, float)] = []
@@ -1139,19 +927,3 @@ class VirtualBufferMatcher:
 
         self.similarity_matrix[word_a][word_b] = self.phonetic_search.phonetic_similarity_score(word_a, word_b)
         return self.similarity_matrix[word_a][word_b]
-
-    def generate_similarity_matrix(self, tokens: List[VirtualBufferToken], phrases: List[str]) -> Dict[str, List[float]]:
-        matrix = {}
-        for phrase in phrases:
-            if phrase in matrix:
-                continue
-            matrix[phrase] = []
-            for token in tokens:
-                similarity_key = phrase + "." + token.phrase
-                if similarity_key not in self.similarity_matrix:
-
-                    # Keep a list of known results to make it faster to generate the matrix in the future
-                    self.similarity_matrix[similarity_key] = self.phonetic_search.phonetic_similarity_score(token.phrase, phrase)
-                
-                matrix[phrase].append(self.similarity_matrix[similarity_key])
-        return matrix

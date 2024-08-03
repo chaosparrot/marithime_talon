@@ -35,4 +35,3 @@ This adds to the sentence and turns it into a small paragraph."""
 suite = create_test_suite("Caret position estimation based on total and a character index position")
 suite.add_test(test_single_line_estimation)
 suite.add_test(test_multiline_estimation)
-suite.run()

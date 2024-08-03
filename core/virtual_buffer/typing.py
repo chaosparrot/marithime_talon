@@ -87,7 +87,7 @@ class VirtualBufferMatchCalculation:
             self.starting_branches = sorted(set(self.starting_branches), key=lambda branch: branch.score, reverse=True)
 
     def get_starting_branches(self, submatrix) -> List[VirtualBufferInitialBranch]:
-        return [branch for branch in self.starting_branches if submatrix.is_valid_index(branch.buffer_indices[0] - submatrix.index)]
+        return list(set([branch for branch in self.starting_branches if submatrix.is_valid_index(branch.buffer_indices[0] - submatrix.index)]))
 
 @dataclass
 class VirtualBufferMatchMatrix:

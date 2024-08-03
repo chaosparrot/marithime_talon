@@ -532,18 +532,18 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
     #selection_tests(assertion, False, True)
 
 def percentage_test_selection(assertion):
-    percentage_tests(assertion, True, False, False, 0.9)
+    percentage_tests(assertion, True, False, False, 0.94)
 
 def percentage_test_correction(assertion):
-    percentage_tests(assertion, False, True, False, 0.9)
+    percentage_tests(assertion, False, True, False, 1)
 
 def percentage_test_selfrepair(assertion):
     percentage_tests(assertion, False, False, True, 0.9)
 
 
 suite = create_test_suite("Selecting whole phrases inside of a selection")
-#suite.add_test(percentage_test_selection)
-suite.add_test(percentage_test_correction)
+suite.add_test(percentage_test_selection)
+#suite.add_test(percentage_test_correction)
 #suite.add_test(percentage_test_selfrepair)
 #suite.add_test(percentage_tests)
-#suite.run()
+suite.run()

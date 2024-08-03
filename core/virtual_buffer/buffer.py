@@ -523,7 +523,7 @@ class VirtualBuffer:
                 if not should_go_to_next_occurrence:
                     break
 
-        best_match_tokens, best_match = self.matcher.find_best_match_by_phrases_2(self, phrases, match_threshold, should_go_to_next_occurrence, selecting=True, for_correction=for_correction, verbose=verbose)
+        best_match_tokens, best_match = self.matcher.find_best_match_by_phrases(self, phrases, match_threshold, should_go_to_next_occurrence, selecting=True, for_correction=for_correction, verbose=verbose)
         if best_match_tokens is not None and len(best_match_tokens) > 0:
             return self.select_token_range(best_match_tokens[0], best_match_tokens[-1], extend_selection=extend_selection)
         else:

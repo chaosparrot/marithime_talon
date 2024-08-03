@@ -680,8 +680,40 @@ class VirtualBufferMatcher:
 
             query_tokens = "".join([match_calculation.words[word_index] for word_index in word_indices])
             score = self.get_memoized_similarity_score(matrix_token.phrase.replace(" ", ""), query_tokens)
+            single_score = score
+            buffer_indices = [matrix_index]
 
+            # Add buffer combinations as well if we are matching with a single word
+            if len(word_indices) == 1:
+                # Combine forward
+                if matrix_index + 1 < len(matrix.tokens):
+                    phrases = [matrix_token.phrase, matrix.tokens[matrix_index + 1].phrase]
+                    combined_score = self.get_memoized_similarity_score("".join(phrases).replace(" ", ""), query_tokens)
+                    if combined_score > single_score:
+                        if matrix_index + 2 < len(matrix.tokens):
+                            phrases.append( matrix.tokens[matrix_index + 2].phrase )
+                            triple_combined_score = self.get_memoized_similarity_score("".join(phrases).replace(" ", ""), query_tokens)
+                            if triple_combined_score > combined_score:
+                                buffer_indices = [matrix_index, matrix_index + 1, matrix_index + 2]
+                                score = triple_combined_score
+                        if combined_score > score:
+                            buffer_indices = [matrix_index, matrix_index + 1]
+                            score = combined_score
 
+                # Combine backward
+                if matrix_index - 1 >= 0:
+                    phrases = [matrix.tokens[matrix_index - 1].phrase, matrix_token.phrase]
+                    combined_score = self.get_memoized_similarity_score("".join(phrases).replace(" ", ""), query_tokens)
+                    if combined_score > single_score:
+                        if matrix_index - 2 >= 0:
+                            phrases.insert(0, matrix.tokens[matrix_index - 2].phrase)
+                            triple_combined_score = self.get_memoized_similarity_score("".join(phrases).replace(" ", ""), query_tokens)
+                            if triple_combined_score > combined_score and triple_combined_score > score:
+                                buffer_indices = [matrix_index - 2, matrix_index - 1, matrix_index]
+                                score = triple_combined_score
+                        if combined_score > score:
+                            buffer_indices = [matrix_index - 1, matrix_index]
+                            score = combined_score
 
             has_starting_match = score >= threshold
             if verbose:
@@ -692,7 +724,7 @@ class VirtualBufferMatcher:
                 submatrix = matrix.get_submatrix(starting_index, ending_index)
                 if (len(submatrix.tokens) > 0):
                     submatrices.append(submatrix)
-                    match_calculation.append_starting_branch(word_indices, [matrix.index + matrix_index], score)
+                    match_calculation.append_starting_branch(word_indices, [matrix.index + index for index in buffer_indices], score)
 
         return submatrices, match_calculation
 
@@ -764,7 +796,7 @@ class VirtualBufferMatcher:
                 if len(tokens_from_last_punctuation) > 0:
                     phrases_to_use = [phrase for phrase in phrases]                    
                     while len(phrases_to_use) > 0:
-                        tokens, best_match = self.find_best_match_by_phrases_2(virtual_buffer, phrases_to_use, CORRECTION_THRESHOLD, for_correction=True, for_selfrepair=True, verbose=verbose)
+                        tokens, best_match = self.find_best_match_by_phrases(virtual_buffer, phrases_to_use, CORRECTION_THRESHOLD, for_correction=True, for_selfrepair=True, verbose=verbose)
 
                         # Get the match with the most matches, closest to the end
                         # Make sure we adhere to 'reasonable' self repair of about 5 words back max
@@ -790,7 +822,7 @@ class VirtualBufferMatcher:
         
         return None
 
-    def find_best_match_by_phrases_2(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, for_selfrepair: bool = False, verbose: bool = False) -> (List[VirtualBufferToken], VirtualBufferMatch):
+    def find_best_match_by_phrases(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, for_selfrepair: bool = False, verbose: bool = False) -> (List[VirtualBufferToken], VirtualBufferMatch):
         matches = self.find_top_three_matches_in_matrix(virtual_buffer, phrases, match_threshold, selecting, for_correction, for_selfrepair, verbose)
 
         if verbose:

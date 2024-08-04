@@ -24,7 +24,7 @@ def test_selection(assertion, buffer: str, query: str, result: str = "") -> (boo
     for index, query_token in enumerate(query_text_tokens):
         query_tokens.extend(text_to_virtual_buffer_tokens(query_token + (" " if index < len(query_text_tokens) - 1 else "")))
 
-    vb.insert_tokens(tokens)
+    vb.set_tokens(tokens)
     vb.select_phrases([x.phrase for x in query_tokens], SELECTION_THRESHOLD, verbose=buffer.startswith("###"))
     if result != "":
         is_valid = vb.caret_tracker.get_selection_text().strip() == result.strip()
@@ -51,7 +51,7 @@ def test_correction(assertion, buffer: str, query: str, result: str = "") -> (bo
     for index, query_token in enumerate(query_text_tokens):
         query_tokens.extend(text_to_virtual_buffer_tokens(query_token + (" " if index < len(query_text_tokens) - 1 else "")))
 
-    vb.insert_tokens(tokens)
+    vb.set_tokens(tokens)
     vb.select_phrases([x.phrase for x in query_tokens], CORRECTION_THRESHOLD, for_correction=True, verbose=buffer.startswith("###"))
     if result != "":
         is_valid = vb.caret_tracker.get_selection_text().strip() == result.strip()
@@ -78,7 +78,7 @@ def test_selfrepair(assertion, buffer: str, query: str, result: str = "") -> (bo
     for index, query_token in enumerate(query_text_tokens):
         query_tokens.extend(text_to_virtual_buffer_tokens(query_token + (" " if index < len(query_text_tokens) - 1 else "")))
 
-    vb.insert_tokens(tokens)
+    vb.set_tokens(tokens)
     match = vb.find_self_repair([x.phrase for x in query_tokens], verbose = buffer.startswith("###"))
     buffer_tokens = [] if match is None else vb.tokens[match.buffer_indices[0][0]:(match.buffer_indices[-1][-1] + 1)]
     if result != "":

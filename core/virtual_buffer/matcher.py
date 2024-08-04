@@ -61,50 +61,69 @@ class VirtualBufferMatcher:
             starting_index = max(0, rightmost_token_index + 1 - (len(phrases) * 2))
             ending_index = rightmost_token_index + 1
         matrix = VirtualBufferMatchMatrix(starting_index, virtual_buffer.tokens[starting_index:ending_index])
-        submatrices, match_calculation = self.find_potential_submatrices(match_calculation, matrix, verbose=verbose)
-
-        split_submatrices = self.split_submatrices_by_cursor_position(submatrices, leftmost_token_index, rightmost_token_index)
-        highest_score_achieved = False
-        matches = []
-
+        windowed_submatrices = matrix.get_windowed_submatrices(leftmost_token_index, match_calculation)
         if verbose:
             print( "- Using match threshold: " + str(match_calculation.match_threshold))
+            print( "- Splitting into " + str(len(windowed_submatrices)) + " windowed submatrices for rapid searching")
 
-        for index, matrix_group in enumerate(split_submatrices):
-            match_calculation.match_threshold = match_threshold
-            matrix_group_matches = []
-            highest_match = 0
-            for submatrix in matrix_group:
-                submatrix_matches = self.find_matches_in_matrix(match_calculation, submatrix, highest_match, verbose=verbose)
-                if len(submatrix_matches) > 0:
-                    highest_match = max(highest_match, submatrix_matches[0].score_potential)
-                    #if verbose:
-                    #    print( "- Updating threshold to: " + str(highest_match))
-                    #match_calculation.match_threshold = highest_match
-                    matrix_group_matches.extend(submatrix_matches)
-                    if not for_correction:
-                        highest_score_achieved = highest_match == match_calculation.max_score
+        found_match_combinations = []
+        highest_score_achieved = False
+        for windowed_submatrix in windowed_submatrices:
+            submatrices, match_calculation = self.find_potential_submatrices(match_calculation, windowed_submatrix, found_match_combinations, verbose=verbose)
+            split_submatrices = self.split_submatrices_by_cursor_position(submatrices, leftmost_token_index, rightmost_token_index)
+            matches = []
 
-                # Do not seek any further if we have reached the highest possible score
-                # Since no improvement is possible
-                # Also do not seek further for correction cases as we never look beyond matches closest to the cursor anyway
-                if highest_score_achieved or (for_correction and len(submatrix_matches) > 0):
-                    break
-            
-            if verbose:
-                print( "- Found matches for split " + str(index), matrix_group_matches )
+            highest_found_match = match_threshold
+            for index, matrix_group in enumerate(split_submatrices):
+                match_calculation.match_threshold = match_threshold
+                matrix_group_matches = []
+                highest_match = 0
+                for submatrix in matrix_group:
+                    submatrix_matches = self.find_matches_in_matrix(match_calculation, submatrix, highest_match, verbose=verbose)
+                    if len(submatrix_matches) > 0:
+                        highest_match = max(highest_match, submatrix_matches[0].score_potential)
+                        #if verbose:
+                        #    print( "- Updating threshold to: " + str(highest_match))
+                        matrix_group_matches.extend(submatrix_matches)
+                        if not for_correction:
+                            highest_score_achieved = highest_match == match_calculation.max_score
 
-            # Calculate the distance from the cursor
-            for matrix_group_match in matrix_group_matches:
-                matrix_group_match.calculate_distance(leftmost_token_index, rightmost_token_index)
+                    # Do not seek any further if we have reached the highest possible score
+                    # Since no improvement is possible
+                    # Also do not seek further for correction cases as we never look beyond matches closest to the cursor anyway
+                    if highest_score_achieved or (for_correction and len(submatrix_matches) > 0):
+                        break
+                
+                if verbose:
+                    print( "- Found matches for split " + str(index), matrix_group_matches )
 
-            if len(matrix_group_matches) > 0:
-                if selecting:
-                    matrix_group_matches.sort(key = cmp_to_key(self.compare_match_trees_for_selection), reverse=True)
-                if for_correction:
-                    matrix_group_matches.sort(key = cmp_to_key(self.compare_match_trees_for_correction), reverse=True)
-                matches.append(matrix_group_matches[0])
-        
+                # Calculate the distance from the cursor
+                for matrix_group_match in matrix_group_matches:
+                    matrix_group_match.calculate_distance(leftmost_token_index, rightmost_token_index)
+
+                if len(matrix_group_matches) > 0:
+                    if selecting:
+                        matrix_group_matches.sort(key = cmp_to_key(self.compare_match_trees_for_selection), reverse=True)
+                    if for_correction:
+                        matrix_group_matches.sort(key = cmp_to_key(self.compare_match_trees_for_correction), reverse=True)
+                    matches.append(matrix_group_matches[0])
+                    highest_found_match = max(highest_found_match, highest_match)
+
+            if highest_score_achieved:
+                break
+            match_calculation.match_threshold = highest_found_match
+
+            # Make sure we do not match on the exact matches again as we are sure we are closest to the cursor
+            # For the currently found matches
+            for match in matches:
+                found = False
+                for found_match_combination in found_match_combinations:
+                    if "-".join(found_match_combination) == "-".join(match.buffer):
+                        found = True
+                        break
+                if not found:
+                    found_match_combinations.append(match.buffer)
+
         return matches
 
     # Generate a match calculation based on the words to search for weighted by syllable count
@@ -124,12 +143,55 @@ class VirtualBufferMatcher:
         return VirtualBufferMatchCalculation(query_words, weights, syllables_per_word, threshold, max_score_per_word, purpose)
     
     # Generate a list of (sorted) potential submatrices to look through
-    def find_potential_submatrices(self, match_calculation: VirtualBufferMatchCalculation, matrix: VirtualBufferMatchMatrix, verbose: bool = False):
+    def find_potential_submatrices(self, match_calculation: VirtualBufferMatchCalculation, matrix: VirtualBufferMatchMatrix, skip_exact_word_sequences: List[List[str]], verbose: bool = False):
+        match_calculation.starting_branches = []
         word_indices = match_calculation.get_possible_branches()
         max_submatrix_size = len(match_calculation.words) * 3
         sub_matrices = []
+        
+        # Create a dictionary of indices to skip over for exact matches
+        # For performance gains for large fuzzy searches
+        skip_exact_indices = {}
+        max_sequence = 0 if len(skip_exact_word_sequences) > 0 else matrix.length
+        for skipped_words in skip_exact_word_sequences:
+            current_sequence = 0
+            skipped_word_index = 0
+            skipped_word_length = len(skipped_words)
+            indices_to_add = []
+            for index, token in enumerate(matrix.tokens):
+                if index in skip_exact_indices:
+                    current_sequence = 0
+                    skipped_word_index = 0
+                    indices_to_add = []
+                    continue
+
+                if token.phrase == skipped_words[skipped_word_index]:
+                    current_sequence = 0
+                    skipped_word_index += 1
+                    indices_to_add.append(index)
+                    if skipped_word_index == skipped_word_length - 1:
+                        for skip_index in indices_to_add:
+                            skip_exact_indices[skip_index] = True
+                        indices_to_add = []
+                        skipped_word_index = 0
+                else:
+                    indices_to_add = []
+                    skipped_word_index = 0
+                    current_sequence += 1
+                    max_sequence = max(max_sequence, current_sequence)
+
+        # Matrix sequence would be too short for a proper one-to-one match - skip entire matrix
+        # NOTE - This is a naive skip, it could potentially skip over an exact match with a combined query search
+        # But that is highly unlikely
+        if max_sequence < len(match_calculation.words):
+            if verbose:
+                print( "    - SKIPPING ENTIRE MATRIX BECAUSE THE MAX SEQUENCE ISN'T ENOUGH FOR A MATCH", max_sequence, len(match_calculation.words))
+            return [], match_calculation
+        elif verbose:
+            print( "    - CAN USE MATRIX BECAUSE THERE IS A BIG ENOUGH MAX SEQUENCE", max_sequence, len(match_calculation.words), len(skip_exact_word_sequences))
+
         for word_index in word_indices:
-            potential_submatrices, match_calculation = self.find_potential_submatrices_for_words(matrix, match_calculation, word_index, max_submatrix_size, verbose=verbose)
+            potential_submatrices, match_calculation = self.find_potential_submatrices_for_words(matrix, match_calculation, word_index, max_submatrix_size, skip_exact_indices, verbose=verbose)
             sub_matrices.extend(potential_submatrices)
 
         if verbose:
@@ -188,7 +250,6 @@ class VirtualBufferMatcher:
                 match_branches.append(match_branch)
             elif verbose:
                 print( "Branch rejected because ", branch.score_potential, "<", match_calculation.match_threshold, branch )
-
 
             #word_index = branch.query_indices[0]
             #end_word_index = branch.query_indices[-1]
@@ -666,15 +727,18 @@ class VirtualBufferMatcher:
         else:
             return 0
 
-    def find_potential_submatrices_for_words(self, matrix: VirtualBufferMatchMatrix, match_calculation: VirtualBufferMatchCalculation, word_indices: List[int], max_submatrix_size: int, verbose: bool = False) -> List[VirtualBufferMatchMatrix]:
+    def find_potential_submatrices_for_words(self, matrix: VirtualBufferMatchMatrix, match_calculation: VirtualBufferMatchCalculation, word_indices: List[int], max_submatrix_size: int, skip_indices: Dict[str, bool], verbose: bool = False) -> List[VirtualBufferMatchMatrix]:
         submatrices = []
         relative_left_index = -(word_indices[0] + ( max_submatrix_size - match_calculation.length ) / 2)
         relative_right_index = relative_left_index + max_submatrix_size
 
         # Only search within the viable range ( no cut off matches at the start and end of the matrix )
         # Due to multiple different fuzzy matches being possible, it isn't possible to do token skipping
-        # Like in the Boyer–Moore string-search algorithm 
+        # Like in the Boyer–Moore string-search algorithm
+        # But if we have exact matches that we need to filter out, we can do something similar to Boyer-Moore
         for matrix_index in range(word_indices[0], len(matrix.tokens)):
+            if matrix_index in skip_indices:
+                continue
             matrix_token = matrix.tokens[matrix_index]
             threshold = match_calculation.match_threshold * sum([match_calculation.weights[word_index] for word_index in word_indices])
 

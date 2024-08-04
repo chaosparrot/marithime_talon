@@ -45,7 +45,7 @@ def test_detect_self_repair(assertion):
     assertion( "            Should result in a detected self repair", vb.detect_self_repair(["a", "paragraph"]))
     assertion( "    Replacement of word")
     assertion( "        Inserting the words 'a new word'...")
-    assertion( "            Should result in a detected self repair", vb.detect_self_repair(["a", "new", "word"]))
+    assertion( "            Should result in a detected self repair", vb.detect_self_repair(["a", "new", "word"], verbose=False))
     assertion( "    Insertion in between words")
     assertion( "        Inserting the words 'a new word paragraph'... ")
     assertion( "           Should result in a detected self repair", vb.detect_self_repair(["a", "new", "word", "paragraph"]))

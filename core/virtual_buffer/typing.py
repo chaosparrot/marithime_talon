@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Self
+from typing import List, Self, Dict
 
 # These values have been calculated with some deduction
 # And testing using expectations with a set of up to 5 word matches
@@ -101,6 +101,27 @@ class VirtualBufferMatchMatrix:
         self.tokens = tokens
         self.length = len(tokens)
 
+    # Get submatrices in a windowed manner for rapid searching / elimination in large documents
+    def get_windowed_submatrices(self, cursor_token_index, match_calculation: VirtualBufferMatchCalculation) -> List[Self]:
+        submatrix_size = max(25, len(match_calculation.words) * 5)
+        if len(self.tokens) <= submatrix_size * 2:
+            return [self]
+        else:
+            window_overlap = len(match_calculation.words) * 2
+            starting_index = 0
+            submatrices = []
+            while starting_index < len(self.tokens):
+                ending_index = min(len(self.tokens), starting_index + submatrix_size)
+                submatrices.append(self.get_submatrix(starting_index, ending_index))
+                starting_index += submatrix_size - window_overlap
+                if starting_index + submatrix_size - window_overlap > len(self.tokens) - submatrix_size:
+                    starting_index = len(self.tokens) - submatrix_size - 1
+                    ending_index = min(len(self.tokens), starting_index + submatrix_size)
+                    submatrices.append(self.get_submatrix(starting_index, ending_index))
+                    break
+
+            return sorted(submatrices, key=lambda submatrix, cursor_token_index=cursor_token_index: abs(submatrix.index - cursor_token_index))
+
     def get_submatrix(self, starting_index: int, ending_index: int):
         # These use local indices that get translated to global indices later
         max_index = len(self.tokens)
@@ -114,7 +135,7 @@ class VirtualBufferMatchMatrix:
 
     def to_global_index(self, index) -> int:
         return self.index + index
-    
+
     def __hash__(self) -> int:
         return hash(str(self.index) + "_" + str(self.length))
 

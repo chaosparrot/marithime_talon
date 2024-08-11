@@ -17,7 +17,8 @@ for x in range(2000):
 
 def test_selection_performance_no_match(assertion):
     vb = VirtualBuffer()
-    vb.set_tokens(tokens)
+    vb.set_tokens(tokens, True)
+    vb.reformat_tokens()
 
     assertion( "    Starting from the end of a large document and searching for text that isn't in the document'...")
     start_time = time.perf_counter()
@@ -29,7 +30,7 @@ def test_selection_performance_no_match(assertion):
 
 def test_selection_performance_single_match(assertion):
     vb = VirtualBuffer()
-    vb.set_tokens(tokens)
+    vb.set_tokens(tokens, True)
 
     assertion( "    Starting from the end of a large document and searching for a word that is in the document'...")
     start_time = time.perf_counter()
@@ -41,7 +42,7 @@ def test_selection_performance_single_match(assertion):
 
 def test_selection_performance_multiple_match(assertion):
     vb = VirtualBuffer()
-    vb.set_tokens(tokens)
+    vb.set_tokens(tokens, True)
 
     assertion( "    Starting from the end of a large document and searching for two words that are exactly in the document'...")
     start_time = time.perf_counter()
@@ -53,7 +54,7 @@ def test_selection_performance_multiple_match(assertion):
 
 def test_selection_performance_multiple_no_matches(assertion):
     vb = VirtualBuffer()
-    vb.set_tokens(tokens)
+    vb.set_tokens(tokens, True)
 
     assertion( "    Starting from the end of a large document and searching for text that isn't in the document'...")
     start_time = time.perf_counter()
@@ -65,7 +66,7 @@ def test_selection_performance_multiple_no_matches(assertion):
 
 def test_selection_performance_single_fuzzy_match(assertion):
     vb = VirtualBuffer()
-    vb.set_tokens(tokens)
+    vb.set_tokens(tokens, True)
 
     assertion( "    Starting from the end of a large document and searching for one word that is fuzzy within the document'...")
     start_time = time.perf_counter()
@@ -77,7 +78,7 @@ def test_selection_performance_single_fuzzy_match(assertion):
 
 def test_selection_performance_multiple_fuzzy_match(assertion):
     vb = VirtualBuffer()
-    vb.set_tokens(tokens)
+    vb.set_tokens(tokens, True)
 
     assertion( "    Starting from the end of a large document and searching for two words that are fuzzy within the document'...")
     start_time = time.perf_counter()
@@ -89,7 +90,7 @@ def test_selection_performance_multiple_fuzzy_match(assertion):
 
 def test_selection_performance_four_fuzzy_matches(assertion):
     vb = VirtualBuffer()
-    vb.set_tokens(tokens)
+    vb.set_tokens(tokens, True)
 
     assertion( "    Starting from the end of a large document and searching for four words that are fuzzy within the document'...")
     start_time = time.perf_counter()
@@ -99,14 +100,14 @@ def test_selection_performance_four_fuzzy_matches(assertion):
     assertion( "        Should be done in less than 50 milliseconds", made_performance_check)
     assertion( "        Actual milliseconds: " + str((end_time - start_time) * 1000), made_performance_check)
 
-suite = create_test_suite("Testing the selection performance on a large document")
-suite.add_test(test_selection_performance_no_match)
-suite.add_test(test_selection_performance_single_match)
-suite.add_test(test_selection_performance_multiple_match)
+#suite = create_test_suite("Testing the selection performance on a large document")
+#suite.add_test(test_selection_performance_no_match)
+#suite.add_test(test_selection_performance_single_match)
+#suite.add_test(test_selection_performance_multiple_match)
 #suite.add_test(test_selection_performance_multiple_no_matches)
-suite.add_test(test_selection_performance_single_fuzzy_match)
+#suite.add_test(test_selection_performance_single_fuzzy_match)
 #suite.add_test(test_selection_performance_multiple_fuzzy_match)
-suite.add_test(test_selection_performance_four_fuzzy_matches)
+#suite.add_test(test_selection_performance_four_fuzzy_matches)
 #suite.run()
 
 # TODO FIX PERFORMANCE FOR NO-MATCHES

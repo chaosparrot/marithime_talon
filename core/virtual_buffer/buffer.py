@@ -37,12 +37,17 @@ class VirtualBuffer:
     def clear_tokens(self):
         self.set_tokens()
 
-    def set_tokens(self, tokens: List[VirtualBufferToken] = None):
+    def set_tokens(self, tokens: List[VirtualBufferToken] = None, move_cursor_to_end: bool = False):
         if tokens is None:
             self.caret_tracker.clear()
             self.tokens = []
         else:
             self.tokens = tokens
+        
+        if move_cursor_to_end:
+            self.reformat_tokens()
+            self.caret_tracker.clear()
+            self.caret_tracker.append_before_caret("".join([token.text for token in self.tokens]))
 
     def determine_leftmost_token_index(self):
         return self.determine_token_index(self.caret_tracker.get_leftmost_caret_index())
@@ -525,6 +530,8 @@ class VirtualBuffer:
 
         best_match_tokens, best_match = self.matcher.find_best_match_by_phrases(self, phrases, match_threshold, should_go_to_next_occurrence, selecting=True, for_correction=for_correction, verbose=verbose)
         if best_match_tokens is not None and len(best_match_tokens) > 0:
+            if verbose:
+                print("!!! SELECTING !!!", best_match_tokens)
             return self.select_token_range(best_match_tokens[0], best_match_tokens[-1], extend_selection=extend_selection)
         else:
             return []

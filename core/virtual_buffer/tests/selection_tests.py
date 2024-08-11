@@ -12,7 +12,7 @@ resource.open(os.path.join(test_path, "testcase_selfrepair.csv"))
 resource.open(os.path.join(test_path, "testcase_correction.csv"))
 resource.open(os.path.join(test_path, "testcase_selection.csv"))
 
-def test_selection(assertion, buffer: str, query: str, result: str = "") -> (bool, str):
+def test_selection(assertion, buffer: str, query: str, result: str = "") -> (bool, str, float):
     vb = VirtualBuffer()
     text_tokens = buffer.split(" ")
     tokens = []
@@ -26,6 +26,9 @@ def test_selection(assertion, buffer: str, query: str, result: str = "") -> (boo
 
     vb.set_tokens(tokens, True)
     vb.select_phrases([x.phrase for x in query_tokens], SELECTION_THRESHOLD, verbose=buffer.startswith("###"))
+    duplicates = sum([value - 1 for value in vb.matcher.checked_comparisons.values() if value > 1])
+    total = sum(vb.matcher.checked_comparisons.values())
+
     if result != "":
         is_valid = vb.caret_tracker.get_selection_text().strip() == result.strip()
     else:
@@ -37,9 +40,9 @@ def test_selection(assertion, buffer: str, query: str, result: str = "") -> (boo
     #    assertion("        Found '" + vb.caret_tracker.get_selection_text().strip() + "' instead", is_valid)
     #else:
     #    assertion("    Searching for '" + query + "' finds '" + result.strip() + "'", is_valid)
-    return is_valid, vb.caret_tracker.get_selection_text().strip()
+    return is_valid, vb.caret_tracker.get_selection_text().strip(), round(duplicates / total * 100)
 
-def test_correction(assertion, buffer: str, query: str, result: str = "") -> (bool, str):
+def test_correction(assertion, buffer: str, query: str, result: str = "") -> (bool, str, float):
     vb = VirtualBuffer()
     text_tokens = buffer.split(" ")
     tokens = []
@@ -51,8 +54,11 @@ def test_correction(assertion, buffer: str, query: str, result: str = "") -> (bo
     for index, query_token in enumerate(query_text_tokens):
         query_tokens.extend(text_to_virtual_buffer_tokens(query_token + (" " if index < len(query_text_tokens) - 1 else "")))
 
-    vb.insert_tokens(tokens)
+    vb.set_tokens(tokens, True)
     vb.select_phrases([x.phrase for x in query_tokens], CORRECTION_THRESHOLD, for_correction=True, verbose=buffer.startswith("###"))
+    duplicates = sum([value - 1 for value in vb.matcher.checked_comparisons.values() if value > 1])
+    total = sum(vb.matcher.checked_comparisons.values())
+
     if result != "":
         is_valid = vb.caret_tracker.get_selection_text().strip() == result.strip()
     else:
@@ -64,9 +70,9 @@ def test_correction(assertion, buffer: str, query: str, result: str = "") -> (bo
         assertion("        Found '" + vb.caret_tracker.get_selection_text().strip() + "' instead")
     else:
         assertion("    Correcting with '" + query + "' finds '" + result.strip() + "'", is_valid)
-    return is_valid, vb.caret_tracker.get_selection_text().strip()
+    return is_valid, vb.caret_tracker.get_selection_text().strip(), round(duplicates / total * 100)
 
-def test_selfrepair(assertion, buffer: str, query: str, result: str = "") -> (bool, str):
+def test_selfrepair(assertion, buffer: str, query: str, result: str = "") -> (bool, str, float):
     vb = VirtualBuffer()
     text_tokens = buffer.split(" ")
     tokens = []
@@ -78,8 +84,10 @@ def test_selfrepair(assertion, buffer: str, query: str, result: str = "") -> (bo
     for index, query_token in enumerate(query_text_tokens):
         query_tokens.extend(text_to_virtual_buffer_tokens(query_token + (" " if index < len(query_text_tokens) - 1 else "")))
 
-    vb.insert_tokens(tokens)
+    vb.set_tokens(tokens, True)
     match = vb.find_self_repair([x.phrase for x in query_tokens], verbose = buffer.startswith("###"))
+    duplicates = sum([value - 1 for value in vb.matcher.checked_comparisons.values() if value > 1])
+    total = sum(vb.matcher.checked_comparisons.values())
     buffer_tokens = [] if match is None else vb.tokens[match.buffer_indices[0][0]:(match.buffer_indices[-1][-1] + 1)]
     if result != "":
         is_valid = match is not None and " ".join([token.text for token in buffer_tokens]).replace("  ", " ").strip() == result.strip()
@@ -92,7 +100,7 @@ def test_selfrepair(assertion, buffer: str, query: str, result: str = "") -> (bo
         assertion("        Selected '" + found_result + "' but expected '" + result.strip() + "'")
     else:
         assertion("    Selfrepairing '" + buffer + "' with '" + query.strip() + "' works as expected", is_valid)
-    return is_valid, "" if match is None else " ".join([token.text for token in buffer_tokens]).replace("  ", " ").strip()
+    return is_valid, "" if match is None else " ".join([token.text for token in buffer_tokens]).replace("  ", " ").strip(), 0 if total == 0 else round(duplicates / total * 100)
 
 def selection_tests(assertion, skip_known_invalid = True, highlight_only = False) -> [int, int, [], [], []]:
     rows = 0
@@ -100,6 +108,7 @@ def selection_tests(assertion, skip_known_invalid = True, highlight_only = False
     regressions = []
     improvements = []
     invalid = []
+    total_duplicate_percents = []
     with open(os.path.join(test_path, "testcase_selection.csv"), 'r', newline='') as csv_file:
         reader = csv.DictReader(csv_file, delimiter=";", quotechar='"')
         for row in reader:
@@ -110,7 +119,8 @@ def selection_tests(assertion, skip_known_invalid = True, highlight_only = False
             pass_skip_known_invalid = (not highlight_only and (not skip_known_invalid or not row["buffer"].startswith("#")))
             
             if invalid_query and (pass_highlight or pass_skip_known_invalid):
-                result, actual = test_selection(assertion, row["buffer"], row["query"], row["result"])
+                result, actual, duplicate_percent = test_selection(assertion, row["buffer"], row["query"], row["result"])
+                total_duplicate_percents.append(duplicate_percent)                
                 if result:
                     valid += 1
                     if row["buffer"].startswith("#"):
@@ -121,6 +131,7 @@ def selection_tests(assertion, skip_known_invalid = True, highlight_only = False
                     if not row["buffer"].startswith("#"):
                         regressions.append(row)
 
+    print( "TOTAL SELECTION PERCENTAGE DUPLICATES", sum(total_duplicate_percents) / len(total_duplicate_percents))
     return [rows, valid, improvements, regressions, invalid] 
 
 def correction_tests(assertion, skip_known_invalid = True) -> [int, int, [], [], []]:
@@ -129,12 +140,14 @@ def correction_tests(assertion, skip_known_invalid = True) -> [int, int, [], [],
     regressions = []
     improvements = []
     invalid = []
+    total_duplicate_percents = []
     with open(os.path.join(test_path, "testcase_correction.csv"), 'r', newline='') as csv_file:
         reader = csv.DictReader(csv_file, delimiter=";", quotechar='"')
         for row in reader:
             rows += 1
             if row["correction"] != "" and (not skip_known_invalid or not row["buffer"].startswith("#")):
-                result, actual = test_correction(assertion, row["buffer"], row["correction"], row["result"])
+                result, actual, duplicate_percent = test_correction(assertion, row["buffer"], row["correction"], row["result"])
+                total_duplicate_percents.append(duplicate_percent)
                 if result:
                     valid += 1
                     if row["buffer"].startswith("#"):
@@ -145,6 +158,7 @@ def correction_tests(assertion, skip_known_invalid = True) -> [int, int, [], [],
                     if not row["buffer"].startswith("#"):
                         regressions.append(row)
 
+    print( "TOTAL CORRECTION PERCENTAGE DUPLICATES", sum(total_duplicate_percents) / len(total_duplicate_percents))
     return [rows, valid, improvements, regressions, invalid]
 
 def selfrepair_tests(assertion, skip_known_invalid = True) -> [int, int, [], [], []]:
@@ -153,12 +167,14 @@ def selfrepair_tests(assertion, skip_known_invalid = True) -> [int, int, [], [],
     regressions = []
     improvements = []
     invalid = []
+    total_duplicate_percents = []
     with open(os.path.join(test_path, "testcase_selfrepair.csv"), 'r', newline='') as csv_file:
         reader = csv.DictReader(csv_file, delimiter=";", quotechar='"')
         for row in reader:
             rows += 1
             if row["inserted"] != "" and (not skip_known_invalid or not row["buffer"].startswith("#")):
-                result, actual = test_selfrepair(assertion, row["buffer"], row["inserted"], row["selfrepaired"])
+                result, actual, duplicate_percent = test_selfrepair(assertion, row["buffer"], row["inserted"], row["selfrepaired"])
+                total_duplicate_percents.append(duplicate_percent)                
                 if result:
                     valid += 1
                     if row["buffer"].startswith("#"):
@@ -169,6 +185,7 @@ def selfrepair_tests(assertion, skip_known_invalid = True) -> [int, int, [], [],
                     if not row["buffer"].startswith("#"):
                         regressions.append(row)
 
+    print( "TOTAL SELF-REPAIR PERCENTAGE DUPLICATES", sum(total_duplicate_percents) / len(total_duplicate_percents))
     return [rows, valid, improvements, regressions, invalid]
     
 def noop_assertion(_, _2 = False):
@@ -521,6 +538,11 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
     # TODO IMPLEMENT PUNCTUATION WITHIN QUERY CHECK
     # After correcting some mistakes in the test set
     # 90.4% accuracy
+
+    # Performance benchmarks
+    # For selection, 36.2% were unnecessary duplicate checks
+    # For correction, 56.0% were unnecessary duplicate checks
+    # For self-repair, 68.4% were unnecessary duplicate checks
 
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))

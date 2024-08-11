@@ -94,6 +94,8 @@ class VirtualBufferMatchMatrix:
     tokens: List[VirtualBufferToken]
     end_index: int
     length: int
+    visited_branches: Dict[str, float]
+    visited_branches: Dict[str, float]
 
     def __init__(self, index: int, tokens: List[VirtualBufferToken]):
         self.index = index
@@ -138,6 +140,42 @@ class VirtualBufferMatchMatrix:
 
     def __hash__(self) -> int:
         return hash(str(self.index) + "_" + str(self.length))
+
+# Keeps track of the visited branches and scores
+# So we can be intelligent about what branches we have already visited
+class VirtualBufferMatchVisitCache:
+    buffer_index_scores: Dict[int, List[float]]
+    visited_branches: Dict[str, float]
+
+    def __init__(self):
+        self.buffer_index_scores = {}
+        self.visited_branches = {}
+
+    def should_visit_branch(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int]) -> bool:
+        key = self.get_cache_key(starting_query_index, next_query_index, starting_buffer_index, next_buffer_index)
+        return not key in self.visited_branches
+
+    def cache_score(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int], score: float):
+        key = self.get_cache_key(starting_query_index, next_query_index, starting_buffer_index, next_buffer_index)
+        self.visited_branches[key] = score
+        for buffer_index in next_buffer_index:
+            if buffer_index not in self.buffer_index_scores:
+                self.buffer_index_scores[str(buffer_index)] = []
+            self.buffer_index_scores[str(buffer_index)] = score / len(next_buffer_index)
+
+    def get_cache_key(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int]) -> str:
+        source_pair = starting_query_index + starting_buffer_index
+        source_pair = "-".join(list(map(lambda x: str(x), source_pair)))
+
+        target_pair = next_query_index + next_buffer_index
+        target_pair = "-".join(list(map(lambda x: str(x), target_pair)))
+        return source_pair + ":" + target_pair if starting_query_index[0] < next_query_index[0] else target_pair + ":" + source_pair
+
+    def get_highest_score_for_buffer_index(self, buffer_index) -> float:
+        if buffer_index in self.buffer_index_scores:
+            return max(self.buffer_index_scores[buffer_index])
+        else:
+            return None
 
 @dataclass
 class VirtualBufferMatch:

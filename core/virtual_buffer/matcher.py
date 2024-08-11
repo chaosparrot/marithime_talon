@@ -18,6 +18,7 @@ class VirtualBufferMatcher:
     def __init__(self, phonetic_search: PhoneticSearch):
         self.phonetic_search = phonetic_search
         self.similarity_matrix = {}
+        self.checked_comparisons = {}
 
     # Calculate the best matching score
     # Based on the similarity score times the amount of syllables
@@ -148,7 +149,7 @@ class VirtualBufferMatcher:
         word_indices = match_calculation.get_possible_branches()
         max_submatrix_size = len(match_calculation.words) * 3
         sub_matrices = []
-        
+
         # Create a dictionary of indices to skip over for exact matches
         # For performance gains for large fuzzy searches
         skip_exact_indices = {}
@@ -1011,6 +1012,10 @@ class VirtualBufferMatcher:
             return matched_token
         
     def get_memoized_similarity_score(self, word_a: str, word_b: str) -> float:
+        if word_a + ":" + word_b not in self.checked_comparisons:
+            self.checked_comparisons[word_a + ":" + word_b] = 0
+        self.checked_comparisons[word_a + ":" + word_b] += 1
+
         # Quick memoized look up
         if word_a in self.similarity_matrix and word_b in self.similarity_matrix[word_a]:
             return self.similarity_matrix[word_a][word_b]

@@ -51,6 +51,7 @@ def test_selection_performance_multiple_match(assertion):
     made_performance_check = end_time - start_time < 0.05
     assertion( "        Should be done in less than 50 milliseconds", made_performance_check)
     assertion( "        Actual milliseconds: " + str((end_time - start_time) * 1000), made_performance_check)
+    
 
 def test_selection_performance_multiple_no_matches(assertion):
     vb = VirtualBuffer()

@@ -121,6 +121,14 @@ class VirtualBufferMatcher:
             for match in matches:
                 cache.skip_word_sequence(match.buffer)
 
+            # Add indices to skip because they do not match anything in the total matrix
+            non_match_threshold = 0.1 if match_calculation.purpose == "correction" else 0.29
+            for windowed_index in range(windowed_submatrix.index, windowed_submatrix.end_index):
+                if not cache.should_skip_index(windowed_index):
+                    score_for_index = cache.get_highest_score_for_buffer_index(windowed_index)
+                    if score_for_index >= 0 and score_for_index < non_match_threshold:
+                        cache.skip_word_sequence([matrix.tokens[windowed_index - matrix.index].phrase])
+
         return matches
 
     # Generate a match calculation based on the words to search for weighted by syllable count
@@ -289,7 +297,7 @@ class VirtualBufferMatcher:
         for match_root in match_branches:
             if verbose:
                 print( "Expand root for ", match_root )
-            expanded_tree = self.expand_match_tree(match_root, match_calculation, submatrix, verbose=verbose)
+            expanded_tree = self.expand_match_tree(match_root, match_calculation, submatrix, cache, verbose=verbose)
             searches.extend(expanded_tree)
         filtered_searches = [search for search in searches if search.score_potential >= highest_match and len(search.query) == len(match_calculation.words)]
         filtered_searches.sort(key = cmp_to_key(self.compare_match_trees_by_score), reverse=True)
@@ -299,19 +307,19 @@ class VirtualBufferMatcher:
             search.to_global_index(submatrix)
         return filtered_searches
 
-    def expand_match_tree(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, verbose: bool = False) -> List[VirtualBufferMatchMatrix]:
+    def expand_match_tree(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, cache: VirtualBufferMatchVisitCache, verbose: bool = False) -> List[VirtualBufferMatchMatrix]:
         match_trees = [match_tree]
-        expanded_matrices: List[VirtualBufferMatch] = []
+        expanded_match_trees: List[VirtualBufferMatch] = []
 
-        # First expand backwards
+        # First expand backwards if we haven't already walked that path
         if match_tree.can_expand_backward(submatrix):
             can_expand_backward_count = 1
             while can_expand_backward_count != 0:
-                expanded_matrices = []
+                expanded_match_trees = []
                 for match_tree in match_trees:
-                    expanded_matrices.extend(self.expand_match_tree_backward(match_tree, match_calculation, submatrix, verbose=verbose))
-                can_expand_backward_count = sum([expanded_matrix.can_expand_backward(submatrix) for expanded_matrix in expanded_matrices])
-                match_trees = list(set(expanded_matrices))
+                    expanded_match_trees.extend(self.expand_match_tree_backward(match_tree, match_calculation, submatrix, verbose=verbose))
+                can_expand_backward_count = sum([expanded_match_tree.can_expand_backward(submatrix) for expanded_match_tree in expanded_match_trees])
+                match_trees = list(set(expanded_match_trees))
             
             if verbose:
                 print( "---- BACKWARD", match_trees )
@@ -322,11 +330,11 @@ class VirtualBufferMatcher:
         if match_tree.can_expand_forward(match_calculation, submatrix):
             can_expand_forward_count = 1
             while can_expand_forward_count != 0:
-                expanded_matrices = []
+                expanded_match_trees = []
                 for match_tree in match_trees:
-                    expanded_matrices.extend(self.expand_match_tree_forward(match_tree, match_calculation, submatrix, verbose=verbose))
-                can_expand_forward_count = sum([expanded_matrix.can_expand_forward(match_calculation, submatrix) for expanded_matrix in expanded_matrices])
-                match_trees = list(set(expanded_matrices))
+                    expanded_match_trees.extend(self.expand_match_tree_forward(match_tree, match_calculation, submatrix, verbose=verbose))
+                can_expand_forward_count = sum([expanded_match_tree.can_expand_forward(match_calculation, submatrix) for expanded_match_tree in expanded_match_trees])
+                match_trees = list(set(expanded_match_trees))
             
             if verbose:
                 print( "---- FORWARD", match_trees )

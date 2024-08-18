@@ -222,7 +222,7 @@ class VirtualBufferMatchVisitCache:
         if buffer_index in self.buffer_index_scores:
             return max(self.buffer_index_scores[buffer_index])
         else:
-            return None
+            return -1
 
 @dataclass
 class VirtualBufferMatch:

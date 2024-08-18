@@ -2,7 +2,7 @@ from ..matcher import VirtualBufferMatcher
 from ...phonetics.phonetics import PhoneticSearch
 from ...phonetics.detection import EXACT_MATCH
 from ..indexer import text_to_virtual_buffer_tokens
-from ..typing import VirtualBufferMatchMatrix, VirtualBufferMatch, SELECTION_THRESHOLD, CORRECTION_THRESHOLD
+from ..typing import VirtualBufferMatchMatrix, VirtualBufferMatch, VirtualBufferMatchVisitCache, SELECTION_THRESHOLD, CORRECTION_THRESHOLD
 from ...utils.test import create_test_suite
 from typing import List
 
@@ -16,6 +16,9 @@ def get_tokens_from_sentence(sentence: str):
     for index, text_token in enumerate(text_tokens):
         tokens.extend(text_to_virtual_buffer_tokens(text_token + (" " if index < len(text_tokens) - 1 else "")))
     return tokens
+
+def get_cache() -> VirtualBufferMatchVisitCache:
+    return VirtualBufferMatchVisitCache()
 
 def get_matcher() -> VirtualBufferMatcher:
     homophone_contents = "where,wear,ware"
@@ -156,10 +159,12 @@ def test_fully_combined_query_match_tree(assertion):
     assertion("Making sure to use the 'correction' strategy, as the 'selection' strategy does not allow for skips between 2 words")    
     calculation = matcher.generate_match_calculation(["an", "incredible"], select_threshold, purpose="correction")
     submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the incredibly good match"))
+    cache = get_cache()
+    cache.index_matrix(submatrix)
     match_tree = get_multiple_query_word_match_tree_root(matcher, calculation, submatrix, [0, 1], 2)
     assertion("    should not be able to expand forward", match_tree.can_expand_forward(calculation, submatrix) == False)
     assertion("    should not be able to expand backward", match_tree.can_expand_backward(submatrix) == False)
-    match_trees = matcher.expand_match_tree(match_tree, calculation, submatrix)
+    match_trees = matcher.expand_match_tree(match_tree, calculation, submatrix, cache)
     assertion("    should have a single result after expanding", len(match_trees) == 1)
 
 def test_partially_combined_query_match_tree(assertion):
@@ -168,10 +173,12 @@ def test_partially_combined_query_match_tree(assertion):
     assertion("Using the query 'an incredible good' on 'test with the incredibly good match' and a selection threshold, starting with 'an incredible'")
     calculation = matcher.generate_match_calculation(["an", "incredible", "good"], select_threshold)
     submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the incredibly good match"))
+    cache = get_cache()
+    cache.index_matrix(submatrix)
     match_tree = get_multiple_query_word_match_tree_root(matcher, calculation, submatrix, [0, 1], 3)
     assertion("    should be able to expand forward", match_tree.can_expand_forward(calculation, submatrix))
     assertion("    should not be able to expand backward", match_tree.can_expand_backward(submatrix) == False)
-    match_trees = matcher.expand_match_tree(match_tree, calculation, submatrix)
+    match_trees = matcher.expand_match_tree(match_tree, calculation, submatrix, cache)
     assertion("    should have a single result after expanding", len(match_trees) == 1)
 
     assertion("Using the query 'the incredible good' on 'test with the incredibly good match' and a selection threshold, starting with 'incredibly good'")
@@ -180,7 +187,7 @@ def test_partially_combined_query_match_tree(assertion):
     match_tree = get_multiple_query_word_match_tree_root(matcher, calculation, submatrix, [1, 2], 3)
     assertion("    should not be able to expand forward", match_tree.can_expand_forward(calculation, submatrix) == False)
     assertion("    should be able to expand backward", match_tree.can_expand_backward(submatrix))
-    match_trees = matcher.expand_match_tree(match_tree, calculation, submatrix)
+    match_trees = matcher.expand_match_tree(match_tree, calculation, submatrix, cache)
     assertion("    should have a single result after expanding", len(match_trees) == 1)
 
 def test_fully_combined_buffer_match_tree(assertion):
@@ -189,22 +196,27 @@ def test_fully_combined_buffer_match_tree(assertion):
     assertion("Using the query 'incredible' on 'test with the in credible good match' and a selection threshold")
     calculation = matcher.generate_match_calculation(["incredible"], select_threshold)
     submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the in credible good match"))
+    cache = get_cache()
+    cache.index_matrix(submatrix)
     match_tree = get_multiple_buffer_word_match_tree_root(matcher, calculation, submatrix, 0, [3, 4])
     assertion("    should not be able to expand forward", match_tree.can_expand_forward(calculation, submatrix) == False)
     assertion("    should not be able to expand backward", match_tree.can_expand_backward(submatrix) == False)
-    match_trees = matcher.expand_match_tree(match_tree, calculation, submatrix)
+    match_trees = matcher.expand_match_tree(match_tree, calculation, submatrix, cache)
     assertion("    should have a single result after expanding", len(match_trees) == 1)
 
 def test_partially_combined_buffer_match_tree(assertion):
     matcher = get_matcher()
+    cache = get_cache()
 
     assertion("Using the query 'incredible good' on 'test with the in credible good match' and a selection threshold, starting with 'incredible'")
     calculation = matcher.generate_match_calculation(["incredible", "good"], select_threshold)
     submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the in credible good match"))
+    cache = get_cache()
+    cache.index_matrix(submatrix)
     match_tree = get_multiple_buffer_word_match_tree_root(matcher, calculation, submatrix, 0, [3, 4])
     assertion("    should be able to expand forward", match_tree.can_expand_forward(calculation, submatrix))
     assertion("    should not be able to expand backward", match_tree.can_expand_backward(submatrix) == False)
-    match_trees = matcher.expand_match_tree(match_tree, calculation, submatrix)
+    match_trees = matcher.expand_match_tree(match_tree, calculation, submatrix, cache)
     assertion("    should have at least a single result after expanding", len(match_trees) >= 1)
 
     assertion("Using the query 'the incredible' on 'test with the in credible good match' and a selection threshold, starting with 'incredible'")
@@ -213,7 +225,7 @@ def test_partially_combined_buffer_match_tree(assertion):
     match_tree = get_multiple_buffer_word_match_tree_root(matcher, calculation, submatrix, 1, [3, 4])
     assertion("    should not be able to expand forward", match_tree.can_expand_forward(calculation, submatrix) == False)
     assertion("    should be able to expand backward", match_tree.can_expand_backward(submatrix))
-    match_trees = matcher.expand_match_tree(match_tree, calculation, submatrix)
+    match_trees = matcher.expand_match_tree(match_tree, calculation, submatrix, cache)
     assertion("    should have at least a single result after expanding", len(match_trees) >= 1)
 
 suite = create_test_suite("Virtual buffer matcher branching")

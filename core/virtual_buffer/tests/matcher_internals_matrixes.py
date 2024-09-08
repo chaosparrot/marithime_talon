@@ -12,9 +12,6 @@ def get_tokens_from_sentence(sentence: str):
         tokens.extend(text_to_virtual_buffer_tokens(text_token + (" " if index < len(text_tokens) - 1 else "")))
     return tokens
 
-def get_cache() -> VirtualBufferMatchVisitCache:
-    return VirtualBufferMatchVisitCache()
-
 def get_matcher() -> VirtualBufferMatcher:
     homophone_contents = "where,wear,ware"
     phonetic_contents = "where,we're,were"
@@ -35,9 +32,8 @@ def test_empty_potential_submatrices(assertion):
     assertion("Using the mixed syllable words 'An incredible' and searching a matrix without a match for incredible")
     calculation = matcher.generate_match_calculation(["an", "incredible"], 1)
     matrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("this is a large test with a bunch of connections"))
-    cache = get_cache()
-    cache.index_matrix(matrix)
-    submatrices, _ = matcher.find_potential_submatrices(calculation, matrix, cache, [])
+    calculation.cache.index_matrix(matrix)
+    submatrices, _ = matcher.find_potential_submatrices(calculation, matrix, [])
     assertion("    should not give a single possible submatrix", len(submatrices) == 0) # 1 if impossible branching isn't fixed! )
 
 def test_single_potential_submatrices(assertion):
@@ -46,16 +42,15 @@ def test_single_potential_submatrices(assertion):
     assertion("Using the mixed syllable words 'An incredible' and searching a matrix with a match for incredible")
     calculation = matcher.generate_match_calculation(["an", "incredible"], 1)
     matrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("this is a large test with the incredibly good match that can"))
-    cache = get_cache()
-    cache.index_matrix(matrix)
-    submatrices, _ = matcher.find_potential_submatrices(calculation, matrix, cache, [])
+    calculation.cache.index_matrix(matrix)
+    submatrices, _ = matcher.find_potential_submatrices(calculation, matrix, [])
     assertion("    should give a single possible submatrix", len(submatrices) == 1)
     assertion("    should start 3 indecis from the start", submatrices[0].index == 3)
     assertion("    should start 2 indecis from the end", submatrices[0].index + len(submatrices[0].tokens) == 10)
 
     assertion("Using the mixed syllable words 'An incredible' and searching a matrix with a match for incredible clipped at the end")
     second_matrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("this is a large test with the incredibly good"))
-    submatrices, _ = matcher.find_potential_submatrices(calculation, second_matrix, cache, [])
+    submatrices, _ = matcher.find_potential_submatrices(calculation, second_matrix, [])
     assertion("    should give a single possible submatrix", len(submatrices) == 1)
     # Fix when impossible branches is readded
     assertion("    should start 3 indecis from the start", submatrices[0].index == 3)
@@ -63,7 +58,7 @@ def test_single_potential_submatrices(assertion):
 
     assertion("Using the mixed syllable words 'An incredible' and searching a matrix with a match for incredible clipped at the start")
     second_matrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("the incredibly good match that can"))
-    submatrices, _ = matcher.find_potential_submatrices(calculation, second_matrix, cache, [])
+    submatrices, _ = matcher.find_potential_submatrices(calculation, second_matrix, [])
     assertion("    should give a single possible submatrix", len(submatrices) == 1)
     assertion("    should start 0 indecis from the start", submatrices[0].index == 0)
     # Fix when impossible branches is readded

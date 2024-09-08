@@ -109,7 +109,7 @@ suite = create_test_suite("Testing the selection performance on a large document
 #suite.add_test(test_selection_performance_single_fuzzy_match)
 #suite.add_test(test_selection_performance_multiple_fuzzy_match)
 #suite.add_test(test_selection_performance_four_fuzzy_matches)
-#suite.run()
+suite.run()
 
 # TODO FIX PERFORMANCE FOR NO-MATCHES
 # TODO FIX PERFORMANCE FOR SHORT FUZZY MATCHES

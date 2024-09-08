@@ -35,6 +35,91 @@ class VirtualBufferInitialBranch:
     def __hash__(self):
         return hash("_".join(map(str, self.query_indices)) + "-" + "_".join(map(str, self.buffer_indices)))
 
+# Keeps track of the visited branches and scores
+# So we can be intelligent about what branches we have already visited
+class VirtualBufferMatchVisitCache:
+    buffer_index_scores: Dict[int, List[float]]
+    visited_branches: Dict[str, float]
+    word_indices: Dict[str, List[int]]
+    skip_indices: [bool]
+
+    def __init__(self):
+        self.buffer_index_scores = {}
+        self.visited_branches = {}
+        self.word_indices = {}
+        self.skip_indices = []
+    
+    def index_matrix(self, matrix):
+        self.word_indices = {}
+        for index, token in enumerate(matrix.tokens):
+            if token.phrase not in self.word_indices:
+                self.word_indices[token.phrase] = []
+            
+            self.word_indices[token.phrase].append(matrix.index + index)
+        self.skip_indices = [False for _ in range(matrix.length + matrix.index)]
+
+    def skip_word_sequence(self, words: List[str]):
+        sequences = []
+        for word in words:
+            word_sequences = self.word_indices[word] if word in self.word_indices else []
+            if len(sequences) == 0:
+                sequences = [[index] for index in word_sequences]
+            else:
+                continued_sequences = []
+                for sequence in sequences:
+                    if sequence[-1] + 1 in word_sequences:
+                        sequence.append(sequence[-1] + 1)
+                        continued_sequences.append(sequence)
+                sequences = continued_sequences
+                
+                # Early return if no sequences could be matched
+                if len(sequences) == 0:
+                    break
+
+        for sequence in sequences:
+            for index in sequence:
+                self.skip_indices[index] = True
+    
+    def should_skip_index(self, index: int):
+        return self.skip_indices[index] == True
+
+    def should_skip_submatrix(self, submatrix, match_calculation):
+        sequence = ""
+        for index in range(submatrix.index, submatrix.end_index + 1):
+            sequence += "1" if self.skip_indices[index] else "0"
+
+        match_sequence = "".join(["1" for _ in range(len(match_calculation.words))])
+        # Matrix sequence would be too short for a proper one-to-one match - skip entire matrix
+        # NOTE - This is a naive skip, it could potentially skip over an exact match with a combined query search
+        # But that is highly unlikely
+        return match_sequence in sequence
+
+    def should_visit_branch(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int]) -> bool:
+        key = self.get_cache_key(starting_query_index, next_query_index, starting_buffer_index, next_buffer_index)
+        return not key in self.visited_branches
+
+    def cache_score(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int], score: float):
+        key = self.get_cache_key(starting_query_index, next_query_index, starting_buffer_index, next_buffer_index)
+        self.visited_branches[key] = score
+        for buffer_index in next_buffer_index:
+            if buffer_index not in self.buffer_index_scores:
+                self.buffer_index_scores[str(buffer_index)] = []
+            self.buffer_index_scores[str(buffer_index)] = score / len(next_buffer_index)
+
+    def get_cache_key(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int]) -> str:
+        source_pair = starting_query_index + starting_buffer_index
+        source_pair = "-".join(list(map(lambda x: str(x), source_pair)))
+
+        target_pair = next_query_index + next_buffer_index
+        target_pair = "-".join(list(map(lambda x: str(x), target_pair)))
+        return source_pair + ":" + target_pair if starting_query_index[0] < next_query_index[0] else target_pair + ":" + source_pair
+
+    def get_highest_score_for_buffer_index(self, buffer_index) -> float:
+        if buffer_index in self.buffer_index_scores:
+            return max(self.buffer_index_scores[buffer_index])
+        else:
+            return -1
+
 class VirtualBufferMatchCalculation:
     words: List[str]
     weights: List[float]
@@ -46,6 +131,7 @@ class VirtualBufferMatchCalculation:
     allowed_skips: int
     purpose: str
     starting_branches: List[VirtualBufferInitialBranch]
+    cache: VirtualBufferMatchVisitCache
 
     def __init__(self, words: List[str], weights: List[str], syllables: List[int], match_threshold = 0, max_score_per_word = 1.2, purpose = "selection"):
         self.words = words
@@ -58,6 +144,7 @@ class VirtualBufferMatchCalculation:
         self.purpose = purpose
         self.allowed_skips = len(words) - (1 if purpose == "correction" else 2 )
         self.starting_branches = []
+        self.cache = None
 
     # Calculate the list of possible search branches that can lead to a match, sorted by most likely
     def get_possible_branches(self) -> List[List[int]]:
@@ -138,91 +225,6 @@ class VirtualBufferMatchMatrix:
 
     def __hash__(self) -> int:
         return hash(str(self.index) + "_" + str(self.length))
-
-# Keeps track of the visited branches and scores
-# So we can be intelligent about what branches we have already visited
-class VirtualBufferMatchVisitCache:
-    buffer_index_scores: Dict[int, List[float]]
-    visited_branches: Dict[str, float]
-    word_indices: Dict[str, List[int]]
-    skip_indices: [bool]
-
-    def __init__(self):
-        self.buffer_index_scores = {}
-        self.visited_branches = {}
-        self.word_indices = {}
-        self.skip_indices = []
-    
-    def index_matrix(self, matrix: VirtualBufferMatchMatrix):
-        self.word_indices = {}
-        for index, token in enumerate(matrix.tokens):
-            if token.phrase not in self.word_indices:
-                self.word_indices[token.phrase] = []
-            
-            self.word_indices[token.phrase].append(matrix.index + index)
-        self.skip_indices = [False for _ in range(matrix.length + matrix.index)]
-
-    def skip_word_sequence(self, words: List[str]):
-        sequences = []
-        for word in words:
-            word_sequences = self.word_indices[word] if word in self.word_indices else []
-            if len(sequences) == 0:
-                sequences = [[index] for index in word_sequences]
-            else:
-                continued_sequences = []
-                for sequence in sequences:
-                    if sequence[-1] + 1 in word_sequences:
-                        sequence.append(sequence[-1] + 1)
-                        continued_sequences.append(sequence)
-                sequences = continued_sequences
-                
-                # Early return if no sequences could be matched
-                if len(sequences) == 0:
-                    break
-
-        for sequence in sequences:
-            for index in sequence:
-                self.skip_indices[index] = True
-    
-    def should_skip_index(self, index: int):
-        return self.skip_indices[index] == True
-
-    def should_skip_submatrix(self, submatrix: VirtualBufferMatchMatrix, match_calculation: VirtualBufferMatchCalculation):
-        sequence = ""
-        for index in range(submatrix.index, submatrix.end_index + 1):
-            sequence += "1" if self.skip_indices[index] else "0"
-
-        match_sequence = "".join(["1" for _ in range(len(match_calculation.words))])
-        # Matrix sequence would be too short for a proper one-to-one match - skip entire matrix
-        # NOTE - This is a naive skip, it could potentially skip over an exact match with a combined query search
-        # But that is highly unlikely
-        return match_sequence in sequence
-
-    def should_visit_branch(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int]) -> bool:
-        key = self.get_cache_key(starting_query_index, next_query_index, starting_buffer_index, next_buffer_index)
-        return not key in self.visited_branches
-
-    def cache_score(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int], score: float):
-        key = self.get_cache_key(starting_query_index, next_query_index, starting_buffer_index, next_buffer_index)
-        self.visited_branches[key] = score
-        for buffer_index in next_buffer_index:
-            if buffer_index not in self.buffer_index_scores:
-                self.buffer_index_scores[str(buffer_index)] = []
-            self.buffer_index_scores[str(buffer_index)] = score / len(next_buffer_index)
-
-    def get_cache_key(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int]) -> str:
-        source_pair = starting_query_index + starting_buffer_index
-        source_pair = "-".join(list(map(lambda x: str(x), source_pair)))
-
-        target_pair = next_query_index + next_buffer_index
-        target_pair = "-".join(list(map(lambda x: str(x), target_pair)))
-        return source_pair + ":" + target_pair if starting_query_index[0] < next_query_index[0] else target_pair + ":" + source_pair
-
-    def get_highest_score_for_buffer_index(self, buffer_index) -> float:
-        if buffer_index in self.buffer_index_scores:
-            return max(self.buffer_index_scores[buffer_index])
-        else:
-            return -1
 
 @dataclass
 class VirtualBufferMatch:

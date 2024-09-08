@@ -16,9 +16,6 @@ def get_tokens_from_sentence(sentence: str):
         tokens.extend(text_to_virtual_buffer_tokens(text_token + (" " if index < len(text_tokens) - 1 else "")))
     return tokens
 
-def get_cache() -> VirtualBufferMatchVisitCache:
-    return VirtualBufferMatchVisitCache()
-
 def get_matcher() -> VirtualBufferMatcher:
     homophone_contents = "where,wear,ware"
     phonetic_contents = "where,we're,were"
@@ -41,10 +38,9 @@ def test_no_matches_for_too_high_threshold(assertion):
     assertion("Using the query 'an incredible' on 'test with the incredibly good match' and an impossibly high threshold")
     calculation = matcher.generate_match_calculation(["an", "incredible"], select_threshold)
     submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the incredibly good match"))
-    cache = get_cache()
-    cache.index_matrix(submatrix)
-    matcher.find_potential_submatrices(calculation, submatrix, cache, [])
-    matches = matcher.find_matches_in_matrix(calculation, submatrix, cache, max_score_per_word)
+    calculation.cache.index_matrix(submatrix)
+    matcher.find_potential_submatrices(calculation, submatrix, [])
+    matches, _ = matcher.find_matches_in_matrix(calculation, submatrix, max_score_per_word)
     assertion("    should give no possible matches", len(matches) == 0)
 
 def test_one_match_for_highest_threshold(assertion):
@@ -53,11 +49,10 @@ def test_one_match_for_highest_threshold(assertion):
     assertion("Using the query 'an incredible' on 'test with the incredibly good match' and a threshold which will only reach one match")
     calculation = matcher.generate_match_calculation(["an", "incredible"], correct_threshold, purpose="correction")
     submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the incredibly good match"))
-    cache = get_cache()
-    cache.index_matrix(submatrix)
-    matcher.find_potential_submatrices(calculation, submatrix, cache, [])
+    calculation.cache.index_matrix(submatrix)
+    matcher.find_potential_submatrices(calculation, submatrix, [])
 
-    matches = matcher.find_matches_in_matrix(calculation, submatrix, cache, 0)
+    matches, _ = matcher.find_matches_in_matrix(calculation, submatrix, 0)
     assertion("    should give 1 possible match with single tokens", len([match for match in matches if len(match.buffer) == 2 and len(match.query_indices) == 2]) == 1)
 
 def test_multiple_single_matches(assertion):
@@ -66,10 +61,9 @@ def test_multiple_single_matches(assertion):
     assertion("Using the query 'an incredible' on 'test with the incredibly good match' and a threshold which will only reach one match")
     calculation = matcher.generate_match_calculation(["an", "incredible"], select_threshold)
     submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the incredibly good match which had an incredible run up to"))
-    cache = get_cache()
-    cache.index_matrix(submatrix)
-    matcher.find_potential_submatrices(calculation, submatrix, cache, [])
-    matches = matcher.find_matches_in_matrix(calculation, submatrix, cache, select_threshold)
+    calculation.cache.index_matrix(submatrix)
+    matcher.find_potential_submatrices(calculation, submatrix, [])
+    matches, _ = matcher.find_matches_in_matrix(calculation, submatrix, select_threshold)
     assertion("    should give 1 possible match with single tokens", len([match for match in matches if len(match.buffer) == 2 and len(match.query_indices) == 2]) == 1)
     assertion("    should have 'an incredible' as the highest match", " ".join([match for match in matches if len(match.buffer) == 2][0].buffer) == "an incredible")
     assertion( " ".join([match for match in matches if len(match.buffer) == 2][0].buffer) )

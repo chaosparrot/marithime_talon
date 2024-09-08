@@ -454,29 +454,32 @@ class VirtualBufferMatcher:
         if verbose:
             print("- Attempting expand with " + match_calculation.words[next_query_index])
 
-        single_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_index], direction)
-        match_calculation.cache.cache_score(previous_query_index, [next_query_index], previous_buffer_index, [next_buffer_index], single_expanded_match_tree.scores[previous_index], submatrix)
-        expanded_match_trees.append(single_expanded_match_tree)
-        if verbose:
-            print( " - SINGLE EXPANSION", single_expanded_match_tree )
-
-        combined_query_matches = self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction, single_expanded_match_tree)
-        for combined_match in combined_query_matches:
-            match_calculation.cache.cache_score(previous_query_index, combined_match.query_indices[previous_index], previous_buffer_index, [next_buffer_index], combined_match.scores[previous_index], submatrix)
-        expanded_match_trees.extend(combined_query_matches)
-        if verbose:
-            print( " - COMBINED QUERY EXPANSION", combined_query_matches)
-
-        if submatrix.is_valid_index(next_buffer_skip_index):
-            combined_buffer_matches = self.determine_combined_buffer_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction, single_expanded_match_tree, verbose=verbose)
-            for combined_match in combined_buffer_matches:
-                match_calculation.cache.cache_score(previous_query_index, [next_query_index], previous_buffer_index, combined_match.buffer_indices[previous_index], combined_match.scores[previous_index], submatrix)
-            expanded_match_trees.extend(combined_buffer_matches)
+        if match_calculation.cache.should_visit_branch(previous_query_index, [next_query_index], previous_buffer_index, [next_buffer_index], submatrix):
+            single_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_index], direction)
+            match_calculation.cache.cache_score(previous_query_index, [next_query_index], previous_buffer_index, [next_buffer_index], single_expanded_match_tree.scores[previous_index], submatrix)
+            expanded_match_trees.append(single_expanded_match_tree)
             if verbose:
-                print( " - EXPANDING COMBINED BUFFER", combined_buffer_matches )
+                print( " - SINGLE EXPANSION", single_expanded_match_tree )
+
+            combined_query_matches = self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction, single_expanded_match_tree)
+            for combined_match in combined_query_matches:
+                match_calculation.cache.cache_score(previous_query_index, combined_match.query_indices[previous_index], previous_buffer_index, [next_buffer_index], combined_match.scores[previous_index], submatrix)
+            expanded_match_trees.extend(combined_query_matches)
+            if verbose:
+                print( " - COMBINED QUERY EXPANSION", combined_query_matches)
+
+            if submatrix.is_valid_index(next_buffer_skip_index):
+                combined_buffer_matches = self.determine_combined_buffer_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction, single_expanded_match_tree, verbose=verbose)
+                for combined_match in combined_buffer_matches:
+                    match_calculation.cache.cache_score(previous_query_index, [next_query_index], previous_buffer_index, combined_match.buffer_indices[previous_index], combined_match.scores[previous_index], submatrix)
+                expanded_match_trees.extend(combined_buffer_matches)
+                if verbose:
+                    print( " - EXPANDING COMBINED BUFFER", combined_buffer_matches )
+        elif verbose:
+            print( "- Already visited branch, skipping expansion" )
 
         # Skip a single token in the buffer for single and combined query matches
-        if submatrix.is_valid_index(next_buffer_skip_index):
+        if submatrix.is_valid_index(next_buffer_skip_index) and match_calculation.cache.should_visit_branch(previous_query_index, [next_query_index], previous_buffer_index, [next_buffer_skip_index], submatrix):
             single_skipped_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_skip_index], direction)
 
             previous_word = submatrix.tokens[next_buffer_index - (1 * direction)].phrase

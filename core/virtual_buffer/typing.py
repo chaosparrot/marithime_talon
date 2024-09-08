@@ -94,7 +94,7 @@ class VirtualBufferMatchVisitCache:
         # But that is highly unlikely
         return match_sequence in sequence
 
-    def should_visit_branch(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int]) -> bool:
+    def should_visit_branch(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int], submatrix) -> bool:
         key = self.get_cache_key(starting_query_index, next_query_index, starting_buffer_index, next_buffer_index, submatrix)
         return not key in self.visited_branches
 

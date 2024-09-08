@@ -8,7 +8,7 @@ token_2 = text_to_virtual_buffer_tokens("a ", "a")
 token_3 = text_to_virtual_buffer_tokens("new ", "new")
 token_4 = text_to_virtual_buffer_tokens("sentence.", "sentence")
 
-milliseconds_50 = 0.05
+milliseconds_50 = 0.00
 
 tokens = []
 for x in range(2000):
@@ -106,14 +106,24 @@ def test_selection_performance_four_fuzzy_matches(assertion):
 suite = create_test_suite("Testing the selection performance on a large document")
 
 # Performance measurements
-# submatrix skip cache | Without cache
-suite.add_test(test_selection_performance_no_match) # 88 ms | 46 ms
-suite.add_test(test_selection_performance_single_match) # 10 ms | 6 ms
-suite.add_test(test_selection_performance_multiple_match) # 10 ms | 7 ms
-suite.add_test(test_selection_performance_multiple_no_matches) # 19 ms | 2196 ms
-suite.add_test(test_selection_performance_single_fuzzy_match) # 49 ms | 43 ms
-suite.add_test(test_selection_performance_multiple_fuzzy_match) # 354 ms | 287 ms
-suite.add_test(test_selection_performance_four_fuzzy_matches) # 108 ms | 88ms
+# Without cache | + Submatrix skip cache | + Branch skipping cache
+suite.add_test(test_selection_performance_no_match) # 46 ms | 88 ms | 45 ms
+suite.add_test(test_selection_performance_single_match) # 6 ms | 10 ms | 6 ms
+suite.add_test(test_selection_performance_multiple_match) # 7 ms | 10 ms | 8 ms
+suite.add_test(test_selection_performance_multiple_no_matches) # 2196 ms | 19 ms | 21 ms
+suite.add_test(test_selection_performance_single_fuzzy_match) # 43 ms | 49 ms | 49 ms
+suite.add_test(test_selection_performance_multiple_fuzzy_match) # 287 ms | 354 ms | 335 ms
+suite.add_test(test_selection_performance_four_fuzzy_matches) # 88 ms | 108 ms | 155 ms
 suite.run()
 
-# TODO FIX PERFORMANCE FOR SHORT FUZZY MATCHES
+# TODO FIX PERFORMANCE FOR FUZZY MATCHES
+
+# Duplicate visits without branch skipping
+# Select  : 36.274
+# Correct : 56.076
+# Self-r  : 68.444
+
+# Duplicate visits with branch skipping
+# Select  : 33.35
+# Correct : 44.004
+# Self-r  : 59.858

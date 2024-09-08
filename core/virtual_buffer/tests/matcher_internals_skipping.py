@@ -31,15 +31,16 @@ starting_skipped_branch = [[1], [2], [1], [3]]
 inversed_starting_skipped_branch = [[2], [1], [3], [1]]
 
 def test_key_generation(assertion):
+    matrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("is IT true that it could happen to any of us?"))
     cache = get_empty_cache()
 
     assertion("Using an empty cache")
-    assertion("    should generate 1-1:2-2 for the starting branch", cache.get_cache_key(starting_branch[0], starting_branch[1], starting_branch[2], starting_branch[3]) == "1-1:2-2")
-    assertion("    should generate 1-1:2-2 for the inverse of the starting branch", cache.get_cache_key(inversed_starting_branch[0], inversed_starting_branch[1], inversed_starting_branch[2], inversed_starting_branch[3]) == "1-1:2-2")
-    assertion("    should generate 2-1:3-2 for the second branch", cache.get_cache_key(second_starting_branch[0], second_starting_branch[1], second_starting_branch[2], second_starting_branch[3]) == "2-1:3-2")
-    assertion("    should generate 2-1:3-2 for the inverse of the second branch", cache.get_cache_key(second_inversed_starting_branch[0], second_inversed_starting_branch[1], second_inversed_starting_branch[2], second_inversed_starting_branch[3]) == "2-1:3-2")
-    assertion("    should generate 1-1:2-3 for the skipped branch", cache.get_cache_key(starting_skipped_branch[0], starting_skipped_branch[1], starting_skipped_branch[2], starting_skipped_branch[3]) == "1-1:2-3")
-    assertion("    should generate 1-1:2-3 for the inverse of the skipped branch", cache.get_cache_key(inversed_starting_skipped_branch[0], inversed_starting_skipped_branch[1], inversed_starting_skipped_branch[2], inversed_starting_skipped_branch[3]) == "1-1:2-3")
+    assertion("    should generate 1-1:2-2 for the starting branch", cache.get_cache_key(starting_branch[0], starting_branch[1], starting_branch[2], starting_branch[3], matrix) == "1-1:2-2")
+    assertion("    should generate 1-1:2-2 for the inverse of the starting branch", cache.get_cache_key(inversed_starting_branch[0], inversed_starting_branch[1], inversed_starting_branch[2], inversed_starting_branch[3], matrix) == "1-1:2-2")
+    assertion("    should generate 2-1:3-2 for the second branch", cache.get_cache_key(second_starting_branch[0], second_starting_branch[1], second_starting_branch[2], second_starting_branch[3], matrix) == "2-1:3-2")
+    assertion("    should generate 2-1:3-2 for the inverse of the second branch", cache.get_cache_key(second_inversed_starting_branch[0], second_inversed_starting_branch[1], second_inversed_starting_branch[2], second_inversed_starting_branch[3], matrix) == "2-1:3-2")
+    assertion("    should generate 1-1:2-3 for the skipped branch", cache.get_cache_key(starting_skipped_branch[0], starting_skipped_branch[1], starting_skipped_branch[2], starting_skipped_branch[3], matrix) == "1-1:2-3")
+    assertion("    should generate 1-1:2-3 for the inverse of the skipped branch", cache.get_cache_key(inversed_starting_skipped_branch[0], inversed_starting_skipped_branch[1], inversed_starting_skipped_branch[2], inversed_starting_skipped_branch[3], matrix) == "1-1:2-3")
 
 def test_matrix_indexation(assertion):
     matrix = VirtualBufferMatchMatrix(1, get_tokens_from_sentence("is IT true that it could happen to any of us?"))

@@ -64,6 +64,9 @@ class VirtualBufferMatcher:
         match_calculation = self.generate_match_calculation(phrases, match_threshold, purpose=("correction" if for_correction else "selection"))
         match_calculation.cache.index_matrix(matrix)
         windowed_submatrices = matrix.get_windowed_submatrices(leftmost_token_index, match_calculation)
+        real_verbose = verbose
+        verbose = False
+
         if verbose:
             print( "- Using match threshold: " + str(match_calculation.match_threshold))
             print( "- Splitting into " + str(len(windowed_submatrices)) + " windowed submatrices for rapid searching")
@@ -121,12 +124,21 @@ class VirtualBufferMatcher:
                 match_calculation.cache.skip_word_sequence(match.buffer)
 
             # Add indices to skip because they do not match anything in the total matrix
+            if real_verbose and windowed_submatrix.index == 0:
+                print( "BUFFER INDEX SCORES", match_calculation.cache.buffer_index_scores)
             non_match_threshold = 0.1 if match_calculation.purpose == "correction" else 0.29
             for windowed_index in range(windowed_submatrix.index, windowed_submatrix.end_index):
                 if not match_calculation.cache.should_skip_index(windowed_index):
                     score_for_index = match_calculation.cache.get_highest_score_for_buffer_index(windowed_index)
                     if score_for_index >= 0 and score_for_index < non_match_threshold:
+                        if real_verbose:
+                            print("SKIP SPECIFIC WORD!", score_for_index, windowed_index)
                         match_calculation.cache.skip_word_sequence([matrix.tokens[windowed_index - matrix.index].phrase])
+                    elif real_verbose:
+                        print("DO NOT SKIP WORD", score_for_index, windowed_index)
+                elif real_verbose:
+                    print("SKIP INDEX", windowed_index)
+        
 
         return matches
 
@@ -159,10 +171,10 @@ class VirtualBufferMatcher:
         # For performance gains for large fuzzy searches
         if match_calculation.cache.should_skip_submatrix(matrix, match_calculation):
             if verbose:
-                print( "    - SKIPPING ENTIRE MATRIX BECAUSE THE MAX SEQUENCE ISN'T ENOUGH FOR A MATCH", max_sequence, len(match_calculation.words))
+                print( "    - SKIPPING ENTIRE MATRIX BECAUSE THE MAX SEQUENCE ISN'T ENOUGH FOR A MATCH")
             return [], match_calculation
         elif verbose:
-            print( "    - CAN USE MATRIX BECAUSE THERE IS A BIG ENOUGH MAX SEQUENCE", max_sequence, len(match_calculation.words), len(skip_exact_word_sequences))
+            print( "    - CAN USE MATRIX BECAUSE THERE IS A BIG ENOUGH MAX SEQUENCE")
 
         for word_index in word_indices:
             potential_submatrices, match_calculation = self.find_potential_submatrices_for_words(matrix, match_calculation, word_index, max_submatrix_size, verbose=verbose)
@@ -432,6 +444,9 @@ class VirtualBufferMatcher:
     def expand_match_tree_in_direction(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, direction: int = 1, verbose: bool = False) -> Tuple[List[VirtualBufferMatch], VirtualBufferMatchCalculation]:
         expanded_match_trees = []
 
+        previous_index = 0 if direction < 1 else -1
+        previous_query_index = match_tree.query_indices[previous_index]
+        previous_buffer_index = match_tree.buffer_indices[previous_index]
         next_query_index = match_tree.get_next_query_index(submatrix, direction)
         next_buffer_index = match_tree.get_next_buffer_index(submatrix, direction)
         next_buffer_skip_index = match_tree.get_next_buffer_index(submatrix, direction * 2)
@@ -440,16 +455,22 @@ class VirtualBufferMatcher:
             print("- Attempting expand with " + match_calculation.words[next_query_index])
 
         single_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_index], direction)
+        match_calculation.cache.cache_score(previous_query_index, [next_query_index], previous_buffer_index, [next_buffer_index], single_expanded_match_tree.scores[previous_index], submatrix)
         expanded_match_trees.append(single_expanded_match_tree)
         if verbose:
             print( " - SINGLE EXPANSION", single_expanded_match_tree )
+
         combined_query_matches = self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction, single_expanded_match_tree)
+        for combined_match in combined_query_matches:
+            match_calculation.cache.cache_score(previous_query_index, combined_match.query_indices[previous_index], previous_buffer_index, [next_buffer_index], combined_match.scores[previous_index], submatrix)
         expanded_match_trees.extend(combined_query_matches)
         if verbose:
             print( " - COMBINED QUERY EXPANSION", combined_query_matches)
 
         if submatrix.is_valid_index(next_buffer_skip_index):
             combined_buffer_matches = self.determine_combined_buffer_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_index, direction, single_expanded_match_tree, verbose=verbose)
+            for combined_match in combined_buffer_matches:
+                match_calculation.cache.cache_score(previous_query_index, [next_query_index], previous_buffer_index, combined_match.buffer_indices[previous_index], combined_match.scores[previous_index], submatrix)
             expanded_match_trees.extend(combined_buffer_matches)
             if verbose:
                 print( " - EXPANDING COMBINED BUFFER", combined_buffer_matches )
@@ -457,6 +478,7 @@ class VirtualBufferMatcher:
         # Skip a single token in the buffer for single and combined query matches
         if submatrix.is_valid_index(next_buffer_skip_index):
             single_skipped_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_skip_index], direction)
+
             previous_word = submatrix.tokens[next_buffer_index - (1 * direction)].phrase
             skipped_word = submatrix.tokens[next_buffer_index].phrase
             next_word = submatrix.tokens[next_buffer_skip_index].phrase
@@ -481,15 +503,21 @@ class VirtualBufferMatcher:
                 if verbose:
                     print( " - SINGLE SKIP EXPANSION", single_skipped_expanded_match_tree )
                 expanded_match_trees.append(single_skipped_expanded_match_tree)
+                match_calculation.cache.cache_score(previous_query_index, [next_query_index], previous_buffer_index, [next_buffer_skip_index], single_skipped_expanded_match_tree.scores[previous_index], submatrix)
             elif verbose:
                 print( "DISCARDED SINGLE SKIPPED DUE TO LOW SCORE", single_skipped_expanded_match_tree, match_calculation.match_threshold )
 
-            expanded_match_trees.extend(self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_skip_index, direction, single_skipped_expanded_match_tree))
+            skipped_combined_query_matches = self.determine_combined_query_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_skip_index, direction, single_skipped_expanded_match_tree)
+            for combined_match in skipped_combined_query_matches:
+                match_calculation.cache.cache_score(previous_query_index, combined_match.query_indices[previous_index], previous_buffer_index, [next_buffer_skip_index], combined_match.scores[previous_index], submatrix)
+            expanded_match_trees.extend(skipped_combined_query_matches)
 
             # Combine buffer with single tokens
             next_buffer_second_skip_index = match_tree.get_next_buffer_index(submatrix, direction * 3)
             if submatrix.is_valid_index(next_buffer_second_skip_index):
                 skipped_combined_buffer_matches = self.determine_combined_buffer_matches(match_tree, match_calculation, submatrix, next_query_index, next_buffer_skip_index, direction, single_skipped_expanded_match_tree, verbose=verbose)
+                for combined_match in skipped_combined_buffer_matches:
+                    match_calculation.cache.cache_score(previous_query_index, [next_query_index], previous_buffer_index, combined_match.buffer_indices[previous_index], combined_match.scores[previous_index], submatrix)
                 expanded_match_trees.extend(skipped_combined_buffer_matches)
                 if verbose:
                     print( " - EXPANDING SKIPPED COMBINED BUFFER", skipped_combined_buffer_matches)
@@ -497,7 +525,7 @@ class VirtualBufferMatcher:
             print( " - SKIPPED SKIP CHECKS" )
 
         return expanded_match_trees, match_calculation
-    
+
     def determine_combined_query_matches(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, next_query_index: int, next_buffer_index: int, direction: int, comparison_match_tree: VirtualBufferMatch) -> List[VirtualBufferMatch]:
         combined_match_trees = []
         next_query_skip_index = next_query_index + direction

@@ -95,28 +95,28 @@ class VirtualBufferMatchVisitCache:
         return match_sequence in sequence
 
     def should_visit_branch(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int]) -> bool:
-        key = self.get_cache_key(starting_query_index, next_query_index, starting_buffer_index, next_buffer_index)
+        key = self.get_cache_key(starting_query_index, next_query_index, starting_buffer_index, next_buffer_index, submatrix)
         return not key in self.visited_branches
 
-    def cache_score(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int], score: float):
-        key = self.get_cache_key(starting_query_index, next_query_index, starting_buffer_index, next_buffer_index)
+    def cache_score(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int], score: float, submatrix):
+        key = self.get_cache_key(starting_query_index, next_query_index, starting_buffer_index, next_buffer_index, submatrix)
         self.visited_branches[key] = score
-        for buffer_index in next_buffer_index:
+        for buffer_index in [submatrix.to_global_index(local_buffer_index) for local_buffer_index in next_buffer_index]:
             if buffer_index not in self.buffer_index_scores:
                 self.buffer_index_scores[str(buffer_index)] = []
-            self.buffer_index_scores[str(buffer_index)] = score / len(next_buffer_index)
+            self.buffer_index_scores[str(buffer_index)].append(score / len(next_buffer_index))
 
-    def get_cache_key(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int]) -> str:
-        source_pair = starting_query_index + starting_buffer_index
+    def get_cache_key(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int], submatrix) -> str:
+        source_pair = starting_query_index + [submatrix.to_global_index(buffer_index) for buffer_index in starting_buffer_index]
         source_pair = "-".join(list(map(lambda x: str(x), source_pair)))
 
-        target_pair = next_query_index + next_buffer_index
-        target_pair = "-".join(list(map(lambda x: str(x), target_pair)))
+        target_pair = next_query_index + [submatrix.to_global_index(buffer_index) for buffer_index in next_buffer_index]
+        target_pair = "-".join(list(map(lambda x, submatrix=submatrix: str(x), target_pair)))
         return source_pair + ":" + target_pair if starting_query_index[0] < next_query_index[0] else target_pair + ":" + source_pair
 
     def get_highest_score_for_buffer_index(self, buffer_index) -> float:
-        if buffer_index in self.buffer_index_scores:
-            return max(self.buffer_index_scores[buffer_index])
+        if str(buffer_index) in self.buffer_index_scores:
+            return max(self.buffer_index_scores[str(buffer_index)])
         else:
             return -1
 

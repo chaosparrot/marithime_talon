@@ -29,6 +29,10 @@ def test_selection(assertion, buffer: str, query: str, result: str = "") -> (boo
     duplicates = sum([value - 1 for value in vb.matcher.checked_comparisons.values() if value > 1])
     total = sum(vb.matcher.checked_comparisons.values())
 
+    if buffer.startswith("###"):
+        print("TOTAL CHECKS", total, "DUPLICATE CHECKS", duplicates)
+        print("CHECKS", vb.matcher.checked_comparisons)
+
     if result != "":
         is_valid = vb.caret_tracker.get_selection_text().strip() == result.strip()
     else:
@@ -563,7 +567,7 @@ def percentage_test_selfrepair(assertion):
     percentage_tests(assertion, False, False, True, 0.9)
 
 suite = create_test_suite("Selecting whole phrases inside of a selection")
-#suite.add_test(percentage_test_selection)
+suite.add_test(percentage_test_selection)
 #suite.add_test(percentage_test_correction)
 #suite.add_test(percentage_test_selfrepair)
 #suite.add_test(percentage_tests)

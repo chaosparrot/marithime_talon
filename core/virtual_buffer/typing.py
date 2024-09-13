@@ -41,7 +41,7 @@ class VirtualBufferMatchVisitCache:
     buffer_index_scores: Dict[int, List[float]]
     visited_branches: Dict[str, float]
     word_indices: Dict[str, List[int]]
-    skip_indices: [bool]
+    skip_indices: List[bool]
 
     def __init__(self):
         self.buffer_index_scores = {}

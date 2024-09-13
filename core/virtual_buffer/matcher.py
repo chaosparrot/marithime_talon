@@ -64,8 +64,6 @@ class VirtualBufferMatcher:
         match_calculation = self.generate_match_calculation(phrases, match_threshold, purpose=("correction" if for_correction else "selection"))
         match_calculation.cache.index_matrix(matrix)
         windowed_submatrices = matrix.get_windowed_submatrices(leftmost_token_index, match_calculation)
-        real_verbose = verbose
-        verbose = False
 
         if verbose:
             print( "- Using match threshold: " + str(match_calculation.match_threshold))
@@ -124,19 +122,19 @@ class VirtualBufferMatcher:
                 match_calculation.cache.skip_word_sequence(match.buffer)
 
             # Add indices to skip because they do not match anything in the total matrix
-            if real_verbose and windowed_submatrix.index == 0:
+            if verbose and windowed_submatrix.index == 0:
                 print( "BUFFER INDEX SCORES", match_calculation.cache.buffer_index_scores)
             non_match_threshold = 0.1 if match_calculation.purpose == "correction" else 0.29
             for windowed_index in range(windowed_submatrix.index, windowed_submatrix.end_index):
                 if not match_calculation.cache.should_skip_index(windowed_index):
                     score_for_index = match_calculation.cache.get_highest_score_for_buffer_index(windowed_index)
                     if score_for_index >= 0 and score_for_index < non_match_threshold:
-                        if real_verbose:
+                        if verbose:
                             print("SKIP SPECIFIC WORD!", score_for_index, windowed_index)
                         match_calculation.cache.skip_word_sequence([matrix.tokens[windowed_index - matrix.index].phrase])
-                    elif real_verbose:
+                    elif verbose:
                         print("DO NOT SKIP WORD", score_for_index, windowed_index)
-                elif real_verbose:
+                elif verbose:
                     print("SKIP INDEX", windowed_index)
         
 
@@ -176,9 +174,14 @@ class VirtualBufferMatcher:
         elif verbose:
             print( "    - CAN USE MATRIX BECAUSE THERE IS A BIG ENOUGH MAX SEQUENCE")
 
+        if verbose:
+            print("BEFORE COMPARISONS", sum(self.checked_comparisons.values()))
         for word_index in word_indices:
             potential_submatrices, match_calculation = self.find_potential_submatrices_for_words(matrix, match_calculation, word_index, max_submatrix_size, verbose=verbose)
             sub_matrices.extend(potential_submatrices)
+        if verbose:
+            duplicates = sum([value - 1 for value in self.checked_comparisons.values() if value > 1])
+            print("AFTER COMPARISONS", sum(self.checked_comparisons.values()), duplicates)
 
         if verbose:
             print( "    - FOUND ROOTS FOR THESE MATRICES", len(sub_matrices))

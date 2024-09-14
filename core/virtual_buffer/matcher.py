@@ -65,11 +65,13 @@ class VirtualBufferMatcher:
         match_calculation.cache.index_matrix(matrix)
         windowed_submatrices = matrix.get_windowed_submatrices(leftmost_token_index, match_calculation)
 
+        real_verbose = verbose
+        verbose = False
+
         if verbose:
             print( "- Using match threshold: " + str(match_calculation.match_threshold))
             print( "- Splitting into " + str(len(windowed_submatrices)) + " windowed submatrices for rapid searching")
 
-        found_match_combinations = []
         highest_score_achieved = False
         for windowed_submatrix in windowed_submatrices:
             submatrices, match_calculation = self.find_potential_submatrices(match_calculation, windowed_submatrix, verbose=verbose)
@@ -119,25 +121,26 @@ class VirtualBufferMatcher:
             # Make sure we do not match on the exact matches again as we are sure we are closest to the cursor
             # For the currently found matches
             for match in matches:
+                if verbose:
+                    print("SKIP WORD SEQUENCE", match.buffer)
                 match_calculation.cache.skip_word_sequence(match.buffer)
-
+            
             # Add indices to skip because they do not match anything in the total matrix
-            if verbose and windowed_submatrix.index == 0:
+            if real_verbose and windowed_submatrix.index == 0:
                 print( "BUFFER INDEX SCORES", match_calculation.cache.buffer_index_scores)
             non_match_threshold = 0.1 if match_calculation.purpose == "correction" else 0.29
             for windowed_index in range(windowed_submatrix.index, windowed_submatrix.end_index):
                 if not match_calculation.cache.should_skip_index(windowed_index):
                     score_for_index = match_calculation.cache.get_highest_score_for_buffer_index(windowed_index)
                     if score_for_index >= 0 and score_for_index < non_match_threshold:
-                        if verbose:
-                            print("SKIP SPECIFIC WORD!", score_for_index, windowed_index)
+                        if real_verbose:
+                            print("SKIP SPECIFIC WORD!", score_for_index, windowed_index, matrix.tokens[windowed_index - matrix.index].phrase)
                         match_calculation.cache.skip_word_sequence([matrix.tokens[windowed_index - matrix.index].phrase])
-                    elif verbose:
-                        print("DO NOT SKIP WORD", score_for_index, windowed_index)
-                elif verbose:
+                    elif real_verbose:
+                        print("DO NOT SKIP WORD", score_for_index, non_match_threshold, windowed_index)
+                elif real_verbose:
                     print("SKIP INDEX", windowed_index)
         
-
         return matches
 
     # Generate a match calculation based on the words to search for weighted by syllable count
@@ -457,7 +460,8 @@ class VirtualBufferMatcher:
         if verbose:
             print("- Attempting expand with " + match_calculation.words[next_query_index])
 
-        if match_calculation.cache.should_visit_branch(previous_query_index, [next_query_index], previous_buffer_index, [next_buffer_index], submatrix):
+        # Only check the visit branch if we are starting off a branch
+        if len(match_tree.query_indices) > 1 or match_calculation.cache.should_visit_branch(previous_query_index, [next_query_index], previous_buffer_index, [next_buffer_index], submatrix):
             single_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_index], direction)
             match_calculation.cache.cache_score(previous_query_index, [next_query_index], previous_buffer_index, [next_buffer_index], single_expanded_match_tree.scores[previous_index], submatrix)
             expanded_match_trees.append(single_expanded_match_tree)
@@ -482,7 +486,7 @@ class VirtualBufferMatcher:
             print( "- Already visited branch, skipping expansion" )
 
         # Skip a single token in the buffer for single and combined query matches
-        if submatrix.is_valid_index(next_buffer_skip_index) and match_calculation.cache.should_visit_branch(previous_query_index, [next_query_index], previous_buffer_index, [next_buffer_skip_index], submatrix):
+        if submatrix.is_valid_index(next_buffer_skip_index) and ( len(match_tree.query_indices) > 1 or match_calculation.cache.should_visit_branch(previous_query_index, [next_query_index], previous_buffer_index, [next_buffer_skip_index], submatrix) ):
             single_skipped_expanded_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_skip_index], direction)
 
             previous_word = submatrix.tokens[next_buffer_index - (1 * direction)].phrase
@@ -750,12 +754,17 @@ class VirtualBufferMatcher:
             if match_calculation.cache.should_skip_index(matrix.index + matrix_index):
                 continue
             matrix_token = matrix.tokens[matrix_index]
-            threshold = match_calculation.match_threshold * sum([match_calculation.weights[word_index] for word_index in word_indices])
+
+            # Use a high threshold if we explore all branches, otherwise use a weighed threshold
+            threshold = match_calculation.match_threshold
+            if match_calculation.has_initial_branch_pruning():
+                threshold = threshold * sum([match_calculation.weights[word_index] for word_index in word_indices])
 
             query_tokens = "".join([match_calculation.words[word_index] for word_index in word_indices])
             score = self.get_memoized_similarity_score(matrix_token.phrase.replace(" ", ""), query_tokens)
             single_score = score
             buffer_indices = [matrix_index]
+            match_calculation.cache.cache_buffer_index_score(score, buffer_indices, matrix)
 
             # Add buffer combinations as well if we are matching with a single word
             if len(word_indices) == 1:
@@ -773,7 +782,8 @@ class VirtualBufferMatcher:
                         if combined_score > score:
                             buffer_indices = [matrix_index, matrix_index + 1]
                             score = combined_score
-
+                        match_calculation.cache.cache_buffer_index_score(score, buffer_indices, matrix)
+            
                 # Combine backward
                 if matrix_index - 1 >= 0:
                     phrases = [matrix.tokens[matrix_index - 1].phrase, matrix_token.phrase]
@@ -788,6 +798,7 @@ class VirtualBufferMatcher:
                         if combined_score > score:
                             buffer_indices = [matrix_index - 1, matrix_index]
                             score = combined_score
+                        match_calculation.cache.cache_buffer_index_score(score, buffer_indices, matrix)                        
 
             has_starting_match = score >= threshold
             if verbose:

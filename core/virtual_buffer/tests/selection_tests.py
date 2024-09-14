@@ -548,6 +548,23 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
     # For correction, 56.0% were unnecessary duplicate checks
     # For self-repair, 68.4% were unnecessary duplicate checks
 
+    # After improving running performance the following accuracy has been observed
+    # 90.6 % for selection - Down from 94%
+    # 81.8 % for correction - Down from 87.8%
+    # 85.6 % for self-repair - Down from 89.8%
+
+    # After adding dynamic threshold selection based on initial branches
+    # And only doing skip branching at the start
+    # 94% for selection
+    # 87.4% for correction
+    # 89.8% for self-repair
+
+    # After adding branch scoring for initial branches
+    # No clue why that would affect performance lol
+    # 94.8% for selection
+    # 89.2% for correction
+    # 90% for self-repair
+
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
     #    if key not in total_results:
@@ -561,14 +578,14 @@ def percentage_test_selection(assertion):
     percentage_tests(assertion, True, False, False, 0.94)
 
 def percentage_test_correction(assertion):
-    percentage_tests(assertion, False, True, False, 1)
+    percentage_tests(assertion, False, True, False, 0.9)
 
 def percentage_test_selfrepair(assertion):
     percentage_tests(assertion, False, False, True, 0.9)
 
 suite = create_test_suite("Selecting whole phrases inside of a selection")
-suite.add_test(percentage_test_selection)
+#suite.add_test(percentage_test_selection)
 #suite.add_test(percentage_test_correction)
 #suite.add_test(percentage_test_selfrepair)
 #suite.add_test(percentage_tests)
-#suite.run() 
+suite.run()

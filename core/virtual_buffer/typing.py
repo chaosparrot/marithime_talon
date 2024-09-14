@@ -101,10 +101,13 @@ class VirtualBufferMatchVisitCache:
     def cache_score(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int], score: float, submatrix):
         key = self.get_cache_key(starting_query_index, next_query_index, starting_buffer_index, next_buffer_index, submatrix)
         self.visited_branches[key] = score
-        for buffer_index in [submatrix.to_global_index(local_buffer_index) for local_buffer_index in next_buffer_index]:
+        self.cache_buffer_index_score(score, next_buffer_index, submatrix)
+    
+    def cache_buffer_index_score(self, score: float, local_buffer_indices: List[int], submatrix):
+        for buffer_index in [submatrix.to_global_index(local_buffer_index) for local_buffer_index in local_buffer_indices]:
             if buffer_index not in self.buffer_index_scores:
                 self.buffer_index_scores[str(buffer_index)] = []
-            self.buffer_index_scores[str(buffer_index)].append(score / len(next_buffer_index))
+            self.buffer_index_scores[str(buffer_index)].append(score / len(local_buffer_indices))
 
     def get_cache_key(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int], submatrix) -> str:
         source_pair = starting_query_index + [submatrix.to_global_index(buffer_index) for buffer_index in starting_buffer_index]
@@ -145,6 +148,14 @@ class VirtualBufferMatchCalculation:
         self.allowed_skips = len(words) - (1 if purpose == "correction" else 2 )
         self.starting_branches = []
         self.cache = None
+
+    # Whether the start already has branches pruned
+    def has_initial_branch_pruning(self) -> bool:
+        impossible_potential = 0
+        for potential in self.potentials:
+            if self.max_score - potential < self.match_threshold:
+                impossible_potential = max(potential, impossible_potential)
+        return impossible_potential > 0
 
     # Calculate the list of possible search branches that can lead to a match, sorted by most likely
     def get_possible_branches(self) -> List[List[int]]:

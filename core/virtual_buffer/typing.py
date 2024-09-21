@@ -194,7 +194,24 @@ class VirtualBufferMatchCalculation:
     def append_starting_branch(self, query_indices: List[int], buffer_indices: List[int], score: float):
         combined_weight = sum([self.weights[index] for index in query_indices])
         reduced_potential = (self.max_score - score) * combined_weight
-        self.starting_branches.append(VirtualBufferInitialBranch(query_indices, buffer_indices, score, self.max_score - reduced_potential))
+
+        # For similar matching self repair branches, keep the highest score
+        append = True
+        if self.selfrepair:
+            remove_indices = []
+            for branch_index, starting_branch in enumerate(self.starting_branches):
+                if "-".join(list(map(lambda x: str(x), starting_branch.buffer_indices))) == "-".join(list(map(lambda x: str(x), buffer_indices))):
+                    if score < starting_branch.score:
+                        append = False
+                    elif score > starting_branch.score:
+                        remove_indices.append(branch_index)
+            
+            while len(remove_indices) > 0:
+                del self.starting_branches[remove_indices[-1]]
+                del remove_indices[-1]
+
+        if append:
+            self.starting_branches.append(VirtualBufferInitialBranch(query_indices, buffer_indices, score, self.max_score - reduced_potential))
 
     def get_starting_branches(self, submatrix) -> List[VirtualBufferInitialBranch]:
         return sorted(list(set([branch for branch in self.starting_branches if submatrix.is_valid_index(branch.buffer_indices[0] - submatrix.index)])), key=lambda branch: branch.score, reverse=True)

@@ -565,6 +565,13 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
     # 89.2% for correction
     # 90% for self-repair
 
+    # After improving the performance of self-repair matching
+    # The speed-up went from 10 seconds to 1.5 seconds for the self-repair tests
+    # Which makes the trade-off worth it
+    # 94.6% for selection
+    # 88.6% for correction
+    # 74.8% for self-repair
+
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
     #    if key not in total_results:
@@ -578,7 +585,7 @@ def percentage_test_selection(assertion):
     percentage_tests(assertion, True, False, False, 0.94)
 
 def percentage_test_correction(assertion):
-    percentage_tests(assertion, False, True, False, 0.9)
+    percentage_tests(assertion, False, True, False, 1)
 
 def percentage_test_selfrepair(assertion):
     percentage_tests(assertion, False, False, True, 0.9)

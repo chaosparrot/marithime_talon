@@ -362,6 +362,9 @@ class VirtualBufferMatcher:
         elif verbose:
             print( "---- Match tree cannot expand forward from the start")
 
+        return self.filter_expanded_match_trees(match_trees, match_calculation, verbose=verbose), match_calculation
+    
+    def filter_expanded_match_trees(self, match_trees: List[VirtualBufferMatch], match_calculation: VirtualBufferMatchCalculation, verbose=False) -> List[VirtualBufferMatch]:
         # Filter out results with multiple consecutive bad results
         low_score_threshold = match_calculation.match_threshold / 2
         single_word_score_threshold = -1 if match_calculation.purpose == "correction" else 0.29
@@ -421,7 +424,7 @@ class VirtualBufferMatcher:
                 filtered_trees.append(match_tree)
             elif verbose:
                 print( "--- FILTERING OUT BECAUSE OF BAD CONSECUTIVE SCORES", match_tree)
-        return filtered_trees, match_calculation
+        return filtered_trees
 
     def expand_match_tree_backward(self, match_tree: VirtualBufferMatch, match_calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, verbose: bool = False) -> Tuple[List[VirtualBufferMatch], VirtualBufferMatchCalculation]:
         expanded_match_trees = []
@@ -716,6 +719,14 @@ class VirtualBufferMatcher:
                 return -1
         return result
 
+    def compare_match_trees_for_selfrepair(self, a: VirtualBufferMatch, b: VirtualBufferMatch) -> int:
+        if len(a.buffer) > len(b.buffer):
+            return 1
+        elif len(a.buffer) < len(b.buffer):
+            return -1
+        else:
+            return self.compare_match_trees_by_score(a, b)
+
     def compare_match_trees_by_score(self, a: VirtualBufferMatch, b: VirtualBufferMatch) -> int:
         # Favour the matches without dropped matches over ones with dropped matches
         a_missing_difference = len(a.query_indices) - len(a.buffer_indices)
@@ -879,8 +890,12 @@ class VirtualBufferMatcher:
                         tokens_from_last_punctuation = []
 
                 if len(tokens_from_last_punctuation) > 0:
-                    phrases_to_use = [phrase for phrase in phrases]                    
+                    phrases_to_use = [phrase for phrase in phrases]
+
                     while len(phrases_to_use) > 0:
+                        #best_match = self.find_best_match_by_phrases_for_selfrepair(virtual_buffer, phrases_to_use, CORRECTION_THRESHOLD, verbose=verbose)
+                        #return best_match
+
                         tokens, best_match = self.find_best_match_by_phrases(virtual_buffer, phrases_to_use, CORRECTION_THRESHOLD, for_correction=True, for_selfrepair=True, verbose=verbose)
 
                         # Get the match with the most matches, closest to the end
@@ -906,6 +921,119 @@ class VirtualBufferMatcher:
                         phrases_to_use.pop()
         
         return None
+
+    def find_best_match_by_phrases_for_selfrepair(self, virtual_buffer, phrases: List[str], match_threshold: float = CORRECTION_THRESHOLD, verbose=False):
+        # TODO FIX PUNCTUATION FILTERING WITHIN MATRIX
+        rightmost_token_index = virtual_buffer.determine_rightmost_token_index()[0]
+        starting_index = max(0, rightmost_token_index + 1 - (len(phrases) * 2))
+        ending_index = rightmost_token_index + 1
+        matrix = VirtualBufferMatchMatrix(starting_index, virtual_buffer.tokens[starting_index:ending_index])
+
+        match_calculation = self.generate_match_calculation(phrases, match_threshold, purpose="selfrepair")
+        match_calculation.cache.index_matrix(matrix)
+        starting_match = VirtualBufferMatch([], [], [], [], [], match_calculation.max_score, 0)
+        query = match_calculation.words
+        buffer = [token.phrase for token in matrix.tokens]
+        matches = []
+
+        # Because self repair only activates if the start matches, we only use the first (combined) tokens for matching
+        # For performance improvements without impacting accuracy
+        match_calculation = self.fill_starting_branches_for_self_repair(matrix, match_threshold, match_calculation, verbose)
+        starting_branches = match_calculation.get_starting_branches(matrix)
+        if verbose:
+            print( "    - FOUND ROOTS FOR SELF-REPAIR" )
+            print( match_calculation.starting_branches )
+        
+        for branch in starting_branches:
+            combined_weight = sum([match_calculation.weights[index] for index in branch.query_indices])
+            if branch.score_potential >= match_calculation.match_threshold:
+                match_branch = starting_match.clone()
+                match_branch.query_indices.append(branch.query_indices)
+                match_branch.query.extend([query[index] for index in branch.query_indices])
+                normalized_buffer_indices = [index - matrix.index for index in branch.buffer_indices]
+                match_branch.buffer_indices.append(normalized_buffer_indices)
+                match_branch.buffer.extend([buffer[buffer_index] for buffer_index in normalized_buffer_indices])
+                match_branch.scores.append(branch.score)
+                match_branch.reduce_potential(match_calculation.max_score, branch.score, combined_weight)
+
+                # Expand forwards until it is no longer possible within the matrix
+                # Because the query can contain words beyond the matrix that will be used for insertion
+                match_trees = [match_branch]
+                if match_branch.can_expand_forward(match_calculation, matrix):
+                    can_expand_forward_count = 1
+                    while can_expand_forward_count != 0:
+                        expanded_match_trees = []
+                        for match_tree in match_trees:
+                            forward_expanded_match_tree, match_calculation = self.expand_match_tree_forward(match_tree, match_calculation, matrix, verbose=verbose)
+                            expanded_match_trees.extend(forward_expanded_match_tree)
+                        can_expand_forward_count = sum([expanded_match_tree.can_expand_forward(match_calculation, matrix) for expanded_match_tree in expanded_match_trees])
+                        match_trees = list(set(expanded_match_trees))
+
+                match_trees = self.filter_expanded_match_trees(match_trees, match_calculation, verbose=verbose)
+                if verbose:
+                    print( "FOUND MATCH TREES FOR SELF-REPAIR", match_trees )
+
+                # Filter out all the match trees that don't connect with the end of the matrix
+                for match_tree in match_trees:
+                    match_tree.to_global_index(matrix)                    
+                    if match_tree.buffer_indices[-1][-1] + 1 >= matrix.index + matrix.length:
+
+                        # When the first word of the match isn't exact it is not a self repair                        
+                        if len(match_tree.scores) <= 2:
+                            first_token_matches = match_tree.scores[0] >= self.get_threshold_for_selection(match_tree.query, SELECTION_THRESHOLD)
+                        else:
+                            first_token_matches = match_tree.scores[0] >= CORRECTION_THRESHOLD
+
+                        # If it is only the first token that doesn't match, but the rest is very confident
+                        # We expect we need to replace the first item
+                        first_token_doesnt_match_but_others_high = match_tree.scores[0] < CORRECTION_THRESHOLD and \
+                            match_tree.score_potential > SELECTION_THRESHOLD
+                        if first_token_matches or first_token_doesnt_match_but_others_high:
+                            if verbose:
+                                print("FOUND SELF-REPAIR MATCH", match_tree)
+                            matches.append(match_tree)
+
+        # Sort matches by longest selection
+        matches.sort(key = cmp_to_key(self.compare_match_trees_for_selfrepair), reverse=True)
+        return None if len(matches) == 0 else matches[0]
+
+    def fill_starting_branches_for_self_repair(self, matrix: VirtualBufferMatchMatrix, starting_threshold: float, match_calculation: VirtualBufferMatchCalculation, verbose = False) -> VirtualBufferMatchCalculation:
+        for query_indices in match_calculation.get_possible_branches():
+            threshold = starting_threshold * sum([match_calculation.weights[word_index] for word_index in query_indices])
+
+            query_tokens = "".join([match_calculation.words[word_index] for word_index in query_indices])
+            for matrix_index in range(matrix.length - 1, 0, -1):
+                matrix_token = matrix.tokens[matrix_index]
+                score = self.get_memoized_similarity_score(matrix_token.phrase.replace(" ", ""), query_tokens)
+                single_score = score
+                buffer_indices = [matrix_index]
+                match_calculation.cache.cache_buffer_index_score(score, buffer_indices, matrix)
+
+                # Add buffer combinations as well if we are matching with a single word
+                if len(query_indices) == 1:
+                    # Combine backward
+                    if matrix_index - 1 >= 0:
+                        phrases = [matrix.tokens[matrix_index - 1].phrase, matrix_token.phrase]
+                        combined_score = self.get_memoized_similarity_score("".join(phrases).replace(" ", ""), query_tokens)
+                        if combined_score > single_score:
+                            if matrix_index - 2 >= 0:
+                                phrases.insert(0, matrix.tokens[matrix_index - 2].phrase)
+                                triple_combined_score = self.get_memoized_similarity_score("".join(phrases).replace(" ", ""), query_tokens)
+                                if triple_combined_score > combined_score and triple_combined_score > score:
+                                    buffer_indices = [matrix_index - 2, matrix_index - 1, matrix_index]
+                                    score = triple_combined_score
+                            if combined_score > score:
+                                buffer_indices = [matrix_index - 1, matrix_index]
+                                score = combined_score
+                            match_calculation.cache.cache_buffer_index_score(score, buffer_indices, matrix)                        
+
+                has_starting_match = score >= threshold
+                if verbose:
+                    print( "Score for " + query_tokens + " = " + matrix_token.phrase.replace(" ", "") + ": " + str(score) + " with weighted thresh:" + str(threshold), score >= threshold)
+                if has_starting_match:
+                    match_calculation.append_starting_branch(query_indices, [matrix.index + index for index in buffer_indices], score)
+
+        return match_calculation
 
     def find_best_match_by_phrases(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, for_selfrepair: bool = False, verbose: bool = False) -> (List[VirtualBufferToken], VirtualBufferMatch):
         matches = self.find_top_three_matches_in_matrix(virtual_buffer, phrases, match_threshold, selecting, for_correction, for_selfrepair, verbose)

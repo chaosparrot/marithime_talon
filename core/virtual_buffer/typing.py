@@ -135,6 +135,7 @@ class VirtualBufferMatchCalculation:
     purpose: str
     starting_branches: List[VirtualBufferInitialBranch]
     cache: VirtualBufferMatchVisitCache
+    selfrepair: bool = False
 
     def __init__(self, words: List[str], weights: List[str], syllables: List[int], match_threshold = 0, max_score_per_word = 1.2, purpose = "selection"):
         self.words = words
@@ -144,8 +145,11 @@ class VirtualBufferMatchCalculation:
         self.match_threshold = match_threshold
         self.max_score = max_score_per_word
         self.potentials = [weight * max_score_per_word for weight in weights]
-        self.purpose = purpose
-        self.allowed_skips = len(words) - (1 if purpose == "correction" else 2 )
+
+        # We only use self repair to make the starting words the only possible starts
+        self.selfrepair = purpose == "selfrepair"
+        self.purpose = purpose if purpose != "selfrepair" else "correction"
+        self.allowed_skips = len(words) - (1 if self.purpose == "correction" else 2 )
         self.starting_branches = []
         self.cache = None
 
@@ -155,10 +159,19 @@ class VirtualBufferMatchCalculation:
         for potential in self.potentials:
             if self.max_score - potential < self.match_threshold:
                 impossible_potential = max(potential, impossible_potential)
-        return impossible_potential > 0
+        return self.selfrepair or impossible_potential > 0
 
     # Calculate the list of possible search branches that can lead to a match, sorted by most likely
+    # Self repair only has starting possible matches
     def get_possible_branches(self) -> List[List[int]]:
+        if self.selfrepair:
+            selfrepair_potentials = [[0]]
+            if self.length > 1:
+                selfrepair_potentials.append([0, 1])
+            if self.length > 2:
+                selfrepair_potentials.append([0, 1, 2])
+            return selfrepair_potentials
+
         impossible_potential = 0
         for potential in self.potentials:
             if self.max_score - potential < self.match_threshold:

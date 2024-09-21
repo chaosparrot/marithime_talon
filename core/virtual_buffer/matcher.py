@@ -881,11 +881,11 @@ class VirtualBufferMatcher:
 
             if current_index[0] != -1 and current_index[1] != -1:
                 phrases_to_use = [phrase for phrase in phrases]
-                return self.find_best_match_by_phrases_for_selfrepair(virtual_buffer, phrases_to_use, CORRECTION_THRESHOLD, verbose=verbose)
+                return self.find_best_match_by_phrases_for_self_repair(virtual_buffer, phrases_to_use, CORRECTION_THRESHOLD, verbose=verbose)
 
         return None
 
-    def find_best_match_by_phrases_for_selfrepair(self, virtual_buffer, phrases: List[str], match_threshold: float = CORRECTION_THRESHOLD, verbose=False):
+    def find_best_match_by_phrases_for_self_repair(self, virtual_buffer, phrases: List[str], match_threshold: float = CORRECTION_THRESHOLD, verbose=False):
         rightmost_token_index = virtual_buffer.determine_rightmost_token_index()[0]
         starting_index = max(0, rightmost_token_index + 1 - (len(phrases) * 3))
         ending_index = rightmost_token_index + 1
@@ -944,7 +944,13 @@ class VirtualBufferMatcher:
                         can_expand_forward_count = sum([expanded_match_tree.can_expand_forward(match_calculation, matrix) for expanded_match_tree in expanded_match_trees])
                         match_trees = list(set(expanded_match_trees))
 
+                # Because often the query matches are incomplete if more text is added after the self repair match
+                # And the match calculation score potentials are calculated based on a full match instead
+                # We need to rescale the potentials based on the actual query words and weights involved
+                # Before filtering out the match trees based on the correction rules
+                match_trees = self.rescore_incomplete_match_trees(match_trees, match_calculation, verbose=verbose)
                 match_trees = self.filter_expanded_match_trees(match_trees, match_calculation, verbose=verbose)
+
                 if verbose:
                     print( "FOUND MATCH TREES FOR SELF-REPAIR", match_trees )
 
@@ -967,9 +973,14 @@ class VirtualBufferMatcher:
                             if verbose:
                                 print("FOUND SELF-REPAIR MATCH", match_tree)
                             matches.append(match_tree)
+                        elif verbose:
+                            print("SKIPPING MATCH TREE", match_tree)
+                            print("First token matches", first_token_matches, " or rest matches well", first_token_doesnt_match_but_others_high)
+                    elif verbose:
+                        print( "SKIPPING MATCH TREE BECAUSE IT DOES NOT REACH THE END", match_tree)
 
         # Sort matches by longest selection
-        matches.sort(key = cmp_to_key(self.compare_match_trees_for_selfrepair))
+        matches.sort(key = cmp_to_key(self.compare_match_trees_for_selfrepair), reverse=True)
         if verbose:
             print("TOTAL MATCHES", matches)
         return None if len(matches) == 0 else matches[0]
@@ -1017,6 +1028,26 @@ class VirtualBufferMatcher:
                     match_calculation.append_starting_branch(query_indices, matched_buffer_indices, score)
 
         return match_calculation
+
+    # Because often the query matches are incomplete if more text is added after the self repair match
+    # And the match calculation score potentials are calculated based on a full match instead
+    # We need to rescale the potentials based on the actual query words and weights involved
+    def rescore_incomplete_match_trees(self, match_trees: List[VirtualBufferMatch], match_calculation: VirtualBufferMatchCalculation, verbose=False) -> List[VirtualBufferMatch]:
+        rescaled_match_trees = []
+        for match_tree in match_trees:
+            #rescaled_match_calculation = self.generate_match_calculation(match_tree.query, match_calculation.match_threshold, purpose="correction")
+            #score_potential = 0
+            #for index, query_indices in enumerate(match_tree.query_indices):
+            #    score = match_tree.scores[index]
+            #    weight = 0
+            #    for query_index in query_indices:
+            #        weight += rescaled_match_calculation.weights[query_index]
+            #    score_potential += score * weight
+            #if verbose:
+            #    print( "Rescaling match tree score potential from ", match_tree.score_potential, " to ", score_potential)
+
+            rescaled_match_trees.append( match_tree )
+        return rescaled_match_trees
 
     def find_best_match_by_phrases(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, verbose: bool = False) -> (List[VirtualBufferToken], VirtualBufferMatch):
         matches = self.find_top_three_matches_in_matrix(virtual_buffer, phrases, match_threshold, selecting, for_correction, verbose)

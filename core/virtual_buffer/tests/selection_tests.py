@@ -234,7 +234,7 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
         if key not in total_results:
             total_results[key] = 0
         total_results[key] += 1
-        #assertion(invalid_result["buffer"] + " correcting '" + invalid_result["inserted"] + "' does not yield '" + invalid_result["selfrepaired"] + "' but '" + invalid_result["actual"] + "'", False)
+        assertion(invalid_result["buffer"] + " correcting '" + invalid_result["inserted"] + "' does not yield '" + invalid_result["selfrepaired"] + "' but '" + invalid_result["actual"] + "'", False)
 
     # Last check before algo change
     # 118 / 196 = 60% = Expected result, got NOTHING
@@ -571,6 +571,8 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
     # 94.6% for selection
     # 88.6% for correction
     # 74.8% for self-repair
+
+    # 82.6% after changing the sorting for self repair
 
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))

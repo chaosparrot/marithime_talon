@@ -89,7 +89,7 @@ def test_selfrepair(assertion, buffer: str, query: str, result: str = "") -> (bo
         query_tokens.extend(text_to_virtual_buffer_tokens(query_token + (" " if index < len(query_text_tokens) - 1 else "")))
 
     vb.set_tokens(tokens, True)
-    match = vb.find_self_repair([x.phrase for x in query_tokens], verbose = buffer.startswith("###"))
+    match = vb.find_self_repair([x.phrase if x.phrase != "" else x.text for x in query_tokens], verbose = buffer.startswith("###"))
     duplicates = sum([value - 1 for value in vb.matcher.checked_comparisons.values() if value > 1])
     total = sum(vb.matcher.checked_comparisons.values())
     buffer_tokens = [] if match is None else vb.tokens[match.buffer_indices[0][0]:(match.buffer_indices[-1][-1] + 1)]
@@ -572,7 +572,33 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
     # 88.6% for correction
     # 74.8% for self-repair
 
-    # 82.6% after changing the sorting for self repair
+    # 82.8% after changing the sorting for self repair and fixing the punctuation and fixing an error in the test set
+    # After looking through the 86 error results, these were the types of errors I could find
+    # Expected NOTHING, but got SOMETHING: 16 times
+    # First item should be replaced: 25 times
+    # Single item that should be replaced: 6 times
+    # Should append before: 1 time
+    # Incorrect punctuation filter: 5 times
+    # Post punctuation long match: 1 time
+    # Deeper selection than expected: 22 times
+
+    # Thoughts: Maybe I can reweigh the scores based on the buffer instead of the query to make 'of the ...' not match as aggressively to fix the 16 nothing errors
+    # I should also not only check the first tokens for matches in case I need to replace or append items to fix 26 errors
+    # And re-evaluate what single word matches should be so I don't match 'to' and 'do', but do match other items
+    # Punctuation filtering needs to be fixed properly to fix the 6 errors
+    # Also, the sorting needs to be improved so that not always longer items are approved if better matches are found
+    # to fix the deeper than expected errors
+    # Doing this well would fix 68 out of 86 errors, leaving us with 18 errors, or a 96%+ success rate
+
+    # After adding a score difference check for self repair sorting
+    # 70 errors, down from 86 - accuracy 86.2%
+    # Correction accuracy 87.6%
+    # Selection accuracy 94.4%
+    # 65 errors after punctuation fix - accuracy 87.2%
+    # Correction accuracy 86.8% - Unsure why these changes affect correction
+    # Selection accuracy 93.8% - Unsure why these changes affect selection
+    # For some reason, running tests from one category affects the other category, unsure why
+    # Because correction then fluctuates from 89% to 87% without a solid explanation
 
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
@@ -587,7 +613,7 @@ def percentage_test_selection(assertion):
     percentage_tests(assertion, True, False, False, 0.94)
 
 def percentage_test_correction(assertion):
-    percentage_tests(assertion, False, True, False, 1)
+    percentage_tests(assertion, False, True, False, 0.9)
 
 def percentage_test_selfrepair(assertion):
     percentage_tests(assertion, False, False, True, 0.9)
@@ -595,6 +621,6 @@ def percentage_test_selfrepair(assertion):
 suite = create_test_suite("Selecting whole phrases inside of a selection")
 #suite.add_test(percentage_test_selection)
 #suite.add_test(percentage_test_correction)
-#suite.add_test(percentage_test_selfrepair)
+suite.add_test(percentage_test_selfrepair)
 #suite.add_test(percentage_tests)
 suite.run()

@@ -1017,45 +1017,51 @@ class VirtualBufferMatcher:
                     match_tree.to_global_index(matrix)
                     if match_tree.buffer_indices[-1][-1] + 1 >= matrix.index + matrix.length:
 
-                        # When the first word of the match isn't exact it is not a self repair                        
-                        if len(match_tree.scores) <= 2:
+                        # When the first word of the match isn't exact it is not a self repair
+                        if len(match_tree.scores) <= 2 and self.phonetic_search.syllable_count(match_tree.query[0]) == 1:
                             first_token_matches = match_tree.scores[0] >= self.get_threshold_for_selection(match_tree.query, SELECTION_THRESHOLD)
-
-                            # Check if the found match is a direct continuation of the uttered word
-                            if not first_token_matches:
-                                starting_buffer_length = len(match_tree.buffer_indices[0])
-                                buffer_words = ""
-                                for buffer_index, buffer_word in enumerate(match_tree.buffer):
-                                    buffer_words += buffer_word
-                                    if buffer_index + 1 > starting_buffer_length:
-                                        break
-
-                                starting_query_length = len(match_tree.query_indices[0])
-                                query_words = ""
-                                for query_index, query_word in enumerate(match_tree.query):
-                                    query_words += query_word
-                                    if query_index + 1 > starting_query_length:
-                                        break
-
-                                is_continuation = query_words.startswith(buffer_words)
-                                first_token_matches = is_continuation
                         else:
                             first_token_matches = match_tree.scores[0] >= CORRECTION_THRESHOLD
 
+                        # Check if the found match is a direct continuation of the uttered word
+                        if not first_token_matches:
+                            starting_buffer_length = len(match_tree.buffer_indices[0])
+                            buffer_words = ""
+                            for buffer_index, buffer_word in enumerate(match_tree.buffer):
+                                buffer_words += buffer_word
+                                if buffer_index + 1 >= starting_buffer_length:
+                                    break
+
+                            starting_query_length = len(match_tree.query_indices[0])
+                            query_words = ""
+                            for query_index, query_word in enumerate(match_tree.query):
+                                query_words += query_word
+                                if query_index + 1 >= starting_query_length:
+                                    break
+
+                            if verbose:
+                                print( "IS CONTINUATOIN?", query_words, buffer_words, query_words.startswith(buffer_words) )
+                            is_continuation = query_words.startswith(buffer_words)
+                            first_token_matches = is_continuation
+
                         second_token_matches = len(match_tree.scores) > 1 and not first_token_matches and \
                             match_tree.scores[1] >= CORRECTION_THRESHOLD and match_tree.score_potential > CORRECTION_THRESHOLD
+
+                        has_skip_before_end = len(match_tree.scores) > 2 and match_tree.scores[-2] == 0
+                        final_combined_tokens_bad = ( has_skip_before_end or len(match_tree.query_indices[-1]) > 1 or len(match_tree.buffer_indices[-1]) > 1 ) and \
+                            match_tree.scores[-1] < CORRECTION_THRESHOLD
 
                         # If it is only the first token that doesn't match, but the rest is very confident
                         # We expect we need to replace the first item
                         first_token_doesnt_match_but_others_high = match_tree.scores[0] < CORRECTION_THRESHOLD and \
                             match_tree.score_potential > SELECTION_THRESHOLD
-                        if first_token_matches or first_token_doesnt_match_but_others_high or second_token_matches:
+                        if not final_combined_tokens_bad and (first_token_matches or first_token_doesnt_match_but_others_high or second_token_matches):
                             if verbose:
                                 print("FOUND SELF-REPAIR MATCH", match_tree)
                             matches.append(match_tree)
                         elif verbose:
                             print("SKIPPING MATCH TREE", match_tree)
-                            print("First token matches", first_token_matches, "second token matches", second_token_matches, " or rest matches well", first_token_doesnt_match_but_others_high)
+                            print("Final combined tokens bad", final_combined_tokens_bad, "First token matches", first_token_matches, "second token matches", second_token_matches, " or rest matches well", first_token_doesnt_match_but_others_high)
                     elif verbose:
                         print( "SKIPPING MATCH TREE BECAUSE IT DOES NOT REACH THE END", match_tree)
 

@@ -657,6 +657,10 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
     # 91.6% self repair accuracy
     # Amount of skipped additional query words: 4
     # A bunch of longer words at the end as well that do not match properly
+    # After adding a bad ending match check and moving the first token continuation check
+    # 92.6% self repair accuracy
+    # After tweaking starting requirement for words longer than 2 syllables
+    # 92.8% self repair accuracy
 
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))

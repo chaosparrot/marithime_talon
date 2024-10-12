@@ -1,6 +1,7 @@
 from ..buffer import VirtualBuffer
 from ..indexer import text_to_virtual_buffer_tokens
 from ...utils.test import create_test_suite
+from ...phonetics.phonetics import PhoneticSearch
 import csv
 import os 
 from ..typing import SELECTION_THRESHOLD, CORRECTION_THRESHOLD
@@ -12,12 +13,24 @@ resource.open(os.path.join(test_path, "testcase_selfrepair.csv"))
 resource.open(os.path.join(test_path, "testcase_correction.csv"))
 resource.open(os.path.join(test_path, "testcase_selection.csv"))
 
-def test_selection(assertion, buffer: str, query: str, result: str = "") -> (bool, str, float):
+def get_uncached_virtual_buffer():
     vb = VirtualBuffer()
+
+    # Reset the phonetic search to make sure there is no influence from user settings    
+    vb.matcher.phonetic_search = PhoneticSearch()
+    vb.matcher.phonetic_search.set_homophones("")
+    vb.matcher.phonetic_search.set_phonetic_similiarities("")
+
+    return vb
+
+def test_selection(assertion, buffer: str, query: str, result: str = "") -> (bool, str, float):
+    vb = get_uncached_virtual_buffer()
+
     text_tokens = buffer.split(" ")
     tokens = []
     for index, text_token in enumerate(text_tokens):
-        tokens.extend(text_to_virtual_buffer_tokens(text_token + (" " if index < len(text_tokens) - 1 else "")))
+        if not text_token.startswith("#"):
+            tokens.extend(text_to_virtual_buffer_tokens(text_token + (" " if index < len(text_tokens) - 1 else "")))
 
     query_text_tokens = query.split(" ")
     query_tokens = []
@@ -47,11 +60,13 @@ def test_selection(assertion, buffer: str, query: str, result: str = "") -> (boo
     return is_valid, vb.caret_tracker.get_selection_text().strip(), round(duplicates / total * 100)
 
 def test_correction(assertion, buffer: str, query: str, result: str = "") -> (bool, str, float):
-    vb = VirtualBuffer()
+    vb = get_uncached_virtual_buffer()
+
     text_tokens = buffer.split(" ")
     tokens = []
     for index, text_token in enumerate(text_tokens):
-        tokens.extend(text_to_virtual_buffer_tokens(text_token + (" " if index < len(text_tokens) - 1 else "")))
+        if not text_token.startswith("#"):
+            tokens.extend(text_to_virtual_buffer_tokens(text_token + (" " if index < len(text_tokens) - 1 else "")))
 
     query_text_tokens = query.split(" ")
     query_tokens = []
@@ -77,11 +92,13 @@ def test_correction(assertion, buffer: str, query: str, result: str = "") -> (bo
     return is_valid, vb.caret_tracker.get_selection_text().strip(), round(duplicates / total * 100)
 
 def test_selfrepair(assertion, buffer: str, query: str, result: str = "") -> (bool, str, float):
-    vb = VirtualBuffer()
+    vb = get_uncached_virtual_buffer()
+
     text_tokens = buffer.split(" ")
     tokens = []
     for index, text_token in enumerate(text_tokens):
-        tokens.extend(text_to_virtual_buffer_tokens(text_token + (" " if index < len(text_tokens) - 1 else "")))
+        if not text_token.startswith("#"):
+            tokens.extend(text_to_virtual_buffer_tokens(text_token + (" " if index < len(text_tokens) - 1 else "")))
 
     query_text_tokens = query.split(" ")
     query_tokens = []
@@ -226,8 +243,7 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
         if key not in total_results:
             total_results[key] = 0
         total_results[key] += 1
-        #assertion(invalid_result["buffer"] + " correcting '" + invalid_result["inserted"] + "' does not yield '" + invalid_result["selfrepaired"] + "' but '" + invalid_result["actual"] + "'", False)
-
+        assertion(invalid_result["buffer"] + " correcting '" + invalid_result["correction"] + "' does not yield '" + invalid_result["result"] + "' but '" + invalid_result["actual"] + "'", False)
 
     for invalid_result in selfrepair_results[4]:
         key = str(len(invalid_result["inserted"].split())) + "-" + str(len(invalid_result["selfrepaired"].split())) + "-" + str(len(invalid_result["actual"].split()))
@@ -588,7 +604,7 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
     # Punctuation filtering needs to be fixed properly to fix the 6 errors
     # Also, the sorting needs to be improved so that not always longer items are approved if better matches are found
     # to fix the deeper than expected errors
-    # Doing this well would fix 68 out of 86 errors, leaving us with 18 errors, or a 96%+ success rate
+    # Fixing these well would fix 68 out of 86 errors, leaving us with 18 errors, or a 96%+ success rate
 
     # After adding a score difference check for self repair sorting
     # 70 errors, down from 86 - accuracy 86.2%
@@ -597,8 +613,50 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
     # 65 errors after punctuation fix - accuracy 87.2%
     # Correction accuracy 86.8% - Unsure why these changes affect correction
     # Selection accuracy 93.8% - Unsure why these changes affect selection
+    
     # For some reason, running tests from one category affects the other category, unsure why
     # Because correction then fluctuates from 89% to 87% without a solid explanation
+    # 89.6% correction - Run 1
+    # 89.2% correction - Run 2
+    # 88.2% correction - Run 3
+    # After fixing the tokens containing # in front of them
+    # 95% selection - No fluctuatoin
+    # 89.6% correction - Fluctuates between 89.8 and 89.6 percent still
+    # 87.4% self repair - No fluctuation
+
+    # Investigating correction ( 51 errors ), the following could be found
+    # Incorrect because better find is found further away: 6
+    # Expected nothing, matched with something: 9
+    # Could not find match: 9
+    # More than expected: 10
+    # Less than exected: 9
+    # Incorrect but middle was exact: 3
+    # Multiple repeats: 4
+    # Multiple skips: 1
+    # Swapped word: 1
+    # Thoughts: Clearly there's room to be gained both in the sorting department to match with better matches ( 6 times )
+    # And with the proper expanding of the selection, seeing as they were almost correct ( 19 times )
+    # There's also a lot of issues with short queries matching / not matching properly that needs to be looked at
+
+    # After changing self repair sorting to match most direct matches before matching by score
+    # 88.2% self repair
+    # Investigating self repair matches, I'm seeing a lot of matches that could have started earlier because there was no exact match with the first
+    # After adding starting branches on the second token combinations
+    # 90.4% self repair accuracy
+    # After still seeing some ineffective checks for non-direct match firsts and adding a check for high secondary matches
+    # 91.2% self repair accuracy
+    # After adding direct continuation checks ( feast ... -> feasting )
+    # 91.8% self repair accuracy
+    # TODO Skip query match for self repair / correction ? Seems to be at least one that happens because of that
+    # After changing sorting again by adding a penalty for longer bad score matches at the start of self repair
+    # 92% self repair accuracy
+    # TODO Rescore based on buffer weights
+    # After rebalancing based on proper weights
+    # 91.2% self repair accuracy
+    # After fixing sort bug
+    # 91.6% self repair accuracy
+    # Amount of skipped additional query words: 4
+    # A bunch of longer words at the end as well that do not match properly
 
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
@@ -616,11 +674,11 @@ def percentage_test_correction(assertion):
     percentage_tests(assertion, False, True, False, 0.9)
 
 def percentage_test_selfrepair(assertion):
-    percentage_tests(assertion, False, False, True, 0.9)
+    percentage_tests(assertion, False, False, True, 0.95)
 
 suite = create_test_suite("Selecting whole phrases inside of a selection")
 #suite.add_test(percentage_test_selection)
 #suite.add_test(percentage_test_correction)
 suite.add_test(percentage_test_selfrepair)
 #suite.add_test(percentage_tests)
-suite.run()
+suite.run() 

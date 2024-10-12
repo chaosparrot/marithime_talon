@@ -395,8 +395,10 @@ class VirtualBufferMatcher:
 
                 score = match_tree.scores[index + index_offset]
                 weight = 0
-                for inner_index, _ in enumerate(query_index):
-                    weight += rescaled_match_calculation.weights[inner_index]
+                for _, inner_offset in enumerate(query_index):
+                    # TODO LATER - Fix weight rechecking based on buffer selection as well
+                    if inner_offset < len(rescaled_match_calculation.weights):
+                        weight += rescaled_match_calculation.weights[inner_offset]
                 weighted_low_score_threshold = low_score_threshold * weight / 1.5
 
                 # Rescaling weights and scores for self repair
@@ -737,17 +739,37 @@ class VirtualBufferMatcher:
         return result
 
     def compare_match_trees_for_selfrepair(self, a: VirtualBufferMatch, b: VirtualBufferMatch) -> int:
-        difference = a.score_potential - b.score_potential
+        # Pick the one with the most direct matches
+        direct_matches_a = [score for score in a.scores if score >= 0.9]
+        direct_matches_b = [score for score in b.scores if score >= 0.9]
 
-        # Favour longer matches over shorter matches
-        # But if the score of the shorter match is much better
-        # Choose the shorter match
-        if len(a.buffer) > len(b.buffer):
-            return 1 if difference > -0.1 else -1
-        elif len(a.buffer) < len(b.buffer):
-            return -1 if difference < 0.1 else 1
+        if len(direct_matches_a) > len(direct_matches_b):
+            return 1
+        elif len(direct_matches_a) < len(direct_matches_b):
+            return -1
         else:
-            return self.compare_match_trees_by_score(a, b)
+            # If the self repair starts with a bad score, we want to choose
+            # The one with the shortest amount of bad scores at the start
+            bad_starting_scores_a = 0
+            for score in a.scores:
+                if score < CORRECTION_THRESHOLD:
+                    bad_starting_scores_a += 1
+                else:
+                    break
+            
+            bad_starting_scores_b = 0
+            for score in b.scores:
+                if score < CORRECTION_THRESHOLD:
+                    bad_starting_scores_b += 1
+                else:
+                    break
+
+            if bad_starting_scores_a > bad_starting_scores_b:
+                return -1
+            elif bad_starting_scores_a < bad_starting_scores_b:
+                return 1
+            else:
+                return self.compare_match_trees_by_score(a, b)
 
     def compare_match_trees_by_score(self, a: VirtualBufferMatch, b: VirtualBufferMatch) -> int:
         # Favour the matches without dropped matches over ones with dropped matches
@@ -894,7 +916,7 @@ class VirtualBufferMatcher:
         # Do not allow punctuation to activate self repair
         punctuation_phrases = []
         for phrase in phrases:
-            normalized_phrase = phrase.replace(" ", "")
+            normalized_phrase = phrase.replace("\n", ".").replace(" ", "")
             if normalized_phrase.startswith((",", ".", "!", "?")):
                 break
             elif normalized_phrase.endswith((",", ".", "!", "?")):
@@ -961,9 +983,20 @@ class VirtualBufferMatcher:
                 match_branch.scores.append(branch.score)
                 match_branch.reduce_potential(match_calculation.max_score, branch.score, combined_weight)
 
+                # Expand backwards, because sometimes we have matches that have direct matches not on the first tokens
+                match_trees = [match_branch]
+                if match_branch.can_expand_backward(matrix):
+                    can_expand_backward_count = 1
+                    while can_expand_backward_count != 0:
+                        expanded_match_trees = []
+                        for match_tree in match_trees:
+                            backward_expanded_match_tree, match_calculation = self.expand_match_tree_backward(match_tree, match_calculation, matrix, verbose=verbose)
+                            expanded_match_trees.extend(backward_expanded_match_tree)
+                        can_expand_backward_count = sum([expanded_match_tree.can_expand_backward(matrix) for expanded_match_tree in expanded_match_trees])
+                        match_trees = list(set(expanded_match_trees))
+
                 # Expand forwards until it is no longer possible within the matrix
                 # Because the query can contain words beyond the matrix that will be used for insertion
-                match_trees = [match_branch]
                 if match_branch.can_expand_forward(match_calculation, matrix):
                     can_expand_forward_count = 1
                     while can_expand_forward_count != 0:
@@ -981,26 +1014,48 @@ class VirtualBufferMatcher:
 
                 # Filter out all the match trees that don't connect with the end of the matrix
                 for match_tree in match_trees:
-                    match_tree.to_global_index(matrix)                    
+                    match_tree.to_global_index(matrix)
                     if match_tree.buffer_indices[-1][-1] + 1 >= matrix.index + matrix.length:
 
                         # When the first word of the match isn't exact it is not a self repair                        
                         if len(match_tree.scores) <= 2:
                             first_token_matches = match_tree.scores[0] >= self.get_threshold_for_selection(match_tree.query, SELECTION_THRESHOLD)
+
+                            # Check if the found match is a direct continuation of the uttered word
+                            if not first_token_matches:
+                                starting_buffer_length = len(match_tree.buffer_indices[0])
+                                buffer_words = ""
+                                for buffer_index, buffer_word in enumerate(match_tree.buffer):
+                                    buffer_words += buffer_word
+                                    if buffer_index + 1 > starting_buffer_length:
+                                        break
+
+                                starting_query_length = len(match_tree.query_indices[0])
+                                query_words = ""
+                                for query_index, query_word in enumerate(match_tree.query):
+                                    query_words += query_word
+                                    if query_index + 1 > starting_query_length:
+                                        break
+
+                                is_continuation = query_words.startswith(buffer_words)
+                                first_token_matches = is_continuation
                         else:
                             first_token_matches = match_tree.scores[0] >= CORRECTION_THRESHOLD
+
+                        second_token_matches = len(match_tree.scores) > 1 and not first_token_matches and \
+                            match_tree.scores[1] >= CORRECTION_THRESHOLD and match_tree.score_potential > CORRECTION_THRESHOLD
 
                         # If it is only the first token that doesn't match, but the rest is very confident
                         # We expect we need to replace the first item
                         first_token_doesnt_match_but_others_high = match_tree.scores[0] < CORRECTION_THRESHOLD and \
                             match_tree.score_potential > SELECTION_THRESHOLD
-                        if first_token_matches or first_token_doesnt_match_but_others_high:
+                        if first_token_matches or first_token_doesnt_match_but_others_high or second_token_matches:
                             if verbose:
                                 print("FOUND SELF-REPAIR MATCH", match_tree)
                             matches.append(match_tree)
                         elif verbose:
                             print("SKIPPING MATCH TREE", match_tree)
-                            print("First token matches", first_token_matches, " or rest matches well", first_token_doesnt_match_but_others_high)
+                            print("First token matches", first_token_matches, "second token matches", second_token_matches, " or rest matches well", first_token_doesnt_match_but_others_high)
                     elif verbose:
                         print( "SKIPPING MATCH TREE BECAUSE IT DOES NOT REACH THE END", match_tree)
 

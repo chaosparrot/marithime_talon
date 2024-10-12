@@ -162,14 +162,25 @@ class VirtualBufferMatchCalculation:
         return self.selfrepair or impossible_potential > 0
 
     # Calculate the list of possible search branches that can lead to a match, sorted by most likely
-    # Self repair only has starting possible matches
+    # Self repair only has starting and secondary possible matches
     def get_possible_branches(self) -> List[List[int]]:
         if self.selfrepair:
             selfrepair_potentials = [[0]]
             if self.length > 1:
                 selfrepair_potentials.append([0, 1])
+                selfrepair_potentials.append([1])
             if self.length > 2:
                 selfrepair_potentials.append([0, 1, 2])
+                selfrepair_potentials.append([2])
+                selfrepair_potentials.append([1, 2])
+            if self.length > 3:
+                selfrepair_potentials.append([3])
+                selfrepair_potentials.append([2, 3])
+                selfrepair_potentials.append([1, 2, 3])
+            if self.length > 4:
+                selfrepair_potentials.append([4])
+                selfrepair_potentials.append([3, 4])
+                selfrepair_potentials.append([2, 3, 4])
             return selfrepair_potentials
 
         impossible_potential = 0

@@ -35,6 +35,31 @@ class VirtualBufferInitialBranch:
     def __hash__(self):
         return hash("_".join(map(str, self.query_indices)) + "-" + "_".join(map(str, self.buffer_indices)))
 
+@dataclass
+class VirtualBufferMatchWords:
+    query: List[List[str]]
+    buffer: List[List[str]]
+    scores: List[float]
+    query_skips: int = 0
+    buffer_skips: int = 0
+
+    def __init__(self):
+        self.query = []
+        self.buffer = []
+        self.scores = []
+
+    def get_query_words(self):
+        query_words = []
+        for words in self.query:
+            query_words.extend(words)
+        return query_words
+
+    def get_buffer_words(self):
+        buffer_words = []
+        for words in self.buffer:
+            buffer_words.extend(words)
+        return buffer_words
+
 # Keeps track of the visited branches and scores
 # So we can be intelligent about what branches we have already visited
 class VirtualBufferMatchVisitCache:
@@ -327,6 +352,45 @@ class VirtualBufferMatch:
     def reduce_potential(self, max_score: float, score: float, weight: float):
         self.score_potential -= (max_score - score) * weight
 
+    def get_matched_words(self) -> VirtualBufferMatchWords:
+        match_words = VirtualBufferMatchWords()
+        index_offset = 0
+        buffer_index = -1
+        local_query_index = -1
+        local_buffer_index = -1
+        for index, query_index in enumerate(self.query_indices):
+            # Count the query skips
+            if index > 0 and self.query_indices[index - 1][-1] != self.query_indices[index][0] - 1:
+                match_words.query_skips += 1
+
+            # Add the query words
+            query_words = []
+            for query_index_part in query_index:
+                local_query_index += 1
+                query_words.append(self.query[local_query_index + match_words.query_skips])
+            match_words.query.append(query_words)
+
+            if buffer_index == -1:
+                buffer_index = 0
+            else:
+                buffer_index += 1
+
+                # Skip found - Add another score index
+                if self.buffer_indices[buffer_index - 1][-1] != self.buffer_indices[buffer_index][0] - 1:
+                    match_words.buffer_skips += 1
+
+            # Add the buffer words compared
+            buffer_words = []
+            for buffer_index_part in range(0, len(self.buffer_indices[buffer_index])):
+                local_buffer_index += 1
+                buffer_words.append(self.buffer[local_buffer_index + match_words.buffer_skips])
+            match_words.buffer.append(buffer_words)
+
+            # Add the scores
+            match_words.scores.append(self.scores[index + match_words.buffer_skips])
+
+        return match_words
+
     def to_global_index(self, submatrix: VirtualBufferMatchMatrix):
         global_buffer_indices = []
         for index_list in self.buffer_indices:
@@ -340,7 +404,6 @@ class VirtualBufferMatch:
         query_indices = "-".join(map(str, ["".join(str(index)) for index in self.query_indices]))
         buffer_indices = "-".join(map(str, ["".join(str(index)) for index in self.buffer_indices]))
         return hash(query_indices + "-" + buffer_indices)
-
 
 @dataclass
 class VirtualBufferTokenContext:

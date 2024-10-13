@@ -36,4 +36,3 @@ def test_selecting_multiple_fuzzy_words(assertion):
 
 suite = create_test_suite("Selecting a whole mispronounced phrase in the virtual buffer")
 suite.add_test(test_selecting_multiple_fuzzy_words)
-suite.run()

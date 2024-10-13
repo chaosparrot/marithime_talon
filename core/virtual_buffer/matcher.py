@@ -360,47 +360,52 @@ class VirtualBufferMatcher:
 
         filtered_trees = []
         for match_tree in match_trees:
-            rescaled_match_calculation = match_calculation if not match_calculation.selfrepair else self.generate_match_calculation(match_tree.query, match_calculation.match_threshold, purpose="correction")
-            rescaled_score_potential = 0
             consecutive_low_scores = 0
 
             # Cannot start or end with a 0 / skip for selections
             threshold_met = match_calculation.purpose == "correction" or ( match_tree.scores[0] > 0.0 and match_tree.scores[-1] > 0.0 )
-            buffer_index = -1
-            index_offset = 0
-            buffer_words = []
-            for index, query_index in enumerate(match_tree.query_indices):
-                # Calculate the weighted score
-                if buffer_index == -1:
-                    buffer_index = 0
-                else:
-                    buffer_index += 1
+            
+            # We want to do a rescaling of the match calculation as if we used the full query and buffer result
+            # So we can determine if matches would be made one way or the other
+            matched_words = match_tree.get_matched_words()
+            rescaled_query_match_calculation = self.generate_match_calculation(matched_words.get_query_words(), match_calculation.match_threshold, purpose="correction")
+            rescaled_buffer_match_calculation = self.generate_match_calculation(matched_words.get_buffer_words(), match_calculation.match_threshold, purpose="correction")
+            rescaled_query_score_potential = 0
+            rescaled_buffer_score_potential = 0
 
-                    # Skip found - Add another score index
-                    if match_tree.buffer_indices[buffer_index - 1][-1] != match_tree.buffer_indices[buffer_index][0] - 1:
-                        index_offset += 1
+            query_offset = 0
+            buffer_offset = 0
+            for index, score in enumerate(matched_words.scores):
+                query_weight = 0
+                query = matched_words.query[index]
+                for inner_index in range(0, len(query)):
+                    query_weight += rescaled_query_match_calculation.weights[inner_index + query_offset]
+                query_offset += len(query)
 
-                score = match_tree.scores[index + index_offset]
-                weight = 0
-                for _, inner_offset in enumerate(query_index):
-                    # TODO LATER - Fix weight rechecking based on buffer selection as well
-                    if inner_offset < len(rescaled_match_calculation.weights):
-                        weight += rescaled_match_calculation.weights[inner_offset]
-                weighted_low_score_threshold = low_score_threshold * weight / 1.5
+                buffer_weight = 0
+                buffer = matched_words.buffer[index]
+                for inner_buffer_index in range(0, len(buffer)):
+                    buffer_weight += rescaled_buffer_match_calculation.weights[inner_buffer_index + buffer_offset]
+                buffer_offset += len(buffer)
 
                 # Rescaling weights and scores for self repair
                 # Because often the query matches are incomplete if more text is added after the self repair match
                 # And the match calculation score potentials are calculated based on a full match instead
                 # We need to rescale the potentials based on the actual query words and weights involved
                 # Before filtering out the match trees based on the correction rules
-                rescaled_score_potential += score * weight
+                rescaled_query_score_potential += score * query_weight
+                rescaled_buffer_score_potential += score * buffer_weight
 
-                if score * weight <= weighted_low_score_threshold:
+                weighted_low_score_threshold = low_score_threshold * query_weight / 1.5
+                weighted_low_buffer_score_threshold = low_score_threshold * buffer_weight / 1.5
+
+                if score * query_weight <= weighted_low_score_threshold or \
+                    score * buffer_weight <= weighted_low_buffer_score_threshold:
                     consecutive_low_scores += 1
                 else:
                     consecutive_low_scores = 0
 
-                matches_muliple_words = len(query_index) > 1 or len(match_tree.buffer_indices[buffer_index]) > 1
+                matches_muliple_words = len(query) > 1 or len(buffer) > 1
                 single_threshold = combined_word_score_threshold if matches_muliple_words else single_word_score_threshold
                 if score > 0.0 and score <= single_threshold:
                     threshold_met = False
@@ -415,12 +420,20 @@ class VirtualBufferMatcher:
                 if not threshold_met:
                     break
 
-            if threshold_met:
-                if match_calculation.selfrepair:
-                    if verbose:
-                        print( "Rescaling match tree score potential from ", match_tree.score_potential, " to ", rescaled_score_potential)
-                    match_tree.score_potential = rescaled_score_potential
+            if match_calculation.selfrepair and match_tree.query_indices[0][0] != 0:
+                if verbose:
+                    print("SKIPPED BECAUSE SELF REPAIR DOES NOT START WITH THE INDEX AT THE START")
+                threshold_met = False
 
+            if threshold_met:
+                if match_calculation.selfrepair or match_calculation.purpose != "correction":
+                    min_score_potential = min(rescaled_buffer_score_potential, rescaled_query_score_potential)
+                    if verbose:
+                        print( "Rescaling match tree score potential from ", match_tree.score_potential, " to ", min_score_potential, " picking from ", rescaled_buffer_score_potential, "and ", rescaled_query_score_potential)
+                    match_tree.score_potential = min_score_potential
+                    threshold_met = match_tree.score_potential >= match_calculation.match_threshold
+
+            if threshold_met:
                 filtered_trees.append(match_tree)
             elif verbose:
                 print( "--- FILTERING OUT BECAUSE OF BAD CONSECUTIVE SCORES", match_tree)
@@ -1040,6 +1053,7 @@ class VirtualBufferMatcher:
                         if not final_combined_tokens_bad and (first_token_matches or first_token_doesnt_match_but_others_high or second_token_matches):
                             if verbose:
                                 print("FOUND SELF-REPAIR MATCH", match_tree)
+                                print("Final combined tokens bad", final_combined_tokens_bad, "First token matches", first_token_matches, "second token matches", second_token_matches, " or rest matches well", first_token_doesnt_match_but_others_high)
                             matches.append(match_tree)
                         elif verbose:
                             print("SKIPPING MATCH TREE", match_tree)

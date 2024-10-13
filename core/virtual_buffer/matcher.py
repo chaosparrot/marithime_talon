@@ -18,7 +18,6 @@ class VirtualBufferMatcher:
     def __init__(self, phonetic_search: PhoneticSearch):
         self.phonetic_search = phonetic_search
         self.similarity_matrix = {}
-        self.checked_comparisons = {}
 
     # Calculate the best matching score
     # Based on the similarity score times the amount of syllables
@@ -166,14 +165,9 @@ class VirtualBufferMatcher:
         elif verbose:
             print( "    - CAN USE MATRIX BECAUSE THERE IS A BIG ENOUGH MAX SEQUENCE")
 
-        if verbose:
-            print("BEFORE COMPARISONS", sum(self.checked_comparisons.values()))
         for word_index in word_indices:
             potential_submatrices, match_calculation = self.find_potential_submatrices_for_words(matrix, match_calculation, word_index, max_submatrix_size, verbose=verbose)
             sub_matrices.extend(potential_submatrices)
-        if verbose:
-            duplicates = sum([value - 1 for value in self.checked_comparisons.values() if value > 1])
-            print("AFTER COMPARISONS", sum(self.checked_comparisons.values()), duplicates)
 
         if verbose:
             print( "    - FOUND ROOTS FOR THESE MATRICES", len(sub_matrices))
@@ -1228,10 +1222,6 @@ class VirtualBufferMatcher:
             return matched_token
         
     def get_memoized_similarity_score(self, word_a: str, word_b: str) -> float:
-        if word_a + ":" + word_b not in self.checked_comparisons:
-            self.checked_comparisons[word_a + ":" + word_b] = 0
-        self.checked_comparisons[word_a + ":" + word_b] += 1
-
         # Quick memoized look up
         if word_a in self.similarity_matrix and word_b in self.similarity_matrix[word_a]:
             return self.similarity_matrix[word_a][word_b]

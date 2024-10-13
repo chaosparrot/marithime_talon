@@ -145,14 +145,6 @@ class VirtualBufferMatcher:
         syllables_per_word = [self.phonetic_search.syllable_count(word) for word in query_words]
         total_syllables = max(sum(syllables_per_word), 1)
         weights = [syllable_count / total_syllables for syllable_count in syllables_per_word]
-
-        # TODO - Perhaps give more weight to starting and ending words
-        # If we are dealing with a heavy ^ shaped weights for correction, mellow out the weights
-        if purpose == "correction" and len(query_words) == 3 and weights[1] > weights[0] and weights[1] > weights[2]:
-            rescaled_syllable_count = syllables_per_word[1] - 1
-            rescaled_syllables = [min(rescaled_syllable_count, syllable_count) for syllable_count in syllables_per_word]
-            total_syllables = sum(rescaled_syllables)
-            weights = [syllable_count / total_syllables for syllable_count in rescaled_syllables]
         
         match_calculation = VirtualBufferMatchCalculation(query_words, weights, syllables_per_word, threshold, max_score_per_word, purpose)
         match_calculation.cache = VirtualBufferMatchVisitCache()
@@ -382,6 +374,7 @@ class VirtualBufferMatcher:
             threshold_met = match_calculation.purpose == "correction" or ( match_tree.scores[0] > 0.0 and match_tree.scores[-1] > 0.0 )
             buffer_index = -1
             index_offset = 0
+            buffer_words = []
             for index, query_index in enumerate(match_tree.query_indices):
                 # Calculate the weighted score
                 if buffer_index == -1:
@@ -1018,10 +1011,7 @@ class VirtualBufferMatcher:
                     if match_tree.buffer_indices[-1][-1] + 1 >= matrix.index + matrix.length:
 
                         # When the first word of the match isn't exact it is not a self repair
-                        if len(match_tree.scores) <= 2 and self.phonetic_search.syllable_count(match_tree.query[0]) == 1:
-                            first_token_matches = match_tree.scores[0] >= self.get_threshold_for_selection(match_tree.query, SELECTION_THRESHOLD)
-                        else:
-                            first_token_matches = match_tree.scores[0] >= CORRECTION_THRESHOLD
+                        first_token_matches = match_tree.scores[0] >= SELECTION_THRESHOLD
 
                         # Check if the found match is a direct continuation of the uttered word
                         if not first_token_matches:
@@ -1039,13 +1029,11 @@ class VirtualBufferMatcher:
                                 if query_index + 1 >= starting_query_length:
                                     break
 
-                            if verbose:
-                                print( "IS CONTINUATOIN?", query_words, buffer_words, query_words.startswith(buffer_words) )
                             is_continuation = query_words.startswith(buffer_words)
                             first_token_matches = is_continuation
 
                         second_token_matches = len(match_tree.scores) > 1 and not first_token_matches and \
-                            match_tree.scores[1] >= CORRECTION_THRESHOLD and match_tree.score_potential > CORRECTION_THRESHOLD
+                            match_tree.scores[1] >= SELECTION_THRESHOLD and match_tree.score_potential > CORRECTION_THRESHOLD
 
                         has_skip_before_end = len(match_tree.scores) > 2 and match_tree.scores[-2] == 0
                         final_combined_tokens_bad = ( has_skip_before_end or len(match_tree.query_indices[-1]) > 1 or len(match_tree.buffer_indices[-1]) > 1 ) and \

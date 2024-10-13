@@ -9,7 +9,7 @@ token_2 = text_to_virtual_buffer_tokens("a ", "a")
 token_3 = text_to_virtual_buffer_tokens("new ", "new")
 token_4 = text_to_virtual_buffer_tokens("sentence.", "sentence")
 
-milliseconds_50 = 0.00
+milliseconds_50 = 0.05
 indexer = VirtualBufferIndexer()
 
 lorum_tokens = []
@@ -140,7 +140,7 @@ def test_selection_performance_four_fuzzy_matches(assertion):
     start_time = time.perf_counter()
     vb.select_phrases(["inserted", "an", "new", "sentence"], verbose=False)
     end_time = time.perf_counter()
-    made_performance_check = end_time - start_time < 0.05
+    made_performance_check = end_time - start_time < milliseconds_50
     assertion( "        Should be done in less than 50 milliseconds", made_performance_check)
     assertion( "        Actual milliseconds: " + str((end_time - start_time) * 1000), made_performance_check)
 
@@ -152,7 +152,7 @@ def test_selection_performance_four_fuzzy_matches_lorum(assertion):
     start_time = time.perf_counter()
     vb.select_phrases(["inserted", "an", "new", "sentence"], verbose=False, for_correction=True)
     end_time = time.perf_counter()
-    made_performance_check = end_time - start_time < 0.05
+    made_performance_check = end_time - start_time < milliseconds_50
     assertion( "        Should be done in less than 50 milliseconds", made_performance_check)
     assertion( "        Actual milliseconds: " + str((end_time - start_time) * 1000), made_performance_check)
 

@@ -1,4 +1,4 @@
-from talon import Module, speech_system
+from talon import Module, speech_system, actions
 
 mod = Module()
 
@@ -16,3 +16,11 @@ class Actions:
     def engine_mimic(cmd: str):
         """Sends phrase to engine"""
         speech_system.engine_mimic(cmd)
+
+    def dutch_mode():
+        """Enter dutch dictation mode and re-evaluate phrase"""
+        actions.mode.enable("user.dutch")
+
+    def english_mode():
+        """Enter english dictation mode and re-evaluate phrase"""
+        actions.mode.disable("user.dutch")

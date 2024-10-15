@@ -711,12 +711,14 @@ class VirtualBufferMatcher:
 
     def compare_match_trees_for_correction(self, a: VirtualBufferMatch, b: VirtualBufferMatch) -> int:
         sort_by_score = self.compare_match_trees_by_score(a, b)
-        a_overlap_padding = min(1, max(0, round(len(a.buffer_indices))))
-        a_start = a.buffer_indices[0][0] - a_overlap_padding
+        overlap_size = max(0.33, (len(a.buffer) / 2) * 0.5)
+        a_overlap_padding = max(1, round(len(a.buffer) * overlap_size))
+        a_start = max(0, a.buffer_indices[0][0] - a_overlap_padding)
         a_end = a.buffer_indices[-1][-1] + a_overlap_padding
 
-        b_overlap_padding = min(1, max(0, round(len(b.buffer_indices))))
-        b_start = b.buffer_indices[0][0] - b_overlap_padding
+        overlap_size = max(0.33, (len(b.buffer) / 2) * 0.5)
+        b_overlap_padding = max(1, round(len(b.buffer) * overlap_size))
+        b_start = max(0, b.buffer_indices[0][0] - b_overlap_padding)
         b_end = b.buffer_indices[-1][-1] + b_overlap_padding
 
         # Overlap detected, check score instead

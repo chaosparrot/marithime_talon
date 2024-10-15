@@ -605,6 +605,15 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
     # 89.6% correction - Fluctuates between 89.8 and 89.6 percent still
     # 87.4% self repair - No fluctuation
 
+    # Results for selection while tweaking caching strategies
+    # 93.8% - No skip branches, low starting threshold
+    # 90.8% - No skip branches, high starting threshold
+    # 90.4% - Skip branches, low starting threshold
+    # 86.4% - Skip branches, high starting threshold
+    # 94.0% - Updated skip branches, low starting threshold
+    # 90.4% - Updated skip branches, high starting threshold
+    # 94.0% - Updated skip branches, dynamic starting thresholds    
+
     # Investigating correction ( 51 errors ), the following could be found
     # Incorrect because better find is found further away: 6
     # Expected nothing, matched with something: 9
@@ -674,14 +683,14 @@ def percentage_test_selection(assertion):
     percentage_tests(assertion, True, False, False, 0.95)
 
 def percentage_test_correction(assertion):
-    percentage_tests(assertion, False, True, False, 0.9)
+    percentage_tests(assertion, False, True, False, 0.95)
 
 def percentage_test_selfrepair(assertion):
     percentage_tests(assertion, False, False, True, 0.95)
 
 suite = create_test_suite("Selecting whole phrases inside of a selection")
 #suite.add_test(percentage_test_selection)
-#suite.add_test(percentage_test_correction)
+suite.add_test(percentage_test_correction)
 #suite.add_test(percentage_test_selfrepair)
 #suite.add_test(percentage_tests)
 suite.run()

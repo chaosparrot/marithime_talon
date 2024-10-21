@@ -61,9 +61,6 @@ class VirtualBufferMatcher:
         match_calculation.cache.index_matrix(matrix)
         windowed_submatrices = matrix.get_windowed_submatrices(leftmost_token_index, match_calculation)
 
-        real_verbose = verbose
-        verbose = False
-
         if verbose:
             print( "- Using match threshold: " + str(match_calculation.match_threshold))
             print( "- Splitting into " + str(len(windowed_submatrices)) + " windowed submatrices for rapid searching")
@@ -122,19 +119,19 @@ class VirtualBufferMatcher:
                 match_calculation.cache.skip_word_sequence(match.buffer)
             
             # Add indices to skip because they do not match anything in the total matrix
-            if real_verbose and windowed_submatrix.index == 0:
+            if verbose and windowed_submatrix.index == 0:
                 print( "BUFFER INDEX SCORES", match_calculation.cache.buffer_index_scores)
             non_match_threshold = 0.1 if match_calculation.purpose == "correction" else 0.29
             for windowed_index in range(windowed_submatrix.index, windowed_submatrix.end_index):
                 if not match_calculation.cache.should_skip_index(windowed_index):
                     score_for_index = match_calculation.cache.get_highest_score_for_buffer_index(windowed_index)
                     if score_for_index >= 0 and score_for_index < non_match_threshold:
-                        if real_verbose:
+                        if verbose:
                             print("SKIP SPECIFIC WORD!", score_for_index, windowed_index, matrix.tokens[windowed_index - matrix.index].phrase)
                         match_calculation.cache.skip_word_sequence([matrix.tokens[windowed_index - matrix.index].phrase])
-                    elif real_verbose:
+                    elif verbose:
                         print("DO NOT SKIP WORD", score_for_index, non_match_threshold, windowed_index)
-                elif real_verbose:
+                elif verbose:
                     print("SKIP INDEX", windowed_index)
         
         return matches
@@ -351,7 +348,8 @@ class VirtualBufferMatcher:
         # Filter out results with multiple consecutive bad results
         low_score_threshold = match_calculation.match_threshold / 2
         single_word_score_threshold = -1 if match_calculation.purpose == "correction" else 0.29
-        combined_word_score_threshold = 0.1 if match_calculation.purpose == "correction" else 0.5
+        combined_word_score_threshold = 0.3 if match_calculation.purpose == "correction" else 0.5
+        three_combined_word_score_threshold = 0.5
         
         if match_calculation.purpose == "correction":
             consecutive_low_score_threshold = 2
@@ -368,8 +366,8 @@ class VirtualBufferMatcher:
             # We want to do a rescaling of the match calculation as if we used the full query and buffer result
             # So we can determine if matches would be made one way or the other
             matched_words = match_tree.get_matched_words()
-            rescaled_query_match_calculation = self.generate_match_calculation(matched_words.get_query_words(), match_calculation.match_threshold, purpose="correction")
-            rescaled_buffer_match_calculation = self.generate_match_calculation(matched_words.get_buffer_words(), match_calculation.match_threshold, purpose="correction")
+            rescaled_query_match_calculation = self.generate_match_calculation(matched_words.get_query_words(), match_calculation.match_threshold, purpose=match_calculation.purpose)
+            rescaled_buffer_match_calculation = self.generate_match_calculation(matched_words.get_buffer_words(), match_calculation.match_threshold, purpose=match_calculation.purpose)
             rescaled_query_score_potential = 0
             rescaled_buffer_score_potential = 0
 
@@ -404,9 +402,12 @@ class VirtualBufferMatcher:
                     consecutive_low_scores += 1
                 else:
                     consecutive_low_scores = 0
-
+                
                 matches_muliple_words = len(query) > 1 or len(buffer) > 1
                 single_threshold = combined_word_score_threshold if matches_muliple_words else single_word_score_threshold
+                if len(query) == 3 or len(buffer) == 3:
+                    single_threshold = three_combined_word_score_threshold
+
                 if score > 0.0 and score <= single_threshold:
                     threshold_met = False
                     if verbose:
@@ -571,8 +572,8 @@ class VirtualBufferMatcher:
             # Add the combined tokens, but only if the score increases
             # Compared to the current match tree, and the match tree that would be 
             combined_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, combined_query_indices, [next_buffer_index], direction)
-            if sum(combined_match_tree.scores) == sum(match_tree.scores) or \
-                sum(combined_match_tree.scores) < sum(comparison_match_tree.scores):
+            if sum(combined_match_tree.scores) - 0.1 == sum(match_tree.scores) or \
+                sum(combined_match_tree.scores) - 0.1 < sum(comparison_match_tree.scores):
                 return combined_match_trees
             combined_match_trees.append(combined_match_tree)
 
@@ -618,9 +619,9 @@ class VirtualBufferMatcher:
             # Compared to the single matches
             combined_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], combined_buffer_indices, direction)
             skipped_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_skip_index], direction)
-            if sum(combined_match_tree.scores) == sum(match_tree.scores) or \
-                sum(combined_match_tree.scores) <= sum(comparison_match_tree.scores) or \
-                sum(combined_match_tree.scores) <= sum(skipped_match_tree.scores):
+            if sum(combined_match_tree.scores) - 0.1 == sum(match_tree.scores) or \
+                sum(combined_match_tree.scores) - 0.1 <= sum(comparison_match_tree.scores) or \
+                sum(combined_match_tree.scores) - 0.1 <= sum(skipped_match_tree.scores):
                 if verbose:
                     print( " - DISCARDED COMBINED BUFFER " + str(sum(combined_match_tree.scores)) + " <= " + str(sum(comparison_match_tree.scores)) + "|" + str(sum(skipped_match_tree.scores)))
                 return combined_buffer_match_trees
@@ -829,14 +830,14 @@ class VirtualBufferMatcher:
                 if matrix_index + 1 < len(matrix.tokens):
                     phrases = [matrix_token.phrase, matrix.tokens[matrix_index + 1].phrase]
                     combined_score = self.get_memoized_similarity_score("".join(phrases).replace(" ", ""), query_tokens)
-                    if combined_score > single_score:
+                    if combined_score - 0.1 > single_score:
                         if matrix_index + 2 < len(matrix.tokens):
                             phrases.append( matrix.tokens[matrix_index + 2].phrase )
                             triple_combined_score = self.get_memoized_similarity_score("".join(phrases).replace(" ", ""), query_tokens)
                             if triple_combined_score > combined_score:
                                 buffer_indices = [matrix_index, matrix_index + 1, matrix_index + 2]
                                 score = triple_combined_score
-                        if combined_score > score:
+                        if combined_score - 0.1 > score:
                             buffer_indices = [matrix_index, matrix_index + 1]
                             score = combined_score
                         match_calculation.cache.cache_buffer_index_score(score, buffer_indices, matrix)
@@ -845,21 +846,21 @@ class VirtualBufferMatcher:
                 if matrix_index - 1 >= 0:
                     phrases = [matrix.tokens[matrix_index - 1].phrase, matrix_token.phrase]
                     combined_score = self.get_memoized_similarity_score("".join(phrases).replace(" ", ""), query_tokens)
-                    if combined_score > single_score:
+                    if combined_score - 0.1 > single_score:
                         if matrix_index - 2 >= 0:
                             phrases.insert(0, matrix.tokens[matrix_index - 2].phrase)
                             triple_combined_score = self.get_memoized_similarity_score("".join(phrases).replace(" ", ""), query_tokens)
                             if triple_combined_score > combined_score and triple_combined_score > score:
                                 buffer_indices = [matrix_index - 2, matrix_index - 1, matrix_index]
                                 score = triple_combined_score
-                        if combined_score > score:
+                        if combined_score - 0.1 > score:
                             buffer_indices = [matrix_index - 1, matrix_index]
                             score = combined_score
-                        match_calculation.cache.cache_buffer_index_score(score, buffer_indices, matrix)                        
+                        match_calculation.cache.cache_buffer_index_score(score, buffer_indices, matrix)
 
             has_starting_match = score >= threshold
             if verbose:
-                print( "Score for " + query_tokens + " = " + matrix_token.phrase.replace(" ", "") + ": " + str(score) + " with weighted thresh:" + str(threshold), score >= threshold)
+                print( "Score for " + query_tokens + " = " + matrix_token.phrase.replace(" ", "") + ",".join([str(bufin) for bufin in buffer_indices]) + ": " + str(score) + " with weighted thresh:" + str(threshold), score >= threshold)
             if has_starting_match:
                 starting_index = max(0, round(matrix_index + relative_left_index - 1))
                 ending_index = min(len(matrix.tokens), round(matrix_index + relative_right_index))
@@ -867,6 +868,8 @@ class VirtualBufferMatcher:
                 if (len(submatrix.tokens) > 0):
                     submatrices.append(submatrix)
                     match_calculation.append_starting_branch(word_indices, [matrix.index + index for index in buffer_indices], score)
+                elif verbose:
+                    print( query_tokens, "RESULTED IN EMPTY SUBMATRIX!")
 
         return submatrices, match_calculation
 

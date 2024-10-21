@@ -224,14 +224,14 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
         if key not in total_results:
             total_results[key] = 0
         total_results[key] += 1
-        #assertion(invalid_result["buffer"] + " correcting '" + invalid_result["correction"] + "' does not yield '" + invalid_result["result"] + "' but '" + invalid_result["actual"] + "'", False)
+        assertion(invalid_result["buffer"] + " correcting '" + invalid_result["correction"] + "' does not yield '" + invalid_result["result"] + "' but '" + invalid_result["actual"] + "'", False)
 
     for invalid_result in selfrepair_results[4]:
         key = str(len(invalid_result["inserted"].split())) + "-" + str(len(invalid_result["selfrepaired"].split())) + "-" + str(len(invalid_result["actual"].split()))
         if key not in total_results:
             total_results[key] = 0
         total_results[key] += 1
-        assertion(invalid_result["buffer"] + " correcting '" + invalid_result["inserted"] + "' does not yield '" + invalid_result["selfrepaired"] + "' but '" + invalid_result["actual"] + "'", False)
+        #assertion(invalid_result["buffer"] + " correcting '" + invalid_result["inserted"] + "' does not yield '" + invalid_result["selfrepaired"] + "' but '" + invalid_result["actual"] + "'", False)
 
     # Last check before algo change
     # 118 / 196 = 60% = Expected result, got NOTHING
@@ -669,6 +669,10 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
     # Selection acc: 95.2%
     # Correction acc: 89% - Still not using this for correction now
     # Now we need to make skip query matches to round out the overall improvements for self repair
+    # TODO IMPROVE INITIAL BRANCHES FOR CORRECTION TO ALLOW BETTER EXPLORATION OF OPTIONS
+    # THOSE SEEM TO GIVE THE MOST ERRORS NOW BY NOT HAVING BRANCHES EXPLORED THAT COULDVE HAD A HIGHER SCORE
+    # After tweaking some thresholds and adding a penalty for insufficiently better combined words
+    # 91.6% correction accuracy
 
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))

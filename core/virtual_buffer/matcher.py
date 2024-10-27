@@ -8,7 +8,7 @@ from functools import cmp_to_key
 
 # Number found through experimentation
 # A combined score needs to be at least this number better of a match to be considered a valid root
-combined_better_threshold = 0.1
+combined_better_threshold = 0.075
 
 def normalize_text(text: str) -> str:
     return re.sub(r"[^\w\s]", ' ', text).replace("\n", " ")
@@ -343,7 +343,7 @@ class VirtualBufferMatcher:
                 
                 matches_muliple_words = len(query) > 1 or len(buffer) > 1
                 single_threshold = combined_word_score_threshold if matches_muliple_words else single_word_score_threshold
-                if len(query) == 3 or len(buffer) == 3:
+                if not match_calculation.selfrepair and ( len(query) == 3 or len(buffer) == 3 ):
                     single_threshold = three_combined_word_score_threshold
 
                 if score > 0.0 and score <= single_threshold:
@@ -767,7 +767,7 @@ class VirtualBufferMatcher:
             is_multiple_query_match = len(word_indices) > 1
 
             query_words = [match_calculation.words[word_index] for word_index in word_indices]
-            individual_scores = [self.get_memoized_similarity_score(word, matrix_token.phrase.replace(" ", "")) for word in query_words]
+            individual_scores = [0.0] if match_calculation.selfrepair else [self.get_memoized_similarity_score(word, matrix_token.phrase.replace(" ", "")) for word in query_words]
 
             # Add single combination
             if score >= threshold:
@@ -799,7 +799,7 @@ class VirtualBufferMatcher:
                             buffer_indices = [matrix_index, matrix_index + 1]
                             score = combined_score
                             match_calculation.cache.cache_buffer_index_score(score, buffer_indices, matrix)
-                        individual_scores = [self.get_memoized_similarity_score(query_word, word) for word in phrases]
+                        individual_scores = [0.0] if match_calculation.selfrepair else[self.get_memoized_similarity_score(query_word, word) for word in phrases]
 
                         # Add the combined match branch that matched the best
                         if combined_score >= threshold and combined_score > max(individual_scores):
@@ -825,7 +825,7 @@ class VirtualBufferMatcher:
                             buffer_indices = [matrix_index - 1, matrix_index]
                             score = combined_score
                             match_calculation.cache.cache_buffer_index_score(score, buffer_indices, matrix)
-                        individual_scores = [self.get_memoized_similarity_score(query_word, word) for word in phrases]
+                        individual_scores = [0.0] if match_calculation.selfrepair else [self.get_memoized_similarity_score(query_word, word) for word in phrases]
 
                         # Add the combined match branch that matched the best
                         if combined_score >= threshold and combined_score > max(individual_scores):

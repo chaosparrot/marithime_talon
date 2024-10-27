@@ -159,20 +159,17 @@ def test_selection_performance_four_fuzzy_matches_lorum(assertion):
 suite = create_test_suite("Testing the selection performance on a large document")
 
 # Performance measurements
-# Without cache | + Submatrix skip cache | + Branch skipping cache | + dynamic thres and initial branch skipping | +buffer score for initial branch
-#suite.add_test(test_selection_performance_no_match) # 46 ms | 88 ms | 45 ms | 83 ms | 10ms
-#suite.add_test(test_selection_performance_single_match) # 6 ms | 10 ms | 6 ms | 13 ms | 13ms
-#suite.add_test(test_selection_performance_multiple_match) # 7 ms | 10 ms | 8 ms | 9 ms | 7 ms
-#suite.add_test(test_selection_performance_multiple_no_matches) # 2196 ms | 19 ms | 21 ms | 280 ms | 21 ms
-#suite.add_test(test_selection_performance_single_fuzzy_match) # 43 ms | 49 ms | 49 ms | 63 ms (31 ms fixed) | 29 ms
-#suite.add_test(test_selection_performance_multiple_fuzzy_match) # 287 ms | 354 ms | 335 ms | 858 ms (29 ms fixed) | 32 ms
-#suite.add_test(test_selection_performance_four_fuzzy_matches) # 88 ms | 108 ms | 155 ms | 160 ms (78 ms fixed) | 79 ms
-#suite.add_test(test_selection_performance_no_match_lorum) # ||| 701 ms | 29 ms
-#suite.add_test(test_selection_performance_multiple_no_matches_lorum) # |||| 264 ms
+# Without cache | + Submatrix skip cache | + Branch skipping cache | + dynamic thres and initial branch skipping | +buffer score for initial branch | After improvements to accuracy
+#suite.add_test(test_selection_performance_no_match) # 46 ms | 88 ms | 45 ms | 83 ms | 10ms | 11ms
+#suite.add_test(test_selection_performance_single_match) # 6 ms | 10 ms | 6 ms | 13 ms | 13ms | 6ms
+#suite.add_test(test_selection_performance_multiple_match) # 7 ms | 10 ms | 8 ms | 9 ms | 7 ms | 8ms
+#suite.add_test(test_selection_performance_multiple_no_matches) # 2196 ms | 19 ms | 21 ms | 280 ms | 21 ms | 15ms
+#suite.add_test(test_selection_performance_single_fuzzy_match) # 43 ms | 49 ms | 49 ms | 63 ms (31 ms fixed) | 29 ms | 11ms
+#suite.add_test(test_selection_performance_multiple_fuzzy_match) # 287 ms | 354 ms | 335 ms | 858 ms (29 ms fixed) | 32 ms | 142ms
+#suite.add_test(test_selection_performance_four_fuzzy_matches) # 88 ms | 108 ms | 155 ms | 160 ms (78 ms fixed) | 79 ms | 70ms
+#suite.add_test(test_selection_performance_no_match_lorum) # ||| 701 ms | 29 ms | 15ms
+#suite.add_test(test_selection_performance_multiple_no_matches_lorum) # |||| 264 ms | 187ms
 #suite.run()
-
-# TODO FIX PERFORMANCE FOR FUZZY MATCHES
-# TODO IMPROVE PERFORMANCE FOR NO MATCHES FURTHER
 
 # Duplicate visits without branch skipping
 # Select  : 36.274
@@ -184,6 +181,7 @@ suite = create_test_suite("Testing the selection performance on a large document
 # Correct : 44.004
 # Self-r  : 59.858
 
+# NOTE : Score caching allows for speed ups on all benchmarks, so it is hard to find consistent performance bench marks
 # For a single select check with 13 words and 4 query words
 # 482 checks - 253 at the start, 68 of which are duplicates ( but might be due to a word appearing multiple times ) - 228 duplicates in total
 # 41 results out of 253 starts

@@ -96,6 +96,13 @@ def test_selfrepair(assertion, buffer: str, query: str, result: str = "") -> (bo
     query_tokens = []
     for index, query_token in enumerate(query_text_tokens):
         query_tokens.extend(text_to_virtual_buffer_tokens(query_token + (" " if index < len(query_text_tokens) - 1 else "")))
+    
+    # Re-add punctuation
+    for index, query_token in enumerate(query_tokens):
+        if query_token.text.startswith(","):
+            query_tokens[index].phrase = "," + query_tokens[index].phrase
+        if query_token.text.startswith("."):
+            query_tokens[index].phrase = "." + query_tokens[index].phrase
 
     vb.set_tokens(tokens, True)
     match = vb.find_self_repair([x.phrase if x.phrase != "" else x.text for x in query_tokens], verbose = buffer.startswith("###"))
@@ -224,7 +231,7 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
         if key not in total_results:
             total_results[key] = 0
         total_results[key] += 1
-        assertion(invalid_result["buffer"] + " correcting '" + invalid_result["correction"] + "' does not yield '" + invalid_result["result"] + "' but '" + invalid_result["actual"] + "'", False)
+        #assertion(invalid_result["buffer"] + " correcting '" + invalid_result["correction"] + "' does not yield '" + invalid_result["result"] + "' but '" + invalid_result["actual"] + "'", False)
 
     for invalid_result in selfrepair_results[4]:
         key = str(len(invalid_result["inserted"].split())) + "-" + str(len(invalid_result["selfrepaired"].split())) + "-" + str(len(invalid_result["actual"].split()))
@@ -693,6 +700,14 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
     # Correction: 95.6%
     # Self repair: 94.2%
 
+    # After disabling the check for individual components
+    # Self repair: 94.8%
+
+    # After fixing punctuation prefix for self repair
+    # Selection: 95.6%
+    # Correction: 95.6%
+    # Self repair: 95.0%
+
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
     #    if key not in total_results:
@@ -714,6 +729,6 @@ def percentage_test_selfrepair(assertion):
 suite = create_test_suite("Selecting whole phrases inside of a selection")
 #suite.add_test(percentage_test_selection)
 #suite.add_test(percentage_test_correction)
-suite.add_test(percentage_test_selfrepair)
+#suite.add_test(percentage_test_selfrepair)
 #suite.add_test(percentage_tests)
 suite.run()

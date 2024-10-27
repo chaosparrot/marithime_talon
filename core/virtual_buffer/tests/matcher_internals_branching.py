@@ -161,7 +161,7 @@ def test_fully_combined_query_match_tree(assertion):
     assertion("    should not be able to expand forward", match_tree.can_expand_forward(calculation, submatrix) == False)
     assertion("    should not be able to expand backward", match_tree.can_expand_backward(submatrix) == False)
     match_trees, _ = matcher.expand_match_tree(match_tree, calculation, submatrix)
-    assertion("    should have a single result after expanding", len(match_trees) == 1)
+    assertion("    should not have a single result after expanding due to lower score than individual components", len(match_trees) == 0)
 
 def test_partially_combined_query_match_tree(assertion):
     matcher = get_matcher()

@@ -674,6 +674,25 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
     # After tweaking some thresholds and adding a penalty for insufficiently better combined words
     # 91.6% correction accuracy
 
+    # After adding multiple starting roots for combinations
+    # Selection: 95.6%
+    # Correction: 92.0%
+    # After disabling initial branch pruning for correction
+    # Selection: 95.6%
+    # Correction: 94.4%
+    # Self repair acc: 94.6%
+
+    # Small tweak to sorting correction matches and results
+    # Correction: 94.8%
+    # After reimplementing a penalty for insufficiently better combined words
+    # Correction: 95%
+    # Selection: 95.6%
+    # Self repair: 94.2%
+    # After adding check for individual components for combining the first match root
+    # Selection: 95.4%
+    # Correction: 95.6%
+    # Self repair: 94.2%
+
     #for regression in selection_results[3]:
         #key = str(len(regression["query"].split())) + "-" + str(len(regression["result"].split()))
     #    if key not in total_results:
@@ -694,7 +713,7 @@ def percentage_test_selfrepair(assertion):
 
 suite = create_test_suite("Selecting whole phrases inside of a selection")
 #suite.add_test(percentage_test_selection)
-suite.add_test(percentage_test_correction)
-#suite.add_test(percentage_test_selfrepair)
+#suite.add_test(percentage_test_correction)
+suite.add_test(percentage_test_selfrepair)
 #suite.add_test(percentage_tests)
 suite.run()

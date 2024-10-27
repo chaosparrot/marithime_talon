@@ -6,6 +6,10 @@ from typing import List, Dict, Tuple
 import math
 from functools import cmp_to_key
 
+# Number found through experimentation
+# A combined score needs to be at least this number better of a match to be considered a valid root
+combined_better_threshold = 0.1
+
 def normalize_text(text: str) -> str:
     return re.sub(r"[^\w\s]", ' ', text).replace("\n", " ")
 
@@ -222,72 +226,6 @@ class VirtualBufferMatcher:
                 match_branches.append(match_branch)
             elif verbose:
                 print( "Branch rejected because ", branch.score_potential, "<", match_calculation.match_threshold, branch )
-
-            #word_index = branch.query_indices[0]
-            #end_word_index = branch.query_indices[-1]
-            #max_buffer_search = len(buffer) - (len(query))
-            #if verbose:
-            #    print(" - Attempting", query_match_branch.query, combined_weight)
-
-            #for buffer_index in range(word_index, end_word_index + max_buffer_search + 1):
-            #    buffer_word = buffer[buffer_index]
-            #    score = self.get_memoized_similarity_score("".join(query_match_branch.query), buffer_word)
-            #    if verbose:
-            #        print( "     - Score with " + buffer_word + ": " + str(score))
-
-                # Only add a match branch for a combined query search if the combined search scores higher than individual scores
-            #    if is_multiple_query_match:
-            #        individual_scores = [self.get_memoized_similarity_score(word, buffer_word) for word in match_calculation.words]
-            #        if max(individual_scores) > score:
-            #            continue
-
-                # Attempt multi-buffer matches if they score higher than the single match buffer case
-            #    highest_match_score = score
-            #    buffer_indices_to_use = [buffer_index]
-            #    if not is_multiple_query_match:
-            #        next_word = ""
-
-                    # Combine two words
-            #        if buffer_index + 1 <= max_buffer_search and buffer_index + 1 < len(buffer):
-            #            next_word = buffer[buffer_index + 1]
-            #            next_forward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), buffer_word + next_word)
-            #            if next_forward_score > highest_match_score:
-            #                highest_match_score = next_forward_score
-            #                buffer_indices_to_use = [buffer_index, buffer_index + 1]
-
-                    # Combine three words
-            #        if buffer_index + 2 <= max_buffer_search and buffer_index + 2 < len(buffer) and len(buffer_indices_to_use) == 2:
-            #            second_next_word = buffer[buffer_index + 2]
-            #            next_forward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), buffer_word + next_word + second_next_word)
-            #            if next_forward_score > highest_match_score:
-            #                highest_match_score = next_forward_score
-            #                buffer_indices_to_use = [buffer_index, buffer_index + 1, buffer_index + 2]
-
-                    # Combine two words backward
-            #        if buffer_index - 1 >= word_index:
-            #            previous_word = buffer[buffer_index - 1]
-            #            previous_backward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), previous_word + buffer_word)
-            #            if previous_backward_score > highest_match_score:
-            #                highest_match_score = previous_backward_score
-            #                buffer_indices_to_use = [buffer_index - 1, buffer_index]
-
-                    # Combine three words backward
-            #        if buffer_index - 2 >= word_index and len(buffer_indices_to_use) == 2:
-            #            second_previous_word = buffer[buffer_index - 2]
-            #            previous_backward_score = self.get_memoized_similarity_score("".join(query_match_branch.query), second_previous_word + previous_word + buffer_word)
-            #            if previous_backward_score > highest_match_score:
-            #                highest_match_score = previous_backward_score
-            #                buffer_indices_to_use = [buffer_index - 2, buffer_index - 1, buffer_index]
-
-                # Add only a single combination even if multiple options might have a better overall chance
-                # Only if the words compare well enough will we continue searching
-            #    if highest_match_score >= match_calculation.match_threshold:
-            #        match_branch = query_match_branch.clone()
-            #        match_branch.buffer_indices.append(buffer_indices_to_use)
-            #        match_branch.buffer.extend([buffer[buffer_index] for buffer_index in buffer_indices_to_use])
-            #        match_branch.scores.append(highest_match_score)
-            #        match_branch.reduce_potential(match_calculation.max_score, score, combined_weight) 
-            #        match_branches.append(match_branch)
 
         # Filter searches that do not match the previous best and sort by the best score first
         searches = []
@@ -572,8 +510,8 @@ class VirtualBufferMatcher:
             # Add the combined tokens, but only if the score increases
             # Compared to the current match tree, and the match tree that would be 
             combined_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, combined_query_indices, [next_buffer_index], direction)
-            if sum(combined_match_tree.scores) - 0.1 == sum(match_tree.scores) or \
-                sum(combined_match_tree.scores) - 0.1 < sum(comparison_match_tree.scores):
+            if sum(combined_match_tree.scores) - combined_better_threshold == sum(match_tree.scores) or \
+                sum(combined_match_tree.scores) - combined_better_threshold < sum(comparison_match_tree.scores):
                 return combined_match_trees
             combined_match_trees.append(combined_match_tree)
 
@@ -619,9 +557,9 @@ class VirtualBufferMatcher:
             # Compared to the single matches
             combined_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], combined_buffer_indices, direction)
             skipped_match_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, submatrix, [next_query_index], [next_buffer_skip_index], direction)
-            if sum(combined_match_tree.scores) - 0.1 == sum(match_tree.scores) or \
-                sum(combined_match_tree.scores) - 0.1 <= sum(comparison_match_tree.scores) or \
-                sum(combined_match_tree.scores) - 0.1 <= sum(skipped_match_tree.scores):
+            if sum(combined_match_tree.scores) - combined_better_threshold == sum(match_tree.scores) or \
+                sum(combined_match_tree.scores) - combined_better_threshold <= sum(comparison_match_tree.scores) or \
+                sum(combined_match_tree.scores) - combined_better_threshold <= sum(skipped_match_tree.scores):
                 if verbose:
                     print( " - DISCARDED COMBINED BUFFER " + str(sum(combined_match_tree.scores)) + " <= " + str(sum(comparison_match_tree.scores)) + "|" + str(sum(skipped_match_tree.scores)))
                 return combined_buffer_match_trees
@@ -722,15 +660,17 @@ class VirtualBufferMatcher:
         b_start = max(0, b.buffer_indices[0][0] - b_overlap_padding)
         b_end = b.buffer_indices[-1][-1] + b_overlap_padding
 
-        # Overlap detected, check score instead
-        if a_start <= b_end and b_start <= a_end:
-            return sort_by_score
-        elif a.distance < b.distance:
-            return 1
-        elif a.distance > b.distance:
-            return -1
-        else:
-            return sort_by_score
+        # Sort by distance only if the score is significantly different
+        # And no overlap is detected, check score instead
+        should_sort_by_score = abs(a.score_potential - b.score_potential) > 0.1 or \
+            ( a_start <= b_end and b_start <= a_end )
+
+        if not should_sort_by_score:
+            if a.distance < b.distance:
+                return 1
+            elif a.distance > b.distance:
+                return -1
+        return sort_by_score
         
     def compare_match_trees_for_selection(self, a: VirtualBufferMatch, b: VirtualBufferMatch) -> int:
         result = self.compare_match_trees_by_score(a, b)
@@ -804,6 +744,7 @@ class VirtualBufferMatcher:
         relative_left_index = -(word_indices[0] + ( max_submatrix_size - match_calculation.length ) / 2)
         relative_right_index = relative_left_index + max_submatrix_size
 
+
         # Only search within the viable range ( no cut off matches at the start and end of the matrix )
         # Due to multiple different fuzzy matches being possible, it isn't possible to do token skipping
         # Like in the Boyer–Moore string-search algorithm
@@ -823,51 +764,83 @@ class VirtualBufferMatcher:
             single_score = score
             buffer_indices = [matrix_index]
             match_calculation.cache.cache_buffer_index_score(score, buffer_indices, matrix)
+            is_multiple_query_match = len(word_indices) > 1
+
+            query_words = [match_calculation.words[word_index] for word_index in word_indices]
+            individual_scores = [self.get_memoized_similarity_score(word, matrix_token.phrase.replace(" ", "")) for word in query_words]
+
+            # Add single combination
+            if score >= threshold:
+                if verbose:
+                    print( "Score for " + query_tokens + " = " + matrix_token.phrase.replace(" ", "") + " " + ",".join([str(bufin) for bufin in buffer_indices]) + ": " + str(score) + " with weighted thresh:" + str(threshold), score >= threshold)
+
+                # Only add a match branch for a combined query search if the combined search scores higher than individual scores
+                if not is_multiple_query_match or max(individual_scores) < score:
+                    match_calculation.append_starting_branch(word_indices, [matrix.index + index for index in buffer_indices], score)
+            biggest_score = score
 
             # Add buffer combinations as well if we are matching with a single word
-            if len(word_indices) == 1:
+            if not is_multiple_query_match:
+                query_word = query_words[0]
                 # Combine forward
                 if matrix_index + 1 < len(matrix.tokens):
                     phrases = [matrix_token.phrase, matrix.tokens[matrix_index + 1].phrase]
                     combined_score = self.get_memoized_similarity_score("".join(phrases).replace(" ", ""), query_tokens)
-                    if combined_score - 0.1 > single_score:
+                    if (combined_score - combined_better_threshold ) > single_score and (combined_score - combined_better_threshold) >= threshold:
                         if matrix_index + 2 < len(matrix.tokens):
-                            phrases.append( matrix.tokens[matrix_index + 2].phrase )
-                            triple_combined_score = self.get_memoized_similarity_score("".join(phrases).replace(" ", ""), query_tokens)
-                            if triple_combined_score > combined_score:
+                            triple_phrases = [matrix_token.phrase, matrix.tokens[matrix_index + 1].phrase, matrix.tokens[matrix_index + 2].phrase]
+                            triple_combined_score = self.get_memoized_similarity_score("".join(triple_phrases).replace(" ", ""), query_tokens)
+                            if (triple_combined_score - combined_better_threshold) > combined_score:
                                 buffer_indices = [matrix_index, matrix_index + 1, matrix_index + 2]
                                 score = triple_combined_score
-                        if combined_score - 0.1 > score:
+                                phrases = triple_phrases
+                                match_calculation.cache.cache_buffer_index_score(score, buffer_indices, matrix)
+                        if (combined_score - combined_better_threshold) > score:
                             buffer_indices = [matrix_index, matrix_index + 1]
                             score = combined_score
-                        match_calculation.cache.cache_buffer_index_score(score, buffer_indices, matrix)
-            
-                # Combine backward
+                            match_calculation.cache.cache_buffer_index_score(score, buffer_indices, matrix)
+                        individual_scores = [self.get_memoized_similarity_score(query_word, word) for word in phrases]
+
+                        # Add the combined match branch that matched the best
+                        if combined_score >= threshold and combined_score > max(individual_scores):
+                            if verbose:
+                                print( "Score for forwards combined " + query_tokens + " = " + "".join(phrases).replace(" ", "") + " " + ",".join([str(bufin) for bufin in buffer_indices]) + ": " + str(combined_score) + " with weighted thresh:" + str(threshold), combined_score >= threshold)
+                            match_calculation.append_starting_branch(word_indices, [matrix.index + index for index in buffer_indices], score)
+                        biggest_score = max(score, biggest_score)
+
+                # Combine backwards
                 if matrix_index - 1 >= 0:
                     phrases = [matrix.tokens[matrix_index - 1].phrase, matrix_token.phrase]
                     combined_score = self.get_memoized_similarity_score("".join(phrases).replace(" ", ""), query_tokens)
-                    if combined_score - 0.1 > single_score:
+                    if (combined_score - combined_better_threshold) > single_score and (combined_score - combined_better_threshold) >= threshold:
                         if matrix_index - 2 >= 0:
-                            phrases.insert(0, matrix.tokens[matrix_index - 2].phrase)
-                            triple_combined_score = self.get_memoized_similarity_score("".join(phrases).replace(" ", ""), query_tokens)
-                            if triple_combined_score > combined_score and triple_combined_score > score:
+                            triple_phrases = [matrix.tokens[matrix_index - 2].phrase, matrix.tokens[matrix_index - 1].phrase, matrix_token.phrase]
+                            triple_combined_score = self.get_memoized_similarity_score("".join(triple_phrases).replace(" ", ""), query_tokens)
+                            if (triple_combined_score - combined_better_threshold) > combined_score:
                                 buffer_indices = [matrix_index - 2, matrix_index - 1, matrix_index]
                                 score = triple_combined_score
-                        if combined_score - 0.1 > score:
+                                match_calculation.cache.cache_buffer_index_score(triple_combined_score, buffer_indices, matrix)
+                                phrases = triple_phrases
+                        if (combined_score - combined_better_threshold) > score:
                             buffer_indices = [matrix_index - 1, matrix_index]
                             score = combined_score
-                        match_calculation.cache.cache_buffer_index_score(score, buffer_indices, matrix)
+                            match_calculation.cache.cache_buffer_index_score(score, buffer_indices, matrix)
+                        individual_scores = [self.get_memoized_similarity_score(query_word, word) for word in phrases]
 
-            has_starting_match = score >= threshold
-            if verbose:
-                print( "Score for " + query_tokens + " = " + matrix_token.phrase.replace(" ", "") + ",".join([str(bufin) for bufin in buffer_indices]) + ": " + str(score) + " with weighted thresh:" + str(threshold), score >= threshold)
+                        # Add the combined match branch that matched the best
+                        if combined_score >= threshold and combined_score > max(individual_scores):
+                            if verbose:
+                                print( "Score for backwards combined " + query_tokens + " = " + "".join(phrases).replace(" ", "") + " " + ",".join([str(bufin) for bufin in buffer_indices]) + ": " + str(combined_score) + " with weighted thresh:" + str(threshold), combined_score >= threshold)
+                            match_calculation.append_starting_branch(word_indices, [matrix.index + index for index in buffer_indices], score)            
+                        biggest_score = max(score, biggest_score)
+
+            has_starting_match = biggest_score >= threshold
             if has_starting_match:
                 starting_index = max(0, round(matrix_index + relative_left_index - 1))
                 ending_index = min(len(matrix.tokens), round(matrix_index + relative_right_index))
                 submatrix = matrix.get_submatrix(starting_index, ending_index)
                 if (len(submatrix.tokens) > 0):
                     submatrices.append(submatrix)
-                    match_calculation.append_starting_branch(word_indices, [matrix.index + index for index in buffer_indices], score)
                 elif verbose:
                     print( query_tokens, "RESULTED IN EMPTY SUBMATRIX!")
 

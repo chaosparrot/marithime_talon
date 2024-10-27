@@ -184,7 +184,7 @@ class VirtualBufferMatchCalculation:
         for potential in self.potentials:
             if self.max_score - potential < self.match_threshold:
                 impossible_potential = max(potential, impossible_potential)
-        return self.selfrepair or impossible_potential > 0
+        return self.selfrepair or impossible_potential > 0 and not self.purpose == "correction"
 
     # Calculate the list of possible search branches that can lead to a match, sorted by most likely
     # Self repair only has starting and secondary possible matches
@@ -209,9 +209,10 @@ class VirtualBufferMatchCalculation:
             return selfrepair_potentials
 
         impossible_potential = 0
-        for potential in self.potentials:
-            if self.max_score - potential < self.match_threshold:
-                impossible_potential = max(potential, impossible_potential)
+        if self.purpose != "correction":
+            for potential in self.potentials:
+                if self.max_score - potential < self.match_threshold:
+                    impossible_potential = max(potential, impossible_potential)
         
         # Add two- and three-word combinations as well
         combined_potentials = []

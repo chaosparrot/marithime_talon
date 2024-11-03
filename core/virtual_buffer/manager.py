@@ -296,8 +296,10 @@ class VirtualBufferManager:
         self.context.close_context(event)
 
 def update_language(language: str):
-    if language == "":
+    if not language:
         language = settings.get("speech.language", "en")
+        if language is None:
+            language = "en"
     language = language.split("_")[0]
     engine_description = settings.get("speech.engine")
     try:
@@ -384,6 +386,7 @@ class Actions:
         keys = mutator.clear_keys(backward)
         for key in keys:
             actions.key(key)
+        mutator.index_textarea()
 
     def virtual_buffer_move_caret(phrase: str, caret_position: int = -1):
         """Move the caret to the given phrase"""

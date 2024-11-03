@@ -74,8 +74,9 @@ class VirtualBufferIndexer:
         self.formatters = formatters
 
     def set_default_formatter(self, formatter: TextFormatter = None):
-        if formatter:
-            self.default_formatter = formatter
+        pass
+        #if formatter:
+        #    self.default_formatter = formatter
 
     # Split raw (multi-line) text to virtual buffer tokens
     def index_text(self, text: str) -> List[VirtualBufferToken]:

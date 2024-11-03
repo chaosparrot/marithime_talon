@@ -1,7 +1,7 @@
 from talon import ui, actions, clip
 from .input_context import InputContext
 import time
-from typing import List, Callable
+from typing import List, Callable, Tuple
 from ..formatters.text_formatter import TextFormatter
 from ..formatters.formatters import FORMATTERS_LIST
 from .indexer import VirtualBufferIndexer, text_to_virtual_buffer_tokens
@@ -92,7 +92,7 @@ class InputContextManager:
         return False
 
     def ensure_viable_context(self):
-        update_caret = update_caret=self.visual_state['caret_confidence'] != 2
+        update_caret = self.visual_state['caret_confidence'] != 2
         update_content = self.visual_state['caret_confidence'] == 1 and self.visual_state['content_confidence'] < 1
         self.poll_accessible_changes(update_caret=update_caret, update_content=update_content)
 
@@ -129,7 +129,8 @@ class InputContextManager:
         if context_formatter:
             chosen_formatter = FORMATTERS_LIST[context_formatter] if context_formatter in FORMATTERS_LIST else default_formatter
         
-        return chosen_formatter
+        # TODO IMPROVE FORMATTER SELECTION!!!
+        return self.indexer.default_formatter
 
     def apply_key(self, key: str):
         current_context = self.get_current_context()
@@ -360,8 +361,46 @@ class InputContextManager:
                         # Selection, need to find both cursors
                         else:
                            right_cursor_index = self.indexer.determine_caret_position("", total_value, right_index)
-            
+        elif element and self.system == "Windows" and "Text2" in element.patterns:
+            windows_cursor_indices = self.get_windows_cursor_indices(element)
+            if len(windows_cursor_indices) > 0:
+                left_cursor_index = windows_cursor_indices[0]
+                right_cursor_index = windows_cursor_indices[1]
+
         return (left_cursor_index, right_cursor_index)
+    
+    # Code adapted from AndreasArvidsson's talon files
+    def get_windows_cursor_indices(self, element) -> List[Tuple[int, int]]:
+        text_pattern = element.text_pattern2
+
+        # Make copy of the document range to avoid modifying the original
+        range_before_selection = text_pattern.document_range.clone()
+        selection_ranges = text_pattern.selection
+        if len(selection_ranges) != 1:
+            print("INDEXATION ERROR - Found multiple ranges")
+            return []
+        selection_range = selection_ranges[0].clone()
+                
+        # Move the end of the copy to the start of the selection
+        # range_before_selection.end = selection_range.start
+        range_before_selection.move_endpoint_by_range("End", "Start", target=selection_range)
+
+        # Find the index by using the before selection text and the indexed text
+        start_position = self.indexer.determine_caret_position(range_before_selection.text, text_pattern.document_range.text)
+        end_position = self.indexer.determine_caret_position(range_before_selection.text + selection_range.text, text_pattern.document_range.text)
+
+        if (start_position[0] > -1 and start_position[1] > -1) or (end_position[0] > -1 and end_position[1] > -1):
+            # If our start position is empty - We are at the start of the document
+            if (start_position[0] == -1 and end_position[0] != -1):
+                lines = text_pattern.document_range.text.split("\n")
+                start_position = (0, 0 if len(lines) == 0 else len(lines[0]))
+
+            # The selection is reversed if the caret is at the start of the selection
+            #is_reversed = text_pattern.caret_range.compare_endpoints("Start", "Start", target=selection_ranges[0]) == 0
+            # TODO REVERSE LOGIC IN INDEXATION
+            return [start_position, end_position]#[end_position, start_position] if is_reversed else [start_position, end_position]
+        else:
+            return []
 
     def zero_width_space_insertion_index(self) -> (int, int):
         zwsp = "​"
@@ -372,6 +411,7 @@ class InputContextManager:
         return self.indexer.determine_caret_position(zwsp, total_value)
     
     def find_caret_position(self, total_value: str, visibility_level = 0) -> (str, (int, int), (int, int)):
+        print("UPDATE CARET POSITION!!!")
         self.update_visual_state(scanning=True)        
         undefined_positions = (total_value, (-1, -1), (-1, -1))
         before_text = ""
@@ -379,7 +419,8 @@ class InputContextManager:
         
         # Check for accessible cursor indexes ( selection or not )
         accessible_cursor_index = self.get_accessible_cursor_indecis(total_value)
-        if accessible_cursor_index != [(-1, -1), (-1, -1)]:
+        print("ACC", accessible_cursor_index)
+        if accessible_cursor_index[0] != (-1, -1) and accessible_cursor_index[1] != (-1, -1):
             return [total_value, accessible_cursor_index[0], accessible_cursor_index[1]]
 
         # Find selection first if it exists
@@ -392,6 +433,7 @@ class InputContextManager:
             with clip.capture() as current_selection:
                 actions.edit.copy()
             actions.sleep("200ms")
+            print("UPDATE CARET SELECTION TEST!!!")
 
             try:
                 selected_text = current_selection.text()
@@ -414,6 +456,7 @@ class InputContextManager:
         
         # Add and quickly remove a zero width space to find our current position
         if total_value != "":
+            print("ZERO WIDTH PIXEL!!!")
             zwsp_position = self.zero_width_space_insertion_index()
             if zwsp_position[0] >= -1 and zwsp_position[1] >= -1:
                 return (total_value, zwsp_position, zwsp_position)

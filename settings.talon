@@ -35,7 +35,7 @@ settings():
 
     # Uncomment the below to insert text longer than 10 characters (customizable) by
     # pasting from the clipboard. This is often faster than typing.
-    user.paste_to_insert_threshold = 10
+    user.paste_to_insert_threshold = 50
 
 # Uncomment this to enable the curse yes/curse no commands (show hide mouse cursor). See issue #688.
 # tag(): user.mouse_cursor_commands_enable

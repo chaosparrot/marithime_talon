@@ -11,3 +11,5 @@ class LinuxAccessibilityApi(AccessibilityApi):
     # Retrieve the caret positions within the currently focused element
     def determine_caret_positions(self, element = None) -> List[AccessibilityCaret]:
         return None
+
+linux_api = LinuxAccessibilityApi()

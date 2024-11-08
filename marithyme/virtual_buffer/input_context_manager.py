@@ -56,10 +56,14 @@ class InputContextManager:
                     context_to_switch_to = context
                     break
                 elif context.coarse_match_pattern(name, title, pid):
-                    accessible_content = self.index_accessible_value()
+                    accessible_text = ""
+                    accessible_content = self.index_accessible_content()
+                    if accessible_content:
+                        accessible_text = accessible_content.text
+
                     text_buffer = context.buffer.caret_tracker.text_buffer.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
 
-                    normalized_accessible_content = "".join(accessible_content.lower().split())
+                    normalized_accessible_content = "".join(accessible_text.lower().split())
                     normalized_context = "".join(text_buffer.lower().split())
                     comparison = levenshtein(normalized_accessible_content, normalized_context)
 
@@ -78,11 +82,14 @@ class InputContextManager:
 
                 # Check if we can upgrade the context to be fully confident
                 if caret_confidence > 0 and context_to_switch_to.accessible_api_available:
-                    accessible_text = self.index_accessible_value()
+                    accessible_text = self.index_accessible_content()
                     text_buffer = context_to_switch_to.buffer.caret_tracker.text_buffer.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
 
-                    if text_buffer == accessible_text:
+                    if accessible_text and text_buffer == accessible_text.text:
                         content_confidence = 2
+
+                    if accessible_text and accessible_text.active_caret.line_index == caret_index[0] and accessible_text.active_caret.characters_from_end == caret_index[1]:
+                        caret_confidence = 2
 
                 self.update_visual_state("accessibility" if context_to_switch_to.accessible_api_available else "text", caret_confidence=caret_confidence, content_confidence=content_confidence)
             else:
@@ -99,9 +106,14 @@ class InputContextManager:
     def poll_accessible_changes(self, update_caret = False, update_content = False):
         caret_updated = False
         context = self.get_current_context()
-        value = self.index_accessible_value()
+        value = ""
 
+        accessible_content = None
         if update_content and self.visual_state['content_confidence'] != 2:
+            accessible_content = self.index_accessible_content()
+            if accessible_content:
+                value = accessible_content.text
+            
             if context:
                 text_buffer = context.buffer.caret_tracker.text_buffer.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
                 
@@ -110,7 +122,18 @@ class InputContextManager:
                     caret_updated = True
 
         if update_caret and caret_updated == False and self.visual_state['caret_confidence'] != 2:
-            results = self.find_caret_position(value, -1)
+
+            # Reuse the accessible context retrieved earlier
+            if accessible_content:
+                if accessible_content.active_caret:
+                    first_caret = (accessible_content.active_caret.line_index, accessible_content.active_caret.characters_from_end)
+                    second_caret = first_caret
+                if accessible_content.selection_caret:
+                    second_caret = (accessible_content.selection_caret.line_index, accessible_content.selection_caret.characters_from_end)
+                results = [accessible_content.text, first_caret, second_caret]
+
+            if not accessible_content or ( accessible_content.active_caret.line_index == -1 and accessible_content.active_caret.characters_from_end == -1 ):
+                results = self.find_caret_position(value, -1)
 
             # Only if the caret position is not the same as the known position do we need to reindex
             if results[1] != context.buffer.caret_tracker.get_caret_index():
@@ -261,57 +284,19 @@ class InputContextManager:
 
     def should_use_last_formatter(self, use_last_formatter: bool):
         self.use_last_set_formatter = use_last_formatter
-
-    def index_accessible_value(self):
-        value = ""
-        print( "----- CHECKING ACCESSIBLE TEXT" )
-        
-        try:
-            element = ui.focused_element()
-        except:
-            element = None
-        
-        # Windows based A11Y
-        if self.system == "Windows":
-            #print( "ELEMENT PATTERNS!", element.patterns)
-            #if "LegacyIAccessible" in element.patterns:
-            #    print( "LEGACY!", dir( element.legacyiaccessible_pattern ) )
-            #    print( "ROLE", element.legacyiaccessible_pattern.value )
-                #print( element.legacy_pattern )    
-            #try:
-            #    print( "SELECTION", dir(element.text_pattern.selection), element.text_pattern.selection.index(), element.text_pattern.selection.count() )
-            #except:
-            #    print( "ERROR! " )
-
-            if "Text2" in element.patterns:
-                value = element.text_pattern2.document_range.text
-                #print( "YEET", element.text_pattern2.caret_range.text, dir(element.text_pattern2.caret_range) )
-                # , element.text_pattern2.caret_range.compare_endpoints("", "")
-                if self.current_context:
-                    self.current_context.set_accessible_api_available("text", True)
-            elif "Value" in element.patterns:
-                value = element.value_pattern.value
-                if self.current_context:
-                    self.current_context.set_accessible_api_available("text", True)
-            #raise NotImplementedError("ARGH")
-        # Mac based A11Y - Currently untested
-        # Examples taken from phillco/ax_kit and tweaked afterwards
-        elif self.system == "Darwin":
-            # Has accessibility support
-            if element and element.attrs:
-                value = element.get("AXValue")
-        # Linux based A11Y - Currently unimplemented
-        else:
-            pass
+    
+    def index_accessible_content(self):
+        accessible_text = actions.marithyme_get_element_text()
+        if self.current_context:
+            self.current_context.set_accessible_api_available("text", True)
 
         # Update the visual state to accessible if a value was found        
-        if value:
-            self.update_visual_state(level = "accessibility")
+        if accessible_text:
+            caret_confidence = 2 if accessible_text.active_caret.line_index > -1 else 0
+            text_confidence = 2 if accessible_text.text is not None else -1
+            self.update_visual_state("accessibility", caret_confidence, text_confidence)
 
-        if value is None:
-            value = ""
-    
-        return value
+        return accessible_text
     
     def index_file(self, file_path: str):
         try:
@@ -327,101 +312,61 @@ class InputContextManager:
 
     def index_textarea(self, total_value: str = "", forced = True):
         self.update_visual_state(scanning=True)
-        total_value = self.index_accessible_value() if total_value == "" else total_value
-        results = self.find_caret_position(total_value, 1 if forced == True else 0)
-        self.index_content(results[0], results[1], results[2])
+        accessible_text = self.index_accessible_content()
+        if total_value == "" and accessible_text:
+            total_value = accessible_text.text
+
+        first_caret = (-1, -1)
+        second_caret = (-1, -1)
+        if accessible_text:
+            if accessible_text.active_caret:
+                first_caret = (accessible_text.active_caret.line_index, accessible_text.active_caret.characters_from_end)
+                second_caret = first_caret
+            if accessible_text.selection_caret:
+                second_caret = (accessible_text.selection_caret.line_index, accessible_text.selection_caret.characters_from_end)
         
-    def get_accessible_cursor_indecis(self, total_value: str) -> ((int, int), (int, int)):
-        left_cursor_index = (-1, -1) 
-        right_cursor_index = (-1, -1)
-
-        try:
-            element = ui.focused_element()
-        except:
-            element = None
-
-        if element and self.system == "Darwin":
-            # Has accessibility support
-            if element.attrs:
-                ranges = element.get("AXSelectedTextRanges")
-
-                # Multiple carets / cursors - Undefined locations
-                if ranges is not None and len(ranges) > 1:
-                    return (left_cursor_index, right_cursor_index)
-                else:
-                    selected_text_range = element.get("AXSelectedTextRange")
-                    if selected_text_range is not None:
-                        left_index = selected_text_range.left
-                        right_index = selected_text_range.right
-                        
-                        # No selection - only need to check one and duplicate it
-                        left_cursor_index = self.indexer.determine_caret_position("", total_value, left_index)
-                        if left_index == right_index:
-                           right_cursor_index = left_cursor_index
-                        # Selection, need to find both cursors
-                        else:
-                           right_cursor_index = self.indexer.determine_caret_position("", total_value, right_index)
-        elif element and self.system == "Windows" and "Text2" in element.patterns:
-            windows_cursor_indices = self.get_windows_cursor_indices(element)
-            if len(windows_cursor_indices) > 0:
-                left_cursor_index = windows_cursor_indices[0]
-                right_cursor_index = windows_cursor_indices[1]
-
-        return (left_cursor_index, right_cursor_index)
-    
-    # Code adapted from AndreasArvidsson's talon files
-    def get_windows_cursor_indices(self, element) -> List[Tuple[int, int]]:
-        text_pattern = element.text_pattern2
-
-        # Make copy of the document range to avoid modifying the original
-        range_before_selection = text_pattern.document_range.clone()
-        selection_ranges = text_pattern.selection
-        if len(selection_ranges) != 1:
-            print("INDEXATION ERROR - Found multiple ranges")
-            return []
-        selection_range = selection_ranges[0].clone()
-                
-        # Move the end of the copy to the start of the selection
-        # range_before_selection.end = selection_range.start
-        range_before_selection.move_endpoint_by_range("End", "Start", target=selection_range)
-
-        # Find the index by using the before selection text and the indexed text
-        start_position = self.indexer.determine_caret_position(range_before_selection.text, text_pattern.document_range.text)
-        end_position = self.indexer.determine_caret_position(range_before_selection.text + selection_range.text, text_pattern.document_range.text)
-
-        if (start_position[0] > -1 and start_position[1] > -1) or (end_position[0] > -1 and end_position[1] > -1):
-            # If our start position is empty - We are at the start of the document
-            if (start_position[0] == -1 and end_position[0] != -1):
-                lines = text_pattern.document_range.text.split("\n")
-                start_position = (0, 0 if len(lines) == 0 else len(lines[0]))
-
-            # The selection is reversed if the caret is at the start of the selection
-            #is_reversed = text_pattern.caret_range.compare_endpoints("Start", "Start", target=selection_ranges[0]) == 0
-            # TODO REVERSE LOGIC IN INDEXATION
-            return [start_position, end_position]#[end_position, start_position] if is_reversed else [start_position, end_position]
-        else:
-            return []
+        # Instead of relying purely on accessibility APIs
+        # Also attempt to use the selection and other gnarly options
+        # To get the caret positions
+        if forced and first_caret == (-1, -1):
+            positions = self.find_caret_position("" if not accessible_text else accessible_text.text)
+            first_caret = positions[1]
+            second_caret = positions[2]
+        
+        self.index_content(total_value, first_caret, second_caret)
 
     def zero_width_space_insertion_index(self) -> (int, int):
         zwsp = "​"
         actions.insert(zwsp)
         actions.sleep("50ms")
-        total_value = self.index_accessible_value()
+        accessible_text = self.index_accessible_content()
+        total_value = ""
+        if accessible_text:
+            total_value = accessible_text.text
+
         actions.key("backspace")
         return self.indexer.determine_caret_position(zwsp, total_value)
     
-    def find_caret_position(self, total_value: str, visibility_level = 0) -> (str, (int, int), (int, int)):
-        print("UPDATE CARET POSITION!!!")
-        self.update_visual_state(scanning=True)        
+    def find_caret_position(self, total_value: str, visibility_level = 0, accessible_text = None) -> (str, (int, int), (int, int)):
+        self.update_visual_state(scanning=True)
         undefined_positions = (total_value, (-1, -1), (-1, -1))
         before_text = ""
         after_text = ""
         
         # Check for accessible cursor indexes ( selection or not )
-        accessible_cursor_index = self.get_accessible_cursor_indecis(total_value)
-        print("ACC", accessible_cursor_index)
-        if accessible_cursor_index[0] != (-1, -1) and accessible_cursor_index[1] != (-1, -1):
-            return [total_value, accessible_cursor_index[0], accessible_cursor_index[1]]
+        accessible_cursor_index = []
+        if accessible_text:
+            accessible_cursor_index = [accessible_text.active_caret, accessible_text.selection_caret]
+        else:
+            accessible_cursor_index = actions.user.marithyme_get_element_caret()
+        if accessible_cursor_index and accessible_cursor_index[0].line_index != -1 and \
+            accessible_cursor_index[1].line_index != -1 and accessible_cursor_index[0].characters_from_end != -1 and \
+            accessible_cursor_index[1].characters_from_end != -1:
+            return [
+                total_value, 
+                (accessible_cursor_index[0].line_index, accessible_cursor_index[0].characters_from_end),
+                (accessible_cursor_index[1].line_index, accessible_cursor_index[1].characters_from_end)                
+            ]
 
         # Find selection first if it exists
         current_clipboard = ""
@@ -433,7 +378,6 @@ class InputContextManager:
             with clip.capture() as current_selection:
                 actions.edit.copy()
             actions.sleep("200ms")
-            print("UPDATE CARET SELECTION TEST!!!")
 
             try:
                 selected_text = current_selection.text()
@@ -456,7 +400,6 @@ class InputContextManager:
         
         # Add and quickly remove a zero width space to find our current position
         if total_value != "":
-            print("ZERO WIDTH PIXEL!!!")
             zwsp_position = self.zero_width_space_insertion_index()
             if zwsp_position[0] >= -1 and zwsp_position[1] >= -1:
                 return (total_value, zwsp_position, zwsp_position)

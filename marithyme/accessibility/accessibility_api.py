@@ -1,8 +1,9 @@
 
 from dataclasses import dataclass
-from talon import ui
+from talon import ui, Module
 from typing import List
 from ..virtual_buffer.indexer import VirtualBufferIndexer
+mod = Module()
 
 @dataclass
 class AccessibilityCaret:
@@ -12,7 +13,7 @@ class AccessibilityCaret:
 
 @dataclass
 class AccessibilityText:
-    text: str = ""
+    text: str = None
     active_caret: AccessibilityCaret = None
     selection_caret: AccessibilityCaret = None
 

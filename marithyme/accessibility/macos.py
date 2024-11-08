@@ -90,6 +90,7 @@ class MacOsAccessibilityApi(AccessibilityApi):
 
                 return []
 
+macos_api = MacOsAccessibilityApi()
 
 # Accessibility notes on programs
 # In MacOS Excel, the FormulaBar puts all the text inside of the AXDescription instead of in the AXValue

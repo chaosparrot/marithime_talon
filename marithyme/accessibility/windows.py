@@ -74,4 +74,5 @@ class WindowsAccessibilityApi(AccessibilityApi):
                 return [end_caret, start_caret] if is_reversed else [start_caret, end_caret]
             else:
                 return []
-        
+
+windows_api = WindowsAccessibilityApi()

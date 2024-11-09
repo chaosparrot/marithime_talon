@@ -23,9 +23,11 @@ mod.setting("marithyme_context_remove_forward_letter", type=str, default="delete
 mod.tag("marithyme_context_disable_shift_selection", desc="Disables shift selection for the current context")
 mod.tag("marithyme_context_disable_word_wrap", desc="Disables word wrap detection for the current context")
 
+mod.list("marithyme_terminator_word", desc="A list of all the end-of-command terminator words used within dictation and other commands")
 mod.list("marithyme_indexed_words", desc="A list of words that correspond to inserted text and their caret positions for quick navigation in text")
 ctx = Context()
 ctx.lists["user.marithyme_indexed_words"] = []
+ctx.lists["user.marithyme_terminator_words"] = ["quill", "quilt"]
 
 @mod.capture(rule="({user.marithyme_indexed_words} | <user.word>)")
 def marithyme_fuzzy_indexed_word(m) -> str:

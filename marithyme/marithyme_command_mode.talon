@@ -15,6 +15,6 @@
 # Direct correction
 ^correction <user.word>+:
     user.marithyme_correction(word_list)
-^correction <user.word>+ {user.marithyme_terminator_words} <user.raw_prose>$:
+^correction <user.word>+ {user.marithyme_terminator_words} <user.marithyme_raw_prose>$:
     user.marithyme_correction(word_list)
-    user.marithyme_insert(raw_prose)
+    user.marithyme_insert(marithyme_raw_prose)

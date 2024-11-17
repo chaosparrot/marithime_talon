@@ -14,6 +14,7 @@ mod.setting("marithyme_context_remove_word", type=str, default="ctrl-backspace",
 mod.setting("marithyme_context_remove_letter", type=str, default="backspace", desc="The key combination to clear a single letter to the left of the caret")
 mod.setting("marithyme_context_remove_forward_word", type=str, default="ctrl-delete", desc="The key combination to clear a word to the right of the caret")
 mod.setting("marithyme_context_remove_forward_letter", type=str, default="delete", desc="The key combination to clear a single letter to the right of the caret")
+mod.setting("marithyme_auto_fixing_enabled", type=int, default=0, desc="Whether to allow auto-fixing ( auto correct ) based on earlier corrections")
 
 #mod.tag("flow_numbers", desc="Ensure that the user can freely insert numbers")
 #mod.tag("flow_letters", desc="Ensure that the user can freely insert letters")

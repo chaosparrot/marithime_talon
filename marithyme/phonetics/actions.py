@@ -1,7 +1,6 @@
 import os
 from talon import Context, Module, fs, settings
 from .phonetics import PhoneticSearch
-from .detection import levenshtein
 
 cwd = os.path.dirname(os.path.realpath(__file__))
 

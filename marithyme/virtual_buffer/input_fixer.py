@@ -1,15 +1,16 @@
-from talon import actions, cron
+from talon import actions, cron, settings
 from .typing import InputFix, InputMutation, CORRECTION_THRESHOLD, SELECTION_THRESHOLD
 import re
 import time
 from typing import List, Dict
-from ..user_settings import SETTINGS_DIR
 import os
 import csv
 from pathlib import Path
 from dataclasses import fields
 from ..phonetics.detection import EXACT_MATCH
 from ..phonetics.actions import PhoneticSearch, phonetic_search
+
+SETTINGS_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__))) / + "settings"
 
 # Thresholds when a fix should be done automatically
 CONTEXT_THRESHOLD_MOST = 1
@@ -102,6 +103,10 @@ class InputFixer:
         return new_words
 
     def automatic_fix(self, text: str, previous: str, next: str) -> str:
+        # Fixing isn't allowed - just return the text
+        if not self.is_fixing_allowed():
+            return text
+
         fix = self.find_fix(text, previous, next)
         if fix:
             # Use the fix but do not keep track of the automatic fixes as it would give too much weight over time
@@ -390,6 +395,10 @@ class InputFixer:
         return str(from_text).lower() + "-->" + str(to_text).lower()
 
     def track_fix(self, from_text: str, to_text: str, previous: str, next: str):
+        # Fix tracking isn't allowed - skip tracking
+        if not self.is_fixing_allowed():
+            return
+
         previous_word = "" if previous == "" else previous.strip().split()[-1]
         next_word = "" if next == "" else next.strip().split()[0]
         
@@ -494,3 +503,6 @@ class InputFixer:
     
     def get_current_fix_file_path(self) -> Path:
         return self.path_prefix + os.sep + "context_" + self.language + "_" + self.engine + ".csv"
+
+    def is_fixing_allowed(self) -> bool:
+        return settings.get("user.marithyme_auto_fixing_enabled") >= 1

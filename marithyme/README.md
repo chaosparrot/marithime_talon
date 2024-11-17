@@ -4,60 +4,56 @@
 Marithyme [ ˈmerētīm ] is a command set meant to keep you in the flow while dictating and creating text.
 The name is an intentional mispronunciation of maritime, as this package mostly relies on embracing and fixing mistakes.
 
-## Philosophy
+### How to install
 
-There are a couple of things that keep voice control from being as fast as it could be:
-- Adding extra commands in between to get to the right result
-- Finding the right commands to do the thing you want
-- (Mis)remembering commands before saying them
-- Punishing error correction
+Place this inside of your talon user folder. It should work out of the box, you might need a refresh.
 
-This command set aims to remove in-between steps, lower the cognitive load of commands and reduce the impact of errors. By doing so, it gets out of the way of what you are doing. If it requires more computer processing to understand the intent behind a command, then so be it. 
+### Voice Command examples
 
-### Impact on cognitive load
+In a text area with the following text: `The quick brown fox jumped over the lazy dog`... 
 
-Human memory is a resource that is pretty limited. While we can make an infinite set of commands that does everything we can imagine, there is no possible way to remember every command.
-During voice control, the faster we remember a command, the faster we can say that command, the sooner we get to our desired end result. We need to make sure commands are easy to remember so we can aid this process.  
+- `continue` will move the cursor to the back of the text, so just past `dog`, so you can continue dictating.
+- `select the quick fox` will select `The quick brown fox`.
+- `select the brown ox` will also select `The quick brown fox`.
+- `correction the fast brown fox` will select `The quick brown fox` and replace it with `The fast brown fox`.
+- `correction skipped over the lazy dog` will select `jumped over the lazy dog` and replace it with `skipped over the lazy dog`.
+- At the end of the sentence, saying `over the hazy dog` will select `over the lazy dog` and replace it with `over the hazy dog`.
+- At the end of the sentence, saying `the lazy hog` will select `the lazy dog` and replace it with `the lazy hog`.
 
-This command set aims to reduce the amount of commands needed to know, every command added must be carefully weighed to see if it's functionality can't just be added to existing commands instead.
-It also aims to re-use existing mental models, which is another way of saying "What you read is what you say". No need to calculate how many words we should go right, or do other tasks that we wouldn't think of while using a keyboard either.
+### Testing
 
-### Impact on flow
+If you don't intend to run any unit tests, deleting the `/tests` folder might speed up your Talon voice start up time.
 
-An ideal command is one that can be used in the flow. Meaning we don't need to either repeat or arbitrarily interupt ourselves because that is just the way the command is formatted. There should be no functional difference in me saying `format bold the best thing` and `format bold`, followed by a pause, and then `the best thing`, after I have thought about what I want to bold. I've already gone through the effort of saying the words, the program should just remember I've said them.
+This package has a test suite inside of `/tests` that can run if you turn on the `user.marithyme_testing` value to 1. It will print successful and broken test amounts inside of the Talon log, which can be viewed through the **Talon menu** -> **View log**.
 
-### Impact of errors
+If you want to highlight a specific set of tests, go inside of the specific tests file and add, for example `suite.run()` to the end of the file. This will verbosely print tests inside of the Talon log.
 
-Humans will make errors, statistical models will make errors interpreting humans. Errors are here to stay, whether we want to or not. 
-Every time we make an error, we need to correct it. At the very least that means acknowledging the error ( ~200ms reaction time ), thinking of the right command, saying the command ( ~400ms, depending on the words ).  
-Let's simplify and just use that 600ms delay, and given that we can also make an error in the error correction command, we can be stuck fixing an error for multiple frustrating seconds, before continuing on our way once more.
-This frustration leads to further mispronunciations and more errors, leading to more frustration.  
+### Privacy statement
 
-Every command made needs to have thought about the impacts on errors. 
-- Can this mistake be avoided?
-- Can I easily recover from a mistake in this command?
-- Does executing a potentially mistaken command leave me worse of then just ignoring the command altogether?
+Because most software isn't accessible, this package relies on a couple of ways to understand what is inside a text field, and where the caret inside of it is. One of these methods is **locally tracking keystrokes that happen through Talon voice**.
+If you are uncomfortable with that, simply delete the `main_context_overrides.py` file, but know that you might not get as well of a performance.
 
-The easiest fix for a mispronunciation is to just repeat the same command, but better this time. It is intuitive and doesn't require fixing the mistakes that have been made.  
-Although it might take longer to repeat the phrase, it still takes less time than thinking about and fixing a mistake.
+Words that have been inserted that really sound like one another ( Homophones ) are automatically detected and saved in `phonetics/lists/homophones.csv`. 
 
+The auto fixing functionality, that functions like an auto-correct, also saves CSV files containing fixes and the context around it within the `settings/cache` directory. You can disable this feature by setting `user.marithyme_auto_fixing_enabled` to 0 inside `marithyme_settings.talon`.
+By default the `settings` directory is kept outside of git so any corrections won't be accidentally commited to an external repository by you.
 
-
-...
+Note that this package does not have any external website, servers or telemetry. All the functionality happens locally. This privacy statement is to make sure you understand what is going on underneath the hood that might impact you privacy wise. I just wanted to make something that worked smoothly, and unfortunately because of the accessibility APIs across OSes, applications and websites are fractured and / or badly implemented, I had to resort to some of these methods.
 
 TODOs
 [ ] - Matrix renaming
-[ ] - Documentation
+[X] - Documentation
 [X] - Philosophy
 [X] - Refactoring accessibility APIs
-[ ] - Test nested contexts ( Virtual Machine )
 [X] - Fixing context keys depending on OS
 [X] - Adding integration with tracking
 [X] - Adding context for test turning on
 [ ] - Testing new APIs
+[ ] - Test nested contexts ( Virtual Machine )
 [X] - Quill list
 [X] - Command pruning
 [X] - Prose / phrase capture
 [X] - Actions
 [X] - Tags
 [X] - Lists
+[X] - Settings cache

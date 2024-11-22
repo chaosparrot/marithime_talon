@@ -20,6 +20,12 @@ In a text area with the following text: `The quick brown fox jumped over the laz
 - At the end of the sentence, saying `over the hazy dog` will select `over the lazy dog` and replace it with `over the hazy dog`.
 - At the end of the sentence, saying `the lazy hog` will select `the lazy dog` and replace it with `the lazy hog`.
 
+### Turning off marithyme dictation
+
+If you do not want marithyme dictation, but instead only want to use the selection and correction features, remove the line in `marithyme_settings.talon` that says `tag(): user.marithyme_dictation` and save the file.
+
+You can always say `marithyme` followed by a phrase to use it if you do not want to override the regular dictation insert.
+
 ### Testing
 
 If you don't intend to run any unit tests, deleting the `/tests` folder might speed up your Talon voice start up time.

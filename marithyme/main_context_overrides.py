@@ -8,6 +8,7 @@ tag: user.marithyme_input_tracking
 """
 
 mod.tag("marithyme_input_tracking", desc="Overrides the general insert and key statement to enable contextual clues for inserting text")
+mod.tag("marithyme_dictation", desc="Overrides the dictation insert with the marithyme one")
 ctx.tags = ["user.marithyme_input_tracking"]
 
 @ctx_override.action_class("main")

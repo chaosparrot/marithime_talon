@@ -2,7 +2,7 @@ from ...virtual_buffer.matcher import VirtualBufferMatcher
 from ...phonetics.phonetics import PhoneticSearch
 from ...phonetics.detection import EXACT_MATCH, HOMOPHONE_MATCH
 from ...virtual_buffer.indexer import text_to_virtual_buffer_tokens
-from ...virtual_buffer.typing import VirtualBufferMatchMatrix, VirtualBufferMatch, SELECTION_THRESHOLD, CORRECTION_THRESHOLD
+from ...virtual_buffer.typing import VirtualBufferTokenList, VirtualBufferMatch, SELECTION_THRESHOLD, CORRECTION_THRESHOLD
 from ..test import create_test_suite
 
 max_score_per_word = EXACT_MATCH
@@ -24,11 +24,11 @@ def get_matcher() -> VirtualBufferMatcher:
     phonetic_search.set_phonetic_similiarities(phonetic_contents)
     return VirtualBufferMatcher(phonetic_search)
 
-def get_single_word_match_tree_root(matcher: VirtualBufferMatcher, calculation, submatrix, query_index: int, buffer_index: int) -> VirtualBufferMatch:
+def get_single_word_match_tree_root(matcher: VirtualBufferMatcher, calculation, sublist, query_index: int, buffer_index: int) -> VirtualBufferMatch:
     query_word = calculation.words[query_index]
-    buffer_word = submatrix.tokens[buffer_index].phrase
+    buffer_word = sublist.tokens[buffer_index].phrase
     score = matcher.get_memoized_similarity_score(query_word, buffer_word)
-    match_tree =  VirtualBufferMatch([[query_index]], [[buffer_index]], [calculation.words[query_index]], [submatrix.tokens[buffer_index].phrase], [score], max_score_per_word)
+    match_tree =  VirtualBufferMatch([[query_index]], [[buffer_index]], [calculation.words[query_index]], [sublist.tokens[buffer_index].phrase], [score], max_score_per_word)
     match_tree.reduce_potential(max_score_per_word, score, calculation.weights[query_index])
     return match_tree
 
@@ -37,10 +37,10 @@ def test_no_matches_for_too_high_threshold(assertion):
 
     assertion("Using the query 'an incredible' on 'test with the incredibly good match' and an impossibly high threshold")
     calculation = matcher.generate_match_calculation(["an", "incredible"], select_threshold)
-    submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the incredibly good match"))
-    calculation.cache.index_matrix(submatrix)
-    matcher.find_potential_submatrices(calculation, submatrix, [])
-    matches, _ = matcher.find_matches_in_matrix(calculation, submatrix, max_score_per_word)
+    sublist = VirtualBufferTokenList(0, get_tokens_from_sentence("test with the incredibly good match"))
+    calculation.cache.index_token_list(sublist)
+    matcher.find_potential_sublists(calculation, sublist, [])
+    matches, _ = matcher.find_matches_in_token_list(calculation, sublist, max_score_per_word)
     assertion("    should give no possible matches", len(matches) == 0)
 
 def test_one_match_for_highest_threshold(assertion):
@@ -48,11 +48,11 @@ def test_one_match_for_highest_threshold(assertion):
 
     assertion("Using the query 'an incredible' on 'test with the incredibly good match' and a threshold which will only reach one match")
     calculation = matcher.generate_match_calculation(["an", "incredible"], correct_threshold, purpose="correction")
-    submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the incredibly good match"))
-    calculation.cache.index_matrix(submatrix)
-    matcher.find_potential_submatrices(calculation, submatrix, [])
+    sublist = VirtualBufferTokenList(0, get_tokens_from_sentence("test with the incredibly good match"))
+    calculation.cache.index_token_list(sublist)
+    matcher.find_potential_sublists(calculation, sublist, [])
 
-    matches, _ = matcher.find_matches_in_matrix(calculation, submatrix, 0)
+    matches, _ = matcher.find_matches_in_token_list(calculation, sublist, 0)
     assertion("    should give 1 possible match with single tokens", len([match for match in matches if len(match.buffer) == 2 and len(match.query_indices) == 2]) == 1)
 
 def test_multiple_single_matches(assertion):
@@ -60,10 +60,10 @@ def test_multiple_single_matches(assertion):
 
     assertion("Using the query 'an incredible' on 'test with the incredibly good match' and a threshold which will only reach one match")
     calculation = matcher.generate_match_calculation(["an", "incredible"], select_threshold)
-    submatrix = VirtualBufferMatchMatrix(0, get_tokens_from_sentence("test with the incredibly good match which had an incredible run up to"))
-    calculation.cache.index_matrix(submatrix)
-    matcher.find_potential_submatrices(calculation, submatrix, [])
-    matches, _ = matcher.find_matches_in_matrix(calculation, submatrix, select_threshold)
+    sublist = VirtualBufferTokenList(0, get_tokens_from_sentence("test with the incredibly good match which had an incredible run up to"))
+    calculation.cache.index_token_list(sublist)
+    matcher.find_potential_sublists(calculation, sublist, [])
+    matches, _ = matcher.find_matches_in_token_list(calculation, sublist, select_threshold)
     assertion("    should give 1 possible match with single tokens", len([match for match in matches if len(match.buffer) == 2 and len(match.query_indices) == 2]) == 1)
     assertion("    should have 'an incredible' as the highest match", " ".join([match for match in matches if len(match.buffer) == 2][0].buffer) == "an incredible")
     assertion( " ".join([match for match in matches if len(match.buffer) == 2][0].buffer) )
@@ -171,7 +171,7 @@ def test_calculating_distance_for_matches(assertion):
     assertion("    a match ending at token 8 should have a distance of 1", match_2.distance == 1)
     assertion("    a match ending at token 11 should have a distance of 0", match_3.distance == 0)
 
-suite = create_test_suite("Virtual buffer matcher submatrix matching")
+suite = create_test_suite("Virtual buffer matcher sublist matching")
 suite.add_test(test_no_matches_for_too_high_threshold)
 suite.add_test(test_one_match_for_highest_threshold)
 suite.add_test(test_multiple_single_matches)

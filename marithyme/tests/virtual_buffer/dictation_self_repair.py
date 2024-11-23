@@ -1,5 +1,5 @@
 from ...virtual_buffer.buffer import VirtualBuffer
-from ...virtual_buffer.typing import VirtualBufferMatchMatrix
+from ...virtual_buffer.typing import VirtualBufferTokenList
 from ...virtual_buffer.indexer import text_to_virtual_buffer_tokens
 from ..test import create_test_suite
 

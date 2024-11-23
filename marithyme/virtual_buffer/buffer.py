@@ -1,7 +1,7 @@
 from talon import Module, Context
 from .typing import VirtualBufferToken, VirtualBufferTokenContext, SELECTION_THRESHOLD, CORRECTION_THRESHOLD
 from .matcher import VirtualBufferMatcher
-from typing import List, Dict
+from typing import List
 from .caret_tracker import CaretTracker
 from ..phonetics.actions import phonetic_search
 from .indexer import text_to_phrase, normalize_text, reindex_tokens

@@ -275,7 +275,7 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
     # 5 query = 3
     # 6 query = 1
 
-    # After fixing the submatrix simplification
+    # After fixing the sublist simplification
     # 105 errors rather than 127 - Improved by 22
     # 7 / 105 = 7% = Expected result, got NOTHING
     # 76 / 105 = 72% = Expected NOTHING, got result!
@@ -287,7 +287,7 @@ def percentage_tests(assertion, selection = True, correction = True, selfrepair 
     # 6 query = 0
     # Missing 4 errors above, doesn't really matter for the result
 
-    # After fixing the search space for branch roots within submatrices
+    # After fixing the search space for branch roots within sublists
     # 99 errors rather than 105 - Improved by 6
     # 2 / 99 = 2% = Expected result, got NOTHING
     # 80 / 99 = 81% = Expected NOTHING, got result!

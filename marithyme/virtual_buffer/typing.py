@@ -74,14 +74,14 @@ class VirtualBufferMatchVisitCache:
         self.word_indices = {}
         self.skip_indices = []
     
-    def index_matrix(self, matrix):
+    def index_token_list(self, token_list):
         self.word_indices = {}
-        for index, token in enumerate(matrix.tokens):
+        for index, token in enumerate(token_list.tokens):
             if token.phrase not in self.word_indices:
                 self.word_indices[token.phrase] = []
             
-            self.word_indices[token.phrase].append(matrix.index + index)
-        self.skip_indices = [False for _ in range(matrix.length + matrix.index)]
+            self.word_indices[token.phrase].append(token_list.index + index)
+        self.skip_indices = [False for _ in range(token_list.length + token_list.index)]
 
     def skip_word_sequence(self, words: List[str]):
         sequences = []
@@ -108,38 +108,38 @@ class VirtualBufferMatchVisitCache:
     def should_skip_index(self, index: int):
         return self.skip_indices[index] == True
 
-    def should_skip_submatrix(self, submatrix, match_calculation):
+    def should_skip_sublist(self, sublist, match_calculation):
         sequence = ""
-        for index in range(submatrix.index, submatrix.end_index + 1):
+        for index in range(sublist.index, sublist.end_index + 1):
             sequence += "1" if self.skip_indices[index] else "0"
 
         match_sequence = "".join(["1" for _ in range(len(match_calculation.words))])
-        # Matrix sequence would be too short for a proper one-to-one match - skip entire matrix
+        # token_list sequence would be too short for a proper one-to-one match - skip entire token_list
         # NOTE - This is a naive skip, it could potentially skip over an exact match with a combined query search
         # But that is highly unlikely
         return match_sequence in sequence
 
-    def should_visit_branch(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int], submatrix) -> bool:
-        key = self.get_cache_key(starting_query_index, next_query_index, starting_buffer_index, next_buffer_index, submatrix)
+    def should_visit_branch(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int], sublist) -> bool:
+        key = self.get_cache_key(starting_query_index, next_query_index, starting_buffer_index, next_buffer_index, sublist)
         return not key in self.visited_branches
 
-    def cache_score(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int], score: float, submatrix):
-        key = self.get_cache_key(starting_query_index, next_query_index, starting_buffer_index, next_buffer_index, submatrix)
+    def cache_score(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int], score: float, sublist):
+        key = self.get_cache_key(starting_query_index, next_query_index, starting_buffer_index, next_buffer_index, sublist)
         self.visited_branches[key] = score
-        self.cache_buffer_index_score(score, next_buffer_index, submatrix)
+        self.cache_buffer_index_score(score, next_buffer_index, sublist)
     
-    def cache_buffer_index_score(self, score: float, local_buffer_indices: List[int], submatrix):
-        for buffer_index in [submatrix.to_global_index(local_buffer_index) for local_buffer_index in local_buffer_indices]:
+    def cache_buffer_index_score(self, score: float, local_buffer_indices: List[int], sublist):
+        for buffer_index in [sublist.to_global_index(local_buffer_index) for local_buffer_index in local_buffer_indices]:
             if buffer_index not in self.buffer_index_scores:
                 self.buffer_index_scores[str(buffer_index)] = []
             self.buffer_index_scores[str(buffer_index)].append(score / len(local_buffer_indices))
 
-    def get_cache_key(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int], submatrix) -> str:
-        source_pair = starting_query_index + [submatrix.to_global_index(buffer_index) for buffer_index in starting_buffer_index]
+    def get_cache_key(self, starting_query_index: List[int], next_query_index: List[int], starting_buffer_index: List[int], next_buffer_index: List[int], sublist) -> str:
+        source_pair = starting_query_index + [sublist.to_global_index(buffer_index) for buffer_index in starting_buffer_index]
         source_pair = "-".join(list(map(lambda x: str(x), source_pair)))
 
-        target_pair = next_query_index + [submatrix.to_global_index(buffer_index) for buffer_index in next_buffer_index]
-        target_pair = "-".join(list(map(lambda x, submatrix=submatrix: str(x), target_pair)))
+        target_pair = next_query_index + [sublist.to_global_index(buffer_index) for buffer_index in next_buffer_index]
+        target_pair = "-".join(list(map(lambda x, sublist=sublist: str(x), target_pair)))
         return source_pair + ":" + target_pair if starting_query_index[0] < next_query_index[0] else target_pair + ":" + source_pair
 
     def get_highest_score_for_buffer_index(self, buffer_index) -> float:
@@ -250,11 +250,11 @@ class VirtualBufferMatchCalculation:
         if append:
             self.starting_branches.append(VirtualBufferInitialBranch(query_indices, buffer_indices, score, self.max_score - reduced_potential))
 
-    def get_starting_branches(self, submatrix) -> List[VirtualBufferInitialBranch]:
-        return sorted(list(set([branch for branch in self.starting_branches if submatrix.is_valid_index(branch.buffer_indices[0] - submatrix.index)])), key=lambda branch: branch.score, reverse=True)
+    def get_starting_branches(self, sublist) -> List[VirtualBufferInitialBranch]:
+        return sorted(list(set([branch for branch in self.starting_branches if sublist.is_valid_index(branch.buffer_indices[0] - sublist.index)])), key=lambda branch: branch.score, reverse=True)
 
 @dataclass
-class VirtualBufferMatchMatrix:
+class VirtualBufferTokenList:
     index: int
     tokens: List[VirtualBufferToken]
     end_index: int
@@ -266,34 +266,34 @@ class VirtualBufferMatchMatrix:
         self.tokens = tokens
         self.length = len(tokens)
 
-    # Get submatrices in a windowed manner for rapid searching / elimination in large documents
-    def get_windowed_submatrices(self, cursor_token_index, match_calculation: VirtualBufferMatchCalculation) -> List[Self]:
-        submatrix_size = max(25, len(match_calculation.words) * 5)
-        if len(self.tokens) <= submatrix_size * 2:
+    # Get sublists in a windowed manner for rapid searching / elimination in large documents
+    def get_windowed_sublists(self, cursor_token_index, match_calculation: VirtualBufferMatchCalculation) -> List[Self]:
+        sublist_size = max(25, len(match_calculation.words) * 5)
+        if len(self.tokens) <= sublist_size * 2:
             return [self]
         else:
             window_overlap = len(match_calculation.words) * 2
             starting_index = 0
-            submatrices = []
+            sublists = []
             while starting_index < len(self.tokens):
-                ending_index = min(len(self.tokens), starting_index + submatrix_size)
-                submatrices.append(self.get_submatrix(starting_index, ending_index))
-                starting_index += submatrix_size - window_overlap
-                if starting_index + submatrix_size - window_overlap > len(self.tokens) - submatrix_size:
-                    starting_index = len(self.tokens) - submatrix_size - 1
-                    ending_index = min(len(self.tokens), starting_index + submatrix_size)
-                    submatrices.append(self.get_submatrix(starting_index, ending_index))
+                ending_index = min(len(self.tokens), starting_index + sublist_size)
+                sublists.append(self.get_sublist(starting_index, ending_index))
+                starting_index += sublist_size - window_overlap
+                if starting_index + sublist_size - window_overlap > len(self.tokens) - sublist_size:
+                    starting_index = len(self.tokens) - sublist_size - 1
+                    ending_index = min(len(self.tokens), starting_index + sublist_size)
+                    sublists.append(self.get_sublist(starting_index, ending_index))
                     break
 
-            return sorted(submatrices, key=lambda submatrix, cursor_token_index=cursor_token_index: abs(submatrix.index - cursor_token_index))
+            return sorted(sublists, key=lambda sublist, cursor_token_index=cursor_token_index: abs(sublist.index - cursor_token_index))
 
-    def get_submatrix(self, starting_index: int, ending_index: int):
+    def get_sublist(self, starting_index: int, ending_index: int):
         # These use local indices that get translated to global indices later
         max_index = len(self.tokens)
-        submatrix_tokens = []
+        sublist_tokens = []
         if starting_index <= ending_index and starting_index >= 0 and ending_index <= max_index:
-            submatrix_tokens = self.tokens[starting_index:ending_index]
-        return VirtualBufferMatchMatrix(self.index + starting_index, submatrix_tokens)
+            sublist_tokens = self.tokens[starting_index:ending_index]
+        return VirtualBufferTokenList(self.index + starting_index, sublist_tokens)
 
     def is_valid_index(self, index) -> bool:
         return index >= 0 and index < self.length
@@ -314,32 +314,32 @@ class VirtualBufferMatch:
     score_potential: float
     distance: float = 0.0
 
-    def get_next_query_index(self, submatrix: VirtualBufferMatchMatrix, index_addition:int = 1) -> int:
+    def get_next_query_index(self, sublist: VirtualBufferTokenList, index_addition:int = 1) -> int:
         if index_addition < 0:
             next_query_index = self.query_indices[0][0] + index_addition if len(self.query_indices) > 0 else -1            
         else:
-            next_query_index = self.query_indices[-1][-1] + index_addition if len(self.query_indices) > 0 else submatrix.length
+            next_query_index = self.query_indices[-1][-1] + index_addition if len(self.query_indices) > 0 else sublist.length
         return next_query_index
 
-    def get_next_buffer_index(self, submatrix: VirtualBufferMatchMatrix, index_addition:int = 1) -> int:
+    def get_next_buffer_index(self, sublist: VirtualBufferTokenList, index_addition:int = 1) -> int:
         if index_addition < 0:
             next_buffer_index = self.buffer_indices[0][0] + index_addition if len(self.buffer_indices) > 0 else -1            
         else:
-            next_buffer_index = self.buffer_indices[-1][-1] + index_addition if len(self.buffer) > 0 else submatrix.length
+            next_buffer_index = self.buffer_indices[-1][-1] + index_addition if len(self.buffer) > 0 else sublist.length
         return next_buffer_index
 
-    def can_expand_backward(self, submatrix: VirtualBufferMatchMatrix) -> bool:
-        next_query_index = self.get_next_query_index(submatrix, -1)
-        next_buffer_index = self.get_next_buffer_index(submatrix, -1)
-        return next_query_index >= 0 and submatrix.is_valid_index(next_buffer_index)
+    def can_expand_backward(self, sublist: VirtualBufferTokenList) -> bool:
+        next_query_index = self.get_next_query_index(sublist, -1)
+        next_buffer_index = self.get_next_buffer_index(sublist, -1)
+        return next_query_index >= 0 and sublist.is_valid_index(next_buffer_index)
 
-    def can_expand_forward(self, calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix) -> bool:
-        next_query_index = self.get_next_query_index(submatrix, 1)
-        next_buffer_index = self.get_next_buffer_index(submatrix, 1)
-        return next_query_index < calculation.length and submatrix.is_valid_index(next_buffer_index)
+    def can_expand_forward(self, calculation: VirtualBufferMatchCalculation, sublist: VirtualBufferTokenList) -> bool:
+        next_query_index = self.get_next_query_index(sublist, 1)
+        next_buffer_index = self.get_next_buffer_index(sublist, 1)
+        return next_query_index < calculation.length and sublist.is_valid_index(next_buffer_index)
 
-    def is_valid_index(self, calculation: VirtualBufferMatchCalculation, submatrix: VirtualBufferMatchMatrix, index: int) -> bool:
-        return index >= 0 and index < submatrix.length and index < calculation.length
+    def is_valid_index(self, calculation: VirtualBufferMatchCalculation, sublist: VirtualBufferTokenList, index: int) -> bool:
+        return index >= 0 and index < sublist.length and index < calculation.length
     
     def calculate_distance(self, leftmost_index: int, rightmost_index: int):
         if len(self.buffer_indices) > 0:
@@ -392,10 +392,10 @@ class VirtualBufferMatch:
 
         return match_words
 
-    def to_global_index(self, submatrix: VirtualBufferMatchMatrix):
+    def to_global_index(self, sublist: VirtualBufferTokenList):
         global_buffer_indices = []
         for index_list in self.buffer_indices:
-            global_buffer_indices.append([submatrix.to_global_index(index) for index in index_list])
+            global_buffer_indices.append([sublist.to_global_index(index) for index in index_list])
         self.buffer_indices = global_buffer_indices
 
     def clone(self) -> Self:

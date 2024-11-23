@@ -159,7 +159,7 @@ def test_selection_performance_four_fuzzy_matches_lorum(assertion):
 suite = create_test_suite("Testing the selection performance on a large document")
 
 # Performance measurements
-# Without cache | + Submatrix skip cache | + Branch skipping cache | + dynamic thres and initial branch skipping | +buffer score for initial branch | After improvements to accuracy
+# Without cache | + sublist skip cache | + Branch skipping cache | + dynamic thres and initial branch skipping | +buffer score for initial branch | After improvements to accuracy
 #suite.add_test(test_selection_performance_no_match) # 46 ms | 88 ms | 45 ms | 83 ms | 10ms | 11ms
 #suite.add_test(test_selection_performance_single_match) # 6 ms | 10 ms | 6 ms | 13 ms | 13ms | 6ms
 #suite.add_test(test_selection_performance_multiple_match) # 7 ms | 10 ms | 8 ms | 9 ms | 7 ms | 8ms

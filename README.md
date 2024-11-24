@@ -39,7 +39,7 @@ Note that this package does not have any external website, servers or telemetry.
 
 ### Testing
 
-If you don't intend to run any unit tests, deleting the `/tests` folder might speed up your Talon voice start up time.
+If you don't intend to run any unit tests, deleting the `/tests` folder might speed up your Talon Voice start up time.
 
 This package has a test suite inside of `/tests` that can run if you turn on the `user.marithime_testing` value to 1. It will print successful and broken test amounts inside of the Talon log, which can be viewed through the **Talon menu** -> **View log**.
 
@@ -124,3 +124,11 @@ There are a lot of things we can do to make creating operators simpler. For exam
 
 [ ] - Codebase indexation
 This is partially implemented for the current text area, but we could do it for more of a code base somehow. This will most likely bring memory challenges with it, so I'm not sure how this doable this is in an efficient way, perhaps it needs to be IDE depedant. But I really don't feel like putting a lot of time into this right now due to its complexity.
+
+
+### Acknowledgements
+
+This repository started off as a clone from the [talon community repository](https://github.com/talonhub/community), but as time went on and my changes became less and less specialized for my own needs, I decided to start making a package of its own.  
+A lot of inspiration was gained from the community repository, like formatters, but I've tried to make this repository stand on its own as much as possible. As such, I've only included the history of that previous repository from the start of my fork on July 27th, 2023, as I hadn't done any updating of my community talon files since then because of potential merge conflicts.
+
+Any remnants of code that maybe accidentally left over from the original community repository, has been made by [the contributors of that repository](https://github.com/talonhub/community/graphs/contributors).

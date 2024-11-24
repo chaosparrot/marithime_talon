@@ -1,7 +1,7 @@
 mode: command
 mode: dictation
 -
-marithyme <user.marithyme_raw_prose> [{user.marithyme_terminator_words}]: user.virtual_buffer_self_repair_insert(marithyme_raw_prose)
+marithyme <user.marithyme_raw_prose> [{user.marithyme_terminator_words}]: user.marithyme_self_repair_insert(marithyme_raw_prose)
 
 # Caret movement
 ^[marithyme] before <user.marithyme_fuzzy_indexed_word>:

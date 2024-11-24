@@ -10,14 +10,14 @@ mode: dictation
     user.marithime_continue()
 
 # Text selection
-^[marithime] select [word] <user.marithime_fuzzy_indexed_word>:
+^[marithime] select word <user.marithime_fuzzy_indexed_word>:
     user.marithime_select(marithime_fuzzy_indexed_word)
 ^[marithime] select <user.marithime_fuzzy_indexed_word>+:
     user.marithime_select(marithime_fuzzy_indexed_word_list)
 
 # Direct correction
-^[marithime] correction <word>+:
-    user.marithime_correction(word_list)
-^[marithime] correction <word>+ {user.marithime_terminator_word} <user.marithime_raw_prose>$:
-    user.marithime_correction(word_list)
+^[marithime] correction <user.marithime_word>+:
+    user.marithime_correction(marithime_word_list)
+^[marithime] correction <user.marithime_word>+ {user.marithime_terminator_word} <user.marithime_raw_prose>$:
+    user.marithime_correction(marithime_word_list)
     user.marithime_insert(user.marithime_raw_prose)

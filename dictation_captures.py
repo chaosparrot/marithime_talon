@@ -1,6 +1,11 @@
 from talon import Module, grammar, actions
 mod = Module()
 
+# Extend the existing captures that users might have - Or fall back to the default word
+@mod.capture(rule="(<user.word> | <word>)")
+def marithime_word(m) -> str:
+    return str(m)
+
 # Taken partially from https://github.com/talonhub/community/blob/main/core/text/text_and_dictation.py
 # So this repository could be used standalone
 @mod.capture(

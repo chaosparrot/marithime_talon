@@ -18,16 +18,13 @@ mod.list("marithime_indexed_words", desc="A list of words that correspond to ins
 ctx = Context()
 ctx.lists["user.marithime_indexed_words"] = []
 
-@mod.capture(rule="({user.marithime_indexed_words} | <word>)")
+@mod.capture(rule="({user.marithime_indexed_words} | <user.marithime_word>)")
 def marithime_fuzzy_indexed_word(m) -> str:
     "Returns a single word that is possibly indexed inside of the virtual buffer"
-    try:
-        return m.indexed_words
-    except AttributeError:
-        try:
-            return " ".join(m.word)
-        except AttributeError:
-            print("PROBLEM WITH CAPTURE", m)
+    if hasattr(m, "indexed_words"):
+        return str(m.indexed_words)
+    else:
+        return str(m)
 
 # Class to manage all the talon bindings and key presses for the virtual buffer
 class VirtualBufferManager:
@@ -418,7 +415,7 @@ class Actions:
                     actions.key(key)
             mutator.enable_tracking()
             text = " ".join(selection_and_correction)
-            actions.user.virtual_buffer_insert(text)
+            actions.user.marithime_insert(text)
         else:
             raise RuntimeError("Input phrase '" + " ".join(selection_and_correction) + "' could not be corrected")
 
@@ -451,7 +448,7 @@ class Actions:
         global mutator
         mutator.clear_context()
 
-    def virtual_buffer_best_match(phrases: List[str], correct_previous: bool = False, starting_phrase: str = '') -> str:
+    def marithime_best_match(phrases: List[str], correct_previous: bool = False, starting_phrase: str = '') -> str:
         """Improve accuracy by picking the best matches out of the words used"""
         global mutator
         match_dictionary = {}

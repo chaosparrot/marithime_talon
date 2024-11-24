@@ -1,5 +1,6 @@
 from talon import cron
-from typing import List, Callable, Module, settings
+from typing import List, Callable 
+from talon import Module, settings
 import time
 
 mod = Module()
@@ -121,4 +122,4 @@ def create_test_suite(intro_text: str) -> TestSuite:
     return suite
 
 def run_tests():
-    test_suite_collection.run(1)
+    test_suite_collection.run(1) 

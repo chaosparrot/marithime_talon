@@ -9,34 +9,25 @@ import re
 
 mod = Module()
 
-mod.setting("marithime_context_remove_undo", type=str, default="ctrl-z", desc="The key combination to undo a paste action")
-mod.setting("marithime_context_remove_word", type=str, default="ctrl-backspace", desc="The key combination to clear a word to the left of the caret")
-mod.setting("marithime_context_remove_letter", type=str, default="backspace", desc="The key combination to clear a single letter to the left of the caret")
-mod.setting("marithime_context_remove_forward_word", type=str, default="ctrl-delete", desc="The key combination to clear a word to the right of the caret")
-mod.setting("marithime_context_remove_forward_letter", type=str, default="delete", desc="The key combination to clear a single letter to the right of the caret")
-mod.setting("marithime_auto_fixing_enabled", type=int, default=0, desc="Whether to allow auto-fixing ( auto correct ) based on earlier corrections")
-
 #mod.tag("flow_numbers", desc="Ensure that the user can freely insert numbers")
 #mod.tag("flow_letters", desc="Ensure that the user can freely insert letters")
 #mod.tag("flow_symbols", desc="Ensure that the user can freely insert symbols")
 #mod.tag("flow_words", desc="Ensure that the user can freely insert words")
 
-mod.tag("marithime_context_disable_shift_selection", desc="Disables shift selection for the current context")
-mod.tag("marithime_context_disable_word_wrap", desc="Disables word wrap detection for the current context")
-
-mod.list("marithime_terminator_word", desc="A list of all the end-of-command terminator words used within dictation and other commands")
 mod.list("marithime_indexed_words", desc="A list of words that correspond to inserted text and their caret positions for quick navigation in text")
 ctx = Context()
 ctx.lists["user.marithime_indexed_words"] = []
-ctx.lists["user.marithime_terminator_words"] = ["quill", "quilt"]
 
-@mod.capture(rule="({user.marithime_indexed_words} | <user.word>)")
+@mod.capture(rule="({user.marithime_indexed_words} | <word>)")
 def marithime_fuzzy_indexed_word(m) -> str:
     "Returns a single word that is possibly indexed inside of the virtual buffer"
     try:
         return m.indexed_words
     except AttributeError:
-        return m.word
+        try:
+            return " ".join(m.word)
+        except AttributeError:
+            print("PROBLEM WITH CAPTURE", m)
 
 # Class to manage all the talon bindings and key presses for the virtual buffer
 class VirtualBufferManager:
@@ -47,7 +38,7 @@ class VirtualBufferManager:
     use_last_set_formatter = False
 
     def __init__(self):
-        self.context = InputContextManager(actions.user.marithime_virtual_buffer_update_sensory_state)
+        self.context = InputContextManager(actions.user.marithime_update_sensory_state)
         self.fixer = InputFixer()
         self.fixer.verbose = True
 

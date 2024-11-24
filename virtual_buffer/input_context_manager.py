@@ -286,7 +286,7 @@ class InputContextManager:
         self.use_last_set_formatter = use_last_formatter
     
     def index_accessible_content(self):
-        accessible_text = actions.marithime_get_element_text()
+        accessible_text = actions.user.marithime_get_element_text()
         if self.current_context:
             self.current_context.set_accessible_api_available("text", True)
 
@@ -376,7 +376,10 @@ class InputContextManager:
             actions.sleep("200ms")
             
             with clip.capture() as current_selection:
-                actions.edit.copy()
+                try:
+                    actions.edit.copy()
+                except NotImplementedError:
+                    pass
             actions.sleep("200ms")
 
             try:
@@ -432,7 +435,10 @@ class InputContextManager:
                 actions.sleep("200ms")
                 with clip.revert():
                     with clip.capture() as s:
-                        actions.edit.copy()
+                        try:
+                            actions.edit.copy()
+                        except NotImplementedError:
+                            pass
                     try:
                         after_text = s.text()
                     except clip.NoChange:

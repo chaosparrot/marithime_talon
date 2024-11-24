@@ -1,5 +1,5 @@
 
-from accessibility_api import AccessibilityCaret, AccessibilityText, AccessibilityApi
+from .accessibility_api import AccessibilityCaret, AccessibilityText, AccessibilityApi
 from typing import List
 
 class WindowsAccessibilityApi(AccessibilityApi):

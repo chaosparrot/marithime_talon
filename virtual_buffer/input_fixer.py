@@ -10,7 +10,7 @@ from dataclasses import fields
 from ..phonetics.detection import EXACT_MATCH
 from ..phonetics.actions import PhoneticSearch, phonetic_search
 
-SETTINGS_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__))) / + "settings"
+SETTINGS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "settings")
 
 # Thresholds when a fix should be done automatically
 CONTEXT_THRESHOLD_MOST = 1
@@ -25,12 +25,13 @@ class InputFixer:
     done_fixes: Dict[str, List[InputFix]] = {}
     known_fixes: Dict[str, List[InputFix]] = {}
     verbose: bool = False
+    testing: bool = False
 
     poll_buffer_commit_seconds = 0
     buffer_committing_job = None
     buffer: List[InputMutation] = []
 
-    def __init__(self, language: str = "en", engine: str = "", path_prefix: str = str(Path(SETTINGS_DIR) / "cache"), poll_buffer_seconds: int = 30, verbose = False):
+    def __init__(self, language: str = "en", engine: str = "", path_prefix: str = str(Path(SETTINGS_DIR) / "cache"), poll_buffer_seconds: int = 30, verbose = False, testing = False):
         self.language = language
         self.engine = engine
         self.path_prefix = path_prefix
@@ -41,9 +42,10 @@ class InputFixer:
         self.verbose = verbose
         self.load_fixes(language, engine)
         self.poll_buffer_seconds = poll_buffer_seconds
+        self.testing = testing
 
     def load_fixes(self, language: str, engine: str):
-        if language and engine and self.path_prefix:
+        if language and engine and self.path_prefix :
             self.language = language
             self.engine = engine
             self.known_fixes = {}
@@ -52,6 +54,11 @@ class InputFixer:
 
             # Create an initial fix file if it does not exist for the engine / language combination yet
             if not os.path.exists( fix_file_path ):
+
+                # Create cache folder if the path does not exist
+                if not os.path.exists(self.path_prefix):
+                    os.makedirs(self.path_prefix)
+                
                 with open(fix_file_path, 'w') as new_file:
                     writer = csv.writer(new_file, delimiter=";", quoting=csv.QUOTE_ALL, lineterminator="\n")
                     writer.writerow([field.name for field in fields(InputFix) if field.name != "key"])
@@ -505,4 +512,4 @@ class InputFixer:
         return self.path_prefix + os.sep + "context_" + self.language + "_" + self.engine + ".csv"
 
     def is_fixing_allowed(self) -> bool:
-        return settings.get("user.marithime_auto_fixing_enabled") >= 1
+        return settings.get("user.marithime_auto_fixing_enabled") >= 1 or self.testing

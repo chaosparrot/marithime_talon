@@ -1,8 +1,6 @@
 mode: command
 mode: dictation
 -
-marithime <user.marithime_raw_prose> [{user.marithime_terminator_words}]: user.marithime_self_repair_insert(marithime_raw_prose)
-
 # Caret movement
 ^[marithime] before <user.marithime_fuzzy_indexed_word>:
     user.marithime_move_caret(marithime_fuzzy_indexed_word, 0)
@@ -12,14 +10,14 @@ marithime <user.marithime_raw_prose> [{user.marithime_terminator_words}]: user.m
     user.marithime_continue()
 
 # Text selection
-^select [word] <user.marithime_fuzzy_indexed_word>:
+^[marithime] select [word] <user.marithime_fuzzy_indexed_word>:
     user.marithime_select(marithime_fuzzy_indexed_word)
-^select <user.marithime_fuzzy_indexed_word>+:
+^[marithime] select <user.marithime_fuzzy_indexed_word>+:
     user.marithime_select(marithime_fuzzy_indexed_word_list)
 
 # Direct correction
-^correction <user.word>+:
+^[marithime] correction <word>+:
     user.marithime_correction(word_list)
-^correction <user.word>+ {user.marithime_terminator_words} <user.marithime_raw_prose>$:
+^[marithime] correction <word>+ {user.marithime_terminator_word} <user.marithime_raw_prose>$:
     user.marithime_correction(word_list)
-    user.marithime_insert(marithime_raw_prose)
+    user.marithime_insert(user.marithime_raw_prose)

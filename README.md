@@ -125,7 +125,6 @@ There are a lot of things we can do to make creating operators simpler. For exam
 [ ] - Codebase indexation
 This is partially implemented for the current text area, but we could do it for more of a code base somehow. This will most likely bring memory challenges with it, so I'm not sure how this doable this is in an efficient way, perhaps it needs to be IDE depedant. But I really don't feel like putting a lot of time into this right now due to its complexity.
 
-
 ### Acknowledgements
 
 This repository started off as a clone from the [talon community repository](https://github.com/talonhub/community), but as time went on and my changes became less and less specialized for my own needs, I decided to start making a package of its own.  

@@ -8,9 +8,10 @@ from talon import resource
 from ..test import create_test_suite
 test_path = os.path.dirname(os.path.realpath(__file__))
 
-resource.open(os.path.join(test_path, "testcase_selfrepair.csv"))
-resource.open(os.path.join(test_path, "testcase_correction.csv"))
-resource.open(os.path.join(test_path, "testcase_selection.csv"))
+# Auto reload test cases if the csvs are changed
+#resource.open(os.path.join(test_path, "testcase_selfrepair.csv"))
+#resource.open(os.path.join(test_path, "testcase_correction.csv"))
+#resource.open(os.path.join(test_path, "testcase_selection.csv"))
 
 def get_uncached_virtual_buffer():
     vb = VirtualBuffer()

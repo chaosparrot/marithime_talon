@@ -1,5 +1,0 @@
-void: insert(" ")
-(dot void | devoid): insert(". ")
-(comma void | comvoid): insert(", ")
-(dash void | dashoid): insert("- ")
-(equals void | equoid ): insert("= ")

@@ -1,1 +1,0 @@
-^talon analytics show$: user.analytics_show_statistics()

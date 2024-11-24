@@ -1,11 +1,11 @@
 # Architecture
 
 Because this package does a lot of things in the background, it doesn't have a simple architecture.
-The basic flow of inserting text through `user.marithyme_insert` is the following, parts of the diagram can be clicked on to go to specific implementations:
+The basic flow of inserting text through `user.marithime_insert` is the following, parts of the diagram can be clicked on to go to specific implementations:
 
 ```mermaid
 flowchart TD
-    A[Insert words through **user.marithyme_insert**]
+    A[Insert words through **user.marithime_insert**]
     A --> one
 
     subgraph one [Self repair]
@@ -93,7 +93,7 @@ In order to determine in what program we are currently inside of, we keep track 
 
 ### Input tracking
 
-Input tracking is used to remember what text was typed through Talon Voice. This makes it possible to enhance your own voice commands with marithyme commands. While we cannot track key presses outside of Talon Voice, this strategy does allow us to have the possibility of remembering where words are within programs that don't have a proper [accessibility api](#accessibility-apis).
+Input tracking is used to remember what text was typed through Talon Voice. This makes it possible to enhance your own voice commands with marithime commands. While we cannot track key presses outside of Talon Voice, this strategy does allow us to have the possibility of remembering where words are within programs that don't have a proper [accessibility api](#accessibility-apis).
 
 It also tries to guess whether we need to do more indexation if an undo was done through `Ctrl-Z`.
 

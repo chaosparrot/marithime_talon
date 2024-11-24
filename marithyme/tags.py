@@ -3,7 +3,7 @@ from talon import Context, Module
 mod = Module()
 ctx = Context()
 
-mod.tag("marithyme_available", desc="Check that the Marithyme package is available for a user")
-mod.tag("marithyme_dictation", desc="Overrides the dictation insert with the marithyme one")
+mod.tag("marithime_available", desc="Check that the Marithime package is available for a user")
+mod.tag("marithime_dictation", desc="Overrides the dictation insert with the marithime one")
 
-ctx.tags = ["user.marithyme_available"]
+ctx.tags = ["user.marithime_available"]

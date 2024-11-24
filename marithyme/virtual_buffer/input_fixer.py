@@ -505,4 +505,4 @@ class InputFixer:
         return self.path_prefix + os.sep + "context_" + self.language + "_" + self.engine + ".csv"
 
     def is_fixing_allowed(self) -> bool:
-        return settings.get("user.marithyme_auto_fixing_enabled") >= 1
+        return settings.get("user.marithime_auto_fixing_enabled") >= 1

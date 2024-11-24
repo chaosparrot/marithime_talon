@@ -20,10 +20,10 @@ def get_accessibility_api() -> AccessibilityApi:
 @mod.action_class
 class Actions:
 
-    def marithyme_get_element_text() -> AccessibilityText:
+    def marithime_get_element_text() -> AccessibilityText:
         """Retrieve the accessible text from the currently focused element"""
         return get_accessibility_api().index_element_text()
 
-    def marithyme_get_element_caret() -> List[AccessibilityCaret]:
+    def marithime_get_element_caret() -> List[AccessibilityCaret]:
         """Retrieve the caret from the currently focused element"""
         return get_accessibility_api().determine_caret_positions()

@@ -1,3 +1,3 @@
-# Extending and reusing marithyme functionality
+# Extending and reusing marithime functionality
 
 TODO - Fill this in with all kinds of possibilities that can be achieved.

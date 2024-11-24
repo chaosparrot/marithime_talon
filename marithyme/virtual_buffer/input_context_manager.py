@@ -286,7 +286,7 @@ class InputContextManager:
         self.use_last_set_formatter = use_last_formatter
     
     def index_accessible_content(self):
-        accessible_text = actions.marithyme_get_element_text()
+        accessible_text = actions.marithime_get_element_text()
         if self.current_context:
             self.current_context.set_accessible_api_available("text", True)
 
@@ -358,7 +358,7 @@ class InputContextManager:
         if accessible_text:
             accessible_cursor_index = [accessible_text.active_caret, accessible_text.selection_caret]
         else:
-            accessible_cursor_index = actions.user.marithyme_get_element_caret()
+            accessible_cursor_index = actions.user.marithime_get_element_caret()
         if accessible_cursor_index and accessible_cursor_index[0].line_index != -1 and \
             accessible_cursor_index[1].line_index != -1 and accessible_cursor_index[0].characters_from_end != -1 and \
             accessible_cursor_index[1].characters_from_end != -1:

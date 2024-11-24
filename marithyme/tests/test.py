@@ -3,7 +3,7 @@ from typing import List, Callable, Module, settings
 import time
 
 mod = Module()
-mod.setting("marithyme_testing", type=int, desc="Whether to run marithyme tests", default=0)
+mod.setting("marithime_testing", type=int, desc="Whether to run marithime tests", default=0)
 
 class TestSuite:
     intro_text: str
@@ -84,8 +84,8 @@ class TestSuiteCollection:
         self.running_cron = cron.after("500ms", lambda: self.run(0))
 
     def run(self, verbosity = 0):
-        # Only run tests if marithyme testing is turned on
-        if settings.get("user.marithyme_testing") == 0:
+        # Only run tests if marithime testing is turned on
+        if settings.get("user.marithime_testing") == 0:
             return
         start_time = time.perf_counter()
         total_results = []

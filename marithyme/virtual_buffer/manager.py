@@ -9,29 +9,29 @@ import re
 
 mod = Module()
 
-mod.setting("marithyme_context_remove_undo", type=str, default="ctrl-z", desc="The key combination to undo a paste action")
-mod.setting("marithyme_context_remove_word", type=str, default="ctrl-backspace", desc="The key combination to clear a word to the left of the caret")
-mod.setting("marithyme_context_remove_letter", type=str, default="backspace", desc="The key combination to clear a single letter to the left of the caret")
-mod.setting("marithyme_context_remove_forward_word", type=str, default="ctrl-delete", desc="The key combination to clear a word to the right of the caret")
-mod.setting("marithyme_context_remove_forward_letter", type=str, default="delete", desc="The key combination to clear a single letter to the right of the caret")
-mod.setting("marithyme_auto_fixing_enabled", type=int, default=0, desc="Whether to allow auto-fixing ( auto correct ) based on earlier corrections")
+mod.setting("marithime_context_remove_undo", type=str, default="ctrl-z", desc="The key combination to undo a paste action")
+mod.setting("marithime_context_remove_word", type=str, default="ctrl-backspace", desc="The key combination to clear a word to the left of the caret")
+mod.setting("marithime_context_remove_letter", type=str, default="backspace", desc="The key combination to clear a single letter to the left of the caret")
+mod.setting("marithime_context_remove_forward_word", type=str, default="ctrl-delete", desc="The key combination to clear a word to the right of the caret")
+mod.setting("marithime_context_remove_forward_letter", type=str, default="delete", desc="The key combination to clear a single letter to the right of the caret")
+mod.setting("marithime_auto_fixing_enabled", type=int, default=0, desc="Whether to allow auto-fixing ( auto correct ) based on earlier corrections")
 
 #mod.tag("flow_numbers", desc="Ensure that the user can freely insert numbers")
 #mod.tag("flow_letters", desc="Ensure that the user can freely insert letters")
 #mod.tag("flow_symbols", desc="Ensure that the user can freely insert symbols")
 #mod.tag("flow_words", desc="Ensure that the user can freely insert words")
 
-mod.tag("marithyme_context_disable_shift_selection", desc="Disables shift selection for the current context")
-mod.tag("marithyme_context_disable_word_wrap", desc="Disables word wrap detection for the current context")
+mod.tag("marithime_context_disable_shift_selection", desc="Disables shift selection for the current context")
+mod.tag("marithime_context_disable_word_wrap", desc="Disables word wrap detection for the current context")
 
-mod.list("marithyme_terminator_word", desc="A list of all the end-of-command terminator words used within dictation and other commands")
-mod.list("marithyme_indexed_words", desc="A list of words that correspond to inserted text and their caret positions for quick navigation in text")
+mod.list("marithime_terminator_word", desc="A list of all the end-of-command terminator words used within dictation and other commands")
+mod.list("marithime_indexed_words", desc="A list of words that correspond to inserted text and their caret positions for quick navigation in text")
 ctx = Context()
-ctx.lists["user.marithyme_indexed_words"] = []
-ctx.lists["user.marithyme_terminator_words"] = ["quill", "quilt"]
+ctx.lists["user.marithime_indexed_words"] = []
+ctx.lists["user.marithime_terminator_words"] = ["quill", "quilt"]
 
-@mod.capture(rule="({user.marithyme_indexed_words} | <user.word>)")
-def marithyme_fuzzy_indexed_word(m) -> str:
+@mod.capture(rule="({user.marithime_indexed_words} | <user.word>)")
+def marithime_fuzzy_indexed_word(m) -> str:
     "Returns a single word that is possibly indexed inside of the virtual buffer"
     try:
         return m.indexed_words
@@ -47,7 +47,7 @@ class VirtualBufferManager:
     use_last_set_formatter = False
 
     def __init__(self):
-        self.context = InputContextManager(actions.user.marithyme_virtual_buffer_update_sensory_state)
+        self.context = InputContextManager(actions.user.marithime_virtual_buffer_update_sensory_state)
         self.fixer = InputFixer()
         self.fixer.verbose = True
 
@@ -248,25 +248,25 @@ class VirtualBufferManager:
         context = vbm.determine_context()
 
         if self.is_selecting():
-            return [settings.get("user.marithyme_context_remove_letter")]
+            return [settings.get("user.marithime_context_remove_letter")]
         
         if context.current is not None:
             if context.character_index == 0 and backwards and context.previous is not None:
-                return [settings.get("user.marithyme_context_remove_letter") + ":" + str(len(context.previous.text))]
+                return [settings.get("user.marithime_context_remove_letter") + ":" + str(len(context.previous.text))]
 
             elif context.character_index == len(context.current.text):
                 if not backwards and context.next is not None:
-                    return [settings.get("user.marithyme_context_remove_forward_letter") + ":" + str(len(context.next.text))]
+                    return [settings.get("user.marithime_context_remove_forward_letter") + ":" + str(len(context.next.text))]
                 elif backwards:
-                    return [settings.get("user.marithyme_context_remove_letter") + ":" + str(len(context.current.text))]
+                    return [settings.get("user.marithime_context_remove_letter") + ":" + str(len(context.current.text))]
 
             if context.character_index > 0 and context.character_index < len(context.current.text) - 1:
                 if backwards:
-                    return [settings.get("user.marithyme_context_remove_letter") + ":" + str(context.character_index)]
+                    return [settings.get("user.marithime_context_remove_letter") + ":" + str(context.character_index)]
                 else:
-                    return [settings.get("user.marithyme_context_remove_forward_letter") + ":" + str(len(context.current.text) - context.character_index)]
+                    return [settings.get("user.marithime_context_remove_forward_letter") + ":" + str(len(context.current.text) - context.character_index)]
 
-        return [settings.get("user.marithyme_context_remove_word") if backwards else settings.get("user.marithyme_context_remove_forward_word")]
+        return [settings.get("user.marithime_context_remove_word") if backwards else settings.get("user.marithime_context_remove_forward_word")]
 
     def index(self):
         vbm = self.context.get_current_context().buffer
@@ -274,7 +274,7 @@ class VirtualBufferManager:
         words_list = []
         for token in vbm.tokens:
             words_list.append(token.phrase)
-        ctx.lists["user.marithyme_indexed_words"] = words_list
+        ctx.lists["user.marithime_indexed_words"] = words_list
 
         tags = []
         token_index = vbm.determine_token_index()
@@ -327,27 +327,27 @@ app.register("ready", init_mutator)
 @mod.action_class
 class Actions:
 
-    def marithyme_enable_input_tracking():
+    def marithime_enable_input_tracking():
         """Enable tracking of input values so that we can make contextual decisions and keep the caret position"""
         global mutator
         mutator.enable_tracking()
 
-    def marithyme_disable_input_tracking():
+    def marithime_disable_input_tracking():
         """Disable tracking of input values"""
         global mutator
         mutator.disable_tracking()
 
-    def marithyme_set_formatter(formatter: str):
+    def marithime_set_formatter(formatter: str):
         """Sets the current formatter to be used in text editing"""
         global mutator
         mutator.set_formatter(formatter)
 
-    def marithyme_transform_insert(insert: str) -> str:
+    def marithime_transform_insert(insert: str) -> str:
         """Transform an insert automatically depending on previous context"""
         global mutator
         return mutator.transform_insert(insert)[0]
 
-    def marithyme_self_repair_insert(prose: str):
+    def marithime_self_repair_insert(prose: str):
         """Input words based on context surrounding the words to input, allowing for self repair within speech as well"""
         global mutator
 
@@ -360,7 +360,7 @@ class Actions:
 
         actions.insert(text_to_insert)
 
-    def marithyme_insert(prose: str):
+    def marithime_insert(prose: str):
         """Input words based on context surrounding the words to input"""
         global mutator
 
@@ -373,17 +373,17 @@ class Actions:
 
         actions.insert(text_to_insert)
 
-    def marithyme_track_key(key_string: str) -> str:
+    def marithime_track_key(key_string: str) -> str:
         """Track one or more key presses according to the key string"""
         global mutator
         mutator.track_key(key_string)
 
-    def marithyme_track_insert(insert: str, phrase: str = "") -> str:
+    def marithime_track_insert(insert: str, phrase: str = "") -> str:
         """Track a full insert"""
         global mutator
         mutator.track_insert(insert, phrase)
 
-    def marithyme_backspace(backward: bool = True):
+    def marithime_backspace(backward: bool = True):
         """Apply a clear based on the current virtual buffer"""
         global mutator
         keys = mutator.clear_keys(backward)
@@ -391,7 +391,7 @@ class Actions:
             actions.key(key)
         mutator.index_textarea()
 
-    def marithyme_move_caret(phrase: str, caret_position: int = -1):
+    def marithime_move_caret(phrase: str, caret_position: int = -1):
         """Move the caret to the given phrase"""
         global mutator
         if mutator.has_phrase(phrase):
@@ -404,7 +404,7 @@ class Actions:
         else:
             raise RuntimeError("Input phrase '" + phrase + "' could not be found in the buffer")
 
-    def marithyme_select(phrase: Union[str, List[str]]):
+    def marithime_select(phrase: Union[str, List[str]]):
         """Move the caret to the given phrase and select it"""
         global mutator
 
@@ -416,7 +416,7 @@ class Actions:
                 actions.key(key)
         mutator.enable_tracking()
             
-    def marithyme_correction(selection_and_correction: List[str]):
+    def marithime_correction(selection_and_correction: List[str]):
         """Select a fuzzy match of the words and apply the given words"""
         global mutator
         keys = mutator.select_phrases(selection_and_correction, for_correction=True)
@@ -431,7 +431,7 @@ class Actions:
         else:
             raise RuntimeError("Input phrase '" + " ".join(selection_and_correction) + "' could not be corrected")
 
-    def marithyme_clear_phrase(phrase: str):
+    def marithime_clear_phrase(phrase: str):
         """Move the caret behind the given phrase and remove it"""
         global mutator
         before_keys = mutator.move_to_phrase(phrase, -1, False, False)
@@ -445,7 +445,7 @@ class Actions:
         for key in keys:
             actions.key(key)
 
-    def marithyme_continue():
+    def marithime_continue():
         """Move the caret to the end of the current virtual buffer"""
         global mutator
         keys = mutator.move_caret_back()
@@ -455,7 +455,7 @@ class Actions:
             actions.key(key)
         mutator.enable_tracking()
 
-    def marithyme_forget_context():
+    def marithime_forget_context():
         """Forget the current context of the virtual buffer completely"""
         global mutator
         mutator.clear_context()
@@ -474,16 +474,16 @@ class Actions:
         
         return max(match_dictionary, key=match_dictionary.get)
     
-    def marithyme_index_textarea():
+    def marithime_index_textarea():
         """Select the index area and update the internal state completely"""
         global mutator
         mutator.index_textarea()
     
-    def marithyme_update_sensory_state(scanning: bool, level: str, caret_confidence: int, content_confidence: int):
+    def marithime_update_sensory_state(scanning: bool, level: str, caret_confidence: int, content_confidence: int):
         """Visually or audibly update the state for the user"""
         pass
 
-    def marithyme_dump_context():
+    def marithime_dump_context():
         """Dump the current state of the virtual buffer for debugging purposes"""
         global mutator
         mutator.disable_tracking("DUMP")
@@ -519,12 +519,12 @@ tag: user.talon_hud_available
 """
 
 def index_document(self, icon):
-    actions.user.marithyme_index_textarea()
+    actions.user.marithime_index_textarea()
 
 @ctx_override.action_class("user")
 class HudActions:
 
-    def marithyme_move_caret(phrase: str, caret_position: int = -1):
+    def marithime_move_caret(phrase: str, caret_position: int = -1):
         """Move the caret to the given phrase"""
         try:
             actions.next(phrase, caret_position)
@@ -532,7 +532,7 @@ class HudActions:
             actions.user.hud_add_log("warning", phrase + " could not be found in context")
             raise e
 
-    def marithyme_select(phrase: Union[str, List[str]]):
+    def marithime_select(phrase: Union[str, List[str]]):
         """Move the caret to the given phrase and select it"""
         try:
             actions.next(phrase)
@@ -540,7 +540,7 @@ class HudActions:
             actions.user.hud_add_log("warning", phrase + " could not be found in context")
             raise e
         
-    def marithyme_correction(selection_and_correction: List[str]):
+    def marithime_correction(selection_and_correction: List[str]):
         """Select a fuzzy match of the words and apply the given words"""
         try:
             actions.next(selection_and_correction)
@@ -548,7 +548,7 @@ class HudActions:
             actions.user.hud_add_log("warning", "'" + " ".join(selection_and_correction) + "' could not be corrected")
             raise e
 
-    def marithyme_update_sensory_state(scanning: bool, level: str, caret_confidence: int, content_confidence: int):
+    def marithime_update_sensory_state(scanning: bool, level: str, caret_confidence: int, content_confidence: int):
         """Visually or audibly update the state for the user"""
         
         # Build up the status bar image icon name

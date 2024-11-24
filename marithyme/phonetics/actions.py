@@ -87,27 +87,27 @@ fs.watch(cwd, reload_files)
 @mod.action_class
 class Actions:
 
-    def marithyme_homophones_add(word: str, replaced_word: str):
+    def marithime_homophones_add(word: str, replaced_word: str):
         """Update the homophones file with a new addition"""
         global phonetic_search
         phonetic_search.add_homophone(word, replaced_word)
 
-    def marithyme_homophones_get(word: str) -> [str] or None:
+    def marithime_homophones_get(word: str) -> [str] or None:
         """Get homophones for the given word"""
         global phonetic_search
         phonetic_search.find_homophones(word)
 
-    def marithyme_phonetic_similarities_add(word: str, replaced_word: str):
+    def marithime_phonetic_similarities_add(word: str, replaced_word: str):
         """Update the phonetics file with a new addition"""
         global phonetic_search
         phonetic_search.add_phonetic_similarity(word, replaced_word)
 
-    def marithyme_phonetic_similarities_get(word: str) -> [str] or None:
+    def marithime_phonetic_similarities_get(word: str) -> [str] or None:
         """Get phonetic similarties for the given word"""
         global phonetic_search
         phonetic_search.find_phonetic_similarities(word)
     
-    def marithyme_phonetic_similarity_score(word_a: str, word_b: str) -> int:
+    def marithime_phonetic_similarity_score(word_a: str, word_b: str) -> int:
         """Test whether or not word a is similar enough to word b to be considered phonetically similar"""
         global phonetic_search
         return phonetic_search.phonetic_similarity_score(word_a, word_b)

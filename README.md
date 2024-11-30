@@ -134,8 +134,5 @@ Any remnants of code that maybe accidentally left over from the original communi
 
 TODOs
 
-- Aggressive indexing flag on insert / select / correction
-- Indexing after mouse movement ?
 - Checking on MacOS and Linux
 - Testing with knausj_talon community repository
-- HUD integration within this repository

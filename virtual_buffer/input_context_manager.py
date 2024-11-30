@@ -1,4 +1,4 @@
-from talon import ui, actions, clip
+from talon import ui, actions, clip, settings
 from .input_context import InputContext
 import time
 from typing import List, Callable, Tuple
@@ -99,8 +99,14 @@ class InputContextManager:
         return False
 
     def ensure_viable_context(self):
+        # Reset the confidence for every pol
+        if (settings.get("user.marithime_indexing_strategy") == "aggressive"):
+            self.visual_state['content_confidence'] = 0
+            self.visual_state['caret_confidence'] = 1
+        
         update_caret = self.visual_state['caret_confidence'] != 2
         update_content = self.visual_state['caret_confidence'] == 1 and self.visual_state['content_confidence'] < 1
+
         self.poll_accessible_changes(update_caret=update_caret, update_content=update_content)
 
     def poll_accessible_changes(self, update_caret = False, update_content = False):
@@ -522,9 +528,8 @@ class InputContextManager:
                 is_updated = True
                 self.visual_state['content_confidence'] = content_confidence
 
-        # TODO implement non-hud visualisation
         try:
-            if is_updated and self.state_callback:        
+            if is_updated and self.state_callback:
                 self.state_callback(self.visual_state['scanning'], self.visual_state['level'], self.visual_state['caret_confidence'], self.visual_state['content_confidence'])
         except NotImplementedError:
             pass

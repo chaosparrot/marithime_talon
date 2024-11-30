@@ -16,5 +16,8 @@ mod.setting("marithime_context_remove_letter", type=str, default="backspace", de
 mod.setting("marithime_context_remove_forward_word", type=str, default="ctrl-delete", desc="The key combination to clear a word to the right of the caret")
 mod.setting("marithime_context_remove_forward_letter", type=str, default="delete", desc="The key combination to clear a single letter to the right of the caret")
 
+# This is default turned to aggressive ( to re-index after every action ) until we fix most of the edgecases where de-syncs happen
+mod.setting("marithime_indexing_strategy", type=str, default="", desc="Determine what strategy we should use to begin reindexing documents")
+
 ctx.tags = ["user.marithime_available"]
 ctx.lists["user.marithime_terminator_word"] = ["quill", "quilt"]

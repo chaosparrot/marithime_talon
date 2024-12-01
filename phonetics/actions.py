@@ -1,5 +1,5 @@
 import os
-from talon import Context, Module, fs, settings
+from talon import Context, Module, fs, settings, app
 from .phonetics import PhoneticSearch
 
 cwd = os.path.dirname(os.path.realpath(__file__))
@@ -43,7 +43,7 @@ def update_language(language: str):
         phonetic_search.set_language(language)
 
 settings.register("speech.language", update_language)
-update_language( settings.get("speech.language") )
+app.register("ready", lambda: update_language( settings.get("speech.language") ))
 
 def write_file(file_location: str, content: str):
     # Only write the file if it is inside of the phonetics directory for security reasons

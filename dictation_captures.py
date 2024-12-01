@@ -13,7 +13,6 @@ def marithime_word(m) -> str:
 )
 def marithime_raw_prose(m) -> str:
     """Mixed additional words and phrases intended to be processed by marithime formatting later on"""
-    result = ""
     total_words = []
     for item in m:
         words = (

@@ -1,6 +1,6 @@
 from talon import cron
 from typing import List, Callable 
-from talon import Module, settings
+from talon import Module, settings, app
 import time
 
 mod = Module()
@@ -64,10 +64,12 @@ class TestSuiteCollection:
     name: str = ""
     test_suites: List[TestSuite] = None
     running_cron = None
+    ready: bool = False
 
     def __init__(self, name: str):
         self.name = name
         self.test_suites = []
+        self.ready = False
 
     def add_test_suite(self, test_suite: TestSuite):
         found_index = -1
@@ -82,7 +84,8 @@ class TestSuiteCollection:
             self.test_suites.append(test_suite)
         
         cron.cancel(self.running_cron)
-        self.running_cron = cron.after("500ms", lambda: self.run(0))
+        if self.ready:
+            self.running_cron = cron.after("500ms", lambda: self.run(0))
 
     def run(self, verbosity = 0):
         # Only run tests if marithime testing is turned on
@@ -122,4 +125,10 @@ def create_test_suite(intro_text: str) -> TestSuite:
     return suite
 
 def run_tests():
-    test_suite_collection.run(1) 
+    test_suite_collection.run(1)
+
+def run_tests_ready():
+    test_suite_collection.ready = True
+    test_suite_collection.run()
+
+app.register("ready", run_tests_ready)

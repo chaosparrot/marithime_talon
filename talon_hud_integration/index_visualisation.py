@@ -1,5 +1,6 @@
 
 from talon import actions, Context
+from typing import List, Union
 import os
 
 def index_document():

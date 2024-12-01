@@ -25,7 +25,7 @@ class AccessibilityApi:
 
     def get_focused_element(self):
         try:
-            return ui.get_focused_element()
+            return ui.focused_element()
         except:
             return None
 

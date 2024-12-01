@@ -91,6 +91,9 @@ We could make it easier to loop through sentences since we already have the buff
 [] - Implement flow for digits  
 Right now, you still need to say `numb zero` every time between commands. We can detect if we should allow digits, periods and other kinds of formatters as single words if we can be very certain that the next character will be 
 
+[] - Word wrap detection  
+We need to find a way to deal with word wrap, meaning things being on a single line, but visually ( and most importantly, keyboard relatively ) they are on multiple lines. Our current Up and Down arrow key pressing does not deal with that.
+
 #### Programs
 
 [] - Improved MacOS support  

@@ -49,10 +49,10 @@ If you want to highlight a specific set of tests, go inside of the specific test
 
 #### Documentation
 
-[ ] - Create a usage and installation video
+[] - Create a usage and installation video
 Videos seem to speak to people more than written text does, so accompany this with a video as well
 
-[ ] - Extension possibilities for other packages
+[] - Extension possibilities for other packages
 There's a ton of ways other packages can make use of our captures, settings and detections, but we will need to document them so they are easier to reuse as well.
 
 #### Dictation
@@ -134,8 +134,3 @@ This repository started off as a clone from the [talon community repository](htt
 A lot of inspiration was gained from the community repository, like formatters, but I've tried to make this repository stand on its own as much as possible. As such, I've only included the history of that previous repository from the start of my fork on July 27th, 2023, as I hadn't done any updating of my community talon files since then because of potential merge conflicts.
 
 Any remnants of code that maybe accidentally left over from the original community repository, has been made by [the contributors of that repository](https://github.com/talonhub/community/graphs/contributors).
-
-TODOs
-
-- Checking on Linux
-- Testing with knausj_talon community repository

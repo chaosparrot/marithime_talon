@@ -3,7 +3,7 @@ from talon import actions, Context
 from typing import List, Union
 import os
 
-def index_document():
+def index_document(_ = None, _2 = None):
     actions.user.marithime_index_textarea()
 
 ctx_override = Context()

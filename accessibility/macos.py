@@ -32,7 +32,7 @@ class MacOsAccessibilityApi(AccessibilityApi):
 
         if accessibility_text:
             caret_position = self.determine_caret_positions(element)
-            if len(caret_position) == 2:
+            if caret_position is not None and len(caret_position) == 2:
                 accessibility_text.active_caret = caret_position[0]
                 accessibility_text.selection_caret = caret_position[1]
 

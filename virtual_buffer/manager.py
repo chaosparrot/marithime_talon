@@ -288,6 +288,7 @@ class VirtualBufferManager:
         self.context.close_context(event)
 
 def update_language(language: str):
+    global mutator
     if not language:
         language = settings.get("speech.language", "en")
         if language is None:

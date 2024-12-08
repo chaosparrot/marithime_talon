@@ -71,6 +71,9 @@ class VirtualBufferManager:
 
     def is_selecting(self) -> bool:
         return self.context.get_current_context().buffer.is_selecting()
+    
+    def is_virtual_selecting(self) -> bool:
+        return len(self.context.get_current_context().buffer.virtual_selection) > 0
 
     def has_phrase(self, phrase: str) -> bool:
         return self.context.get_current_context().buffer.has_matching_phrase(phrase)
@@ -238,6 +241,8 @@ class VirtualBufferManager:
 
         if self.is_selecting():
             return [settings.get("user.marithime_context_remove_letter")]
+        elif self.is_virtual_selecting():
+            return vbm.clear_virtual_selection(settings.get("user.marithime_context_remove_letter"))
         
         if context.current is not None:
             if context.character_index == 0 and backwards and context.previous is not None:

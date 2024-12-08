@@ -1,0 +1,107 @@
+from ...virtual_buffer.caret_tracker import _CARET_MARKER
+from ...virtual_buffer.buffer import VirtualBuffer
+from ...virtual_buffer.indexer import text_to_virtual_buffer_tokens
+from ..test import create_test_suite
+
+def get_filled_vb():
+    vb = VirtualBuffer()
+    vb.shift_selection = False
+    vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("two ", "two"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("words ", "words"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("into ", "into"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("a ", "a"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("previous ", "previous"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("sentence, ", "sentence"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("so ", "so"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("that ", "that"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("the ", "the"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("previous ", "previous"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("sentence ", "sentence"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("will ", "will"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("become ", "become"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("longer ", "longer"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("too! ", "too"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("Words ", "words"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("can ", "can"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("be ", "be"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("anything.", "anything"))
+
+    return vb
+
+
+def test_remove_selecting_single_tokens(assertion):
+    vb = get_filled_vb()
+
+    assertion( "    Virtually selecting a single token to the left and remove it...")
+    vb.select_phrases(["anything"])
+    assertion(vb.virtual_selection, False)
+    keys = vb.remove_virtual_selection("backspace")
+    for key in keys:
+        vb.apply_key(key)
+    caret_index = vb.caret_tracker.get_caret_index()
+    assertion( "        Expect caret line index to be 1", caret_index[0] == 1)
+    assertion( "        Expect caret character index to be the same as before (0)", caret_index[1] == 0)
+    assertion( "        Expect 'backspace' to have been pressed 9 times to remove 'anything.'", keys[0] == "backspace:9")    
+    assertion( "        Expect no selection detected", vb.is_selecting() == False)
+    assertion( "        Expect final token to have changed", vb.tokens[-1].text == "be")
+    assertion( "'" + vb.tokens[-1].text + "'", False)
+
+    #assertion( "    Selecting three characters to the right and remove them...")
+    #vb.apply_key("shift:down right:3 shift:up delete")
+    #assertion( "        Expect token length to stay the same (3)", len(vb.tokens) == 3)
+    #caret_index = vb.caret_tracker.get_caret_index() 
+    #assertion( "        Expect caret line index to be 1", caret_index[0] == 1)
+    #assertion( "        Expect caret character index to be the three less than before (7)", caret_index[1] == 7)
+    #assertion( "        Expect no selection detected", vb.is_selecting() == False)
+    #assertion( "        Expect text to be merged", vb.tokens[1].text == "Insert a secondtence. \n")
+    #assertion( "        Expect phrase to be merged", vb.tokens[1].phrase == "insert a secondtence")
+    #assertion( "    Selecting right beyond the line break and remove the selection...")
+    #vb.apply_key("shift:down right:10 shift:up backspace")
+    #assertion( "        Expect token length to be one less (2)", len(vb.tokens) == 2)
+    #caret_index = vb.caret_tracker.get_caret_index()
+    #assertion( "        Expect caret line index to be 1", caret_index[0] == 1)
+    #assertion( "        Expect caret character index to be the start of the next sentence (22)", caret_index[1] == 22)
+    #assertion( "        Expect no selection detected", vb.is_selecting() == False)
+    #assertion( "        Expect text to be merged", vb.tokens[1].text == "Insert a secondsert a third sentence.")
+    #assertion( "        Expect phrase to be merged", vb.tokens[1].phrase == "insert a secondsert a third sentence")
+    #assertion( "    Selecting left beyond the line break and remove the selection...")
+    #vb.apply_key("shift:down left:18 shift:up backspace")
+    #assertion( "        Expect token length to be one less (1)", len(vb.tokens) == 1)
+    #caret_index = vb.caret_tracker.get_caret_index()
+    #assertion( "        Expect caret line index to be 0", caret_index[0] == 0)
+    #assertion( "        Expect caret character index to be the end of the sentence (22)", caret_index[1] == 22)
+    #assertion( "        Expect no selection detected", vb.is_selecting() == False)
+    #assertion( "        Expect text to be merged", vb.tokens[0].text == "Insert a new sentencesert a third sentence.")
+    #assertion( "        Expect phrase to be merged", vb.tokens[0].phrase == "insert a new sentencesert a third sentence")
+
+def test_remove_selecting_multiple_tokens_left(assertion):
+    vb = VirtualBuffer()
+    vb.insert_tokens(text_to_virtual_buffer_tokens("Suggest", "suggest"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens(" create", "create"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens(" delete", "delete"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens(" insertion", "insertion"))
+    vb.caret_tracker.text_buffer = "Suggest create delete insert" + _CARET_MARKER + "ion"
+
+    assertion( "    Selecting characters until the left side of the token is reached and removing it...")
+    vb.apply_key("shift:down left:7 shift:up backspace")
+    assertion( "        Expect token length to be one less (3)", len(vb.tokens) == 3)
+    caret_index = vb.caret_tracker.get_caret_index()
+    assertion( "        Expect caret line index to be 0", caret_index[0] == 0)
+    assertion( "        Expect caret character index to be the same as before (3)", caret_index[1] == 3)
+    assertion( "        Expect no selection detected", vb.is_selecting() == False)
+    assertion( "        Expect text to be merged", vb.tokens[-1].text == " deleteion")
+    assertion( "        Expect phrase to be merged", vb.tokens[-1].phrase == "deleteion")
+    assertion( "    Selecting characters until multiple tokens have been skipped over and removing it...")
+    vb.apply_key("shift:down left:14 shift:up backspace")
+    assertion( "        Expect token length to be two less (1)", len(vb.tokens) == 1)
+    caret_index = vb.caret_tracker.get_caret_index()
+    assertion( "        Expect caret line index to be 0", caret_index[0] == 0)
+    assertion( "        Expect caret character index to be the same as before (3)", caret_index[1] == 3)
+    assertion( "        Expect no selection detected", vb.is_selecting() == False)
+    assertion( "        Expect text to be merged", vb.tokens[-1].text == "Suggestion")
+    assertion( "        Expect phrase to be merged", vb.tokens[-1].phrase == "suggestion")
+
+suite = create_test_suite("Removing virtually selected text")
+suite.add_test(test_remove_selecting_single_tokens)
+suite.run()

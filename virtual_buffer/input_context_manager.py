@@ -100,9 +100,13 @@ class InputContextManager:
 
     def ensure_viable_context(self):
         # Reset the confidence for every pol
-        if (settings.get("user.marithime_indexing_strategy") == "aggressive"):
+        indexing_strategy = settings.get("user.marithime_indexing_strategy")
+        if indexing_strategy == "aggressive":
             self.visual_state['content_confidence'] = 0
             self.visual_state['caret_confidence'] = 1
+        # Don't do indexing at all
+        elif indexing_strategy == "disabled":
+            return
         
         update_caret = self.visual_state['caret_confidence'] != 2
         update_content = self.visual_state['caret_confidence'] == 1 and self.visual_state['content_confidence'] < 1
@@ -292,6 +296,9 @@ class InputContextManager:
         self.use_last_set_formatter = use_last_formatter
     
     def index_accessible_content(self):
+        if settings.get("user.marithime_indexing_strategy") == "disabled":
+            return None
+
         accessible_text = actions.user.marithime_get_element_text()
         if self.current_context:
             self.current_context.set_accessible_api_available("text", True)
@@ -317,6 +324,9 @@ class InputContextManager:
         self.index_content(file_contents)
 
     def index_textarea(self, total_value: str = "", forced = True):
+        if settings.get("user.marithime_indexing_strategy") == "disabled":
+            return
+
         self.update_visual_state(scanning=True)
         accessible_text = self.index_accessible_content()
         if total_value == "" and accessible_text:
@@ -354,6 +364,8 @@ class InputContextManager:
         return self.indexer.determine_caret_position(zwsp, total_value)
     
     def find_caret_position(self, total_value: str, visibility_level = 0, accessible_text = None) -> (str, (int, int), (int, int)):
+        if settings.get("user.marithime_indexing_strategy") == "disabled":
+            return ("", (-1, -1), (-1, -1))
         self.update_visual_state(scanning=True)
         undefined_positions = (total_value, (-1, -1), (-1, -1))
         before_text = ""
@@ -533,3 +545,12 @@ class InputContextManager:
                 self.state_callback(self.visual_state['scanning'], self.visual_state['level'], self.visual_state['caret_confidence'], self.visual_state['content_confidence'])
         except NotImplementedError:
             pass
+    
+    def set_shift_selection(self, shift_selection: bool):
+        self.get_current_context().set_shift_selection(shift_selection)
+
+    def set_multiline_supported(self, multiline_supported: bool):
+        self.get_current_context().set_multiline_supported(multiline_supported)
+
+    def set_clear_key(self, clear_key: str):
+        self.get_current_context().set_clear_key(clear_key)

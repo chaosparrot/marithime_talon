@@ -22,6 +22,7 @@ class VirtualBuffer:
     caret_tracker: CaretTracker = None
 
     last_action_type = "insert"
+    shift_selection = True
 
     def __init__(self):
         self.caret_tracker = CaretTracker()
@@ -678,3 +679,13 @@ class VirtualBuffer:
                         next_text += self.tokens[index].text[right_token_index[1]:]
 
         return next_text
+
+    def set_shift_selection(self, shift_selection: bool):
+        self.caret_tracker.shift_selection = shift_selection
+        self.shift_selection = shift_selection
+
+    def set_multiline_supported(self, multiline_supported: bool):
+        self.caret_tracker.multiline_supported = multiline_supported
+
+    def set_clear_key(self, clear_key: str):
+        self.caret_tracker.clear_key = clear_key

@@ -59,4 +59,11 @@ class InputContext:
         self.modified_at = 0
         self.buffer = None
 
-    
+    def set_shift_selection(self, shift_selection: bool):
+        self.buffer.set_shift_selection(shift_selection)
+
+    def set_multiline_supported(self, multiline_supported: bool):
+        self.buffer.set_multiline_supported(multiline_supported)
+
+    def set_clear_key(self, clear_key: str):
+        self.buffer.set_clear_key(clear_key)

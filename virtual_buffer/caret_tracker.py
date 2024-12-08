@@ -59,6 +59,10 @@ class CaretTracker:
     selection_caret_marker = (-1, -1)
     last_caret_movement: str = ""
 
+    shift_selection = True
+    multiline_supported = True
+    clear_key:str = ""
+
     def __init__(self, system = platform.system()):
         self.system = system
         self.is_macos = system == "Darwin"
@@ -86,9 +90,15 @@ class CaretTracker:
                     self.shift_down = False
                 continue
 
+            # Clear the full context after the clear key was pressed
+            if  key_modifier[0] in self.clear_key:
+                self.clear()
+                key_used = True
+                return
+
             if self.is_macos:
                 if "alt" in key:
-                    self.selecting_text = "shift" in key or self.shift_down
+                    self.selecting_text = self.shift_selection and "shift" in key or self.shift_down
                     key_combinations = key_modifier[0].lower().split("-")                
                     if "left" in key: 
                         left_movements = 1
@@ -113,7 +123,7 @@ class CaretTracker:
 
                 # Control keys are slightly inconsistent across programs, but generally they skip a word
                 elif "ctrl" in key:
-                    self.selecting_text = "shift" in key or self.shift_down
+                    self.selecting_text = self.shift_selection and "shift" in key or self.shift_down
                     key_combinations = key_modifier[0].lower().split("-")                
                     if "left" in key: 
                         left_movements = 1
@@ -148,7 +158,7 @@ class CaretTracker:
 
                 key_used = True
             elif "left" in key and not ("cmd" in key or "super" in key):
-                selecting_text = "shift" in key or self.shift_down
+                selecting_text = self.shift_selection and "shift" in key or self.shift_down
                 left_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     left_movements = int(key_modifier[-1])
@@ -161,7 +171,7 @@ class CaretTracker:
                 key_used = True
                 self.last_caret_movement = "left"
             elif "right" in key and not ("cmd" in key or "super" in key):
-                selecting_text = "shift" in key or self.shift_down
+                selecting_text = self.shift_selection and "shift" in key or self.shift_down
                 right_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     right_movements = int(key_modifier[-1])

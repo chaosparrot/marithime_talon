@@ -287,7 +287,17 @@ class VirtualBufferManager:
     def window_closed(self, event):
         self.context.close_context(event)
 
+    def set_shift_selection(self, shift_selection: bool):
+        self.context.set_shift_selection(shift_selection)
+
+    def set_multiline_supported(self, multiline_supported: bool):
+        self.context.set_multiline_supported(multiline_supported)
+
+    def set_clear_key(self, clear_key: str):
+        self.context.set_clear_key(clear_key)
+
 def update_language(language: str):
+    global mutator
     if not language:
         language = settings.get("speech.language", "en")
         if language is None:
@@ -301,14 +311,30 @@ def update_language(language: str):
         pass
     mutator.fixer.load_fixes(language, engine_description)
 
+def update_shift_selection(shift_selection: bool):
+    global mutator
+    mutator.set_shift_selection(shift_selection)
+
+def update_multiline_supported(multiline_support: bool):
+    global mutator
+    mutator.set_multiline_supported(multiline_support)
+
+def update_clear_key(clear_key: str):
+    global mutator
+    mutator.set_clear_key(clear_key)
+
 mutator = None
 def init_mutator():
     global mutator
     mutator = VirtualBufferManager()
     ui.register("win_focus", mutator.focus_changed)
     ui.register("win_close", mutator.window_closed)
+
     settings.register("speech.language", lambda language: update_language(language))
     settings.register("speech.engine", lambda _: update_language(""))
+    settings.register("user.marithime_context_shift_selection", lambda shift_enabled: update_shift_selection(shift_enabled > 0))
+    settings.register("user.marithime_context_clear_key", lambda clear_key: update_clear_key(clear_key))
+    settings.register("user.marithime_context_multiline_supported", lambda supported: update_multiline_supported(supported > 0))
     update_language("")
 
 app.register("ready", init_mutator)

@@ -310,6 +310,11 @@ def init_mutator():
     settings.register("speech.language", lambda language: update_language(language))
     settings.register("speech.engine", lambda _: update_language(""))
     update_language("")
+    return mutator
+
+def get_mutator() -> VirtualBufferManager:
+    global mutator
+    return mutator if mutator is not None else init_mutator()
 
 app.register("ready", init_mutator)
 
@@ -318,27 +323,27 @@ class Actions:
 
     def marithime_enable_input_tracking():
         """Enable tracking of input values so that we can make contextual decisions and keep the caret position"""
-        global mutator
+        mutator = get_mutator()
         mutator.enable_tracking()
 
     def marithime_disable_input_tracking():
         """Disable tracking of input values"""
-        global mutator
+        mutator = get_mutator()
         mutator.disable_tracking()
 
     def marithime_set_formatter(formatter: str):
         """Sets the current formatter to be used in text editing"""
-        global mutator
+        mutator = get_mutator()
         mutator.set_formatter(formatter)
 
     def marithime_transform_insert(insert: str) -> str:
         """Transform an insert automatically depending on previous context"""
-        global mutator
+        mutator = get_mutator()
         return mutator.transform_insert(insert)[0]
 
     def marithime_self_repair_insert(prose: str):
         """Input words based on context surrounding the words to input, allowing for self repair within speech as well"""
-        global mutator
+        mutator = get_mutator()
 
         text_to_insert, keys = mutator.transform_insert(prose, True)
         if len(keys) > 0:
@@ -351,7 +356,7 @@ class Actions:
 
     def marithime_insert(prose: str):
         """Input words based on context surrounding the words to input"""
-        global mutator
+        mutator = get_mutator()
 
         text_to_insert, keys = mutator.transform_insert(prose)
         if len(keys) > 0:
@@ -364,17 +369,17 @@ class Actions:
 
     def marithime_track_key(key_string: str) -> str:
         """Track one or more key presses according to the key string"""
-        global mutator
+        mutator = get_mutator()
         mutator.track_key(key_string)
 
     def marithime_track_insert(insert: str, phrase: str = "") -> str:
         """Track a full insert"""
-        global mutator
+        mutator = get_mutator()
         mutator.track_insert(insert, phrase)
 
     def marithime_backspace(backward: bool = True):
         """Apply a clear based on the current virtual buffer"""
-        global mutator
+        mutator = get_mutator()
         keys = mutator.clear_keys(backward)
         for key in keys:
             actions.key(key)
@@ -382,7 +387,7 @@ class Actions:
 
     def marithime_move_caret(phrase: str, caret_position: int = -1):
         """Move the caret to the given phrase"""
-        global mutator
+        mutator = get_mutator()
         if mutator.has_phrase(phrase):
             keys = mutator.move_to_phrase(phrase, caret_position)
             if keys:
@@ -395,7 +400,7 @@ class Actions:
 
     def marithime_select(phrase: Union[str, List[str]]):
         """Move the caret to the given phrase and select it"""
-        global mutator
+        mutator = get_mutator()
 
         phrases = phrase if isinstance(phrase, List) else [phrase]
         keys = mutator.select_phrases(phrases)
@@ -407,7 +412,7 @@ class Actions:
             
     def marithime_correction(selection_and_correction: List[str]):
         """Select a fuzzy match of the words and apply the given words"""
-        global mutator
+        mutator = get_mutator()
         keys = mutator.select_phrases(selection_and_correction, for_correction=True)
         if len(keys) > 0:
             mutator.disable_tracking()
@@ -422,7 +427,7 @@ class Actions:
 
     def marithime_clear_phrase(phrase: str):
         """Move the caret behind the given phrase and remove it"""
-        global mutator
+        mutator = get_mutator()
         before_keys = mutator.move_to_phrase(phrase, -1, False, False)
         mutator.disable_tracking()
         if before_keys:
@@ -436,7 +441,7 @@ class Actions:
 
     def marithime_continue():
         """Move the caret to the end of the current virtual buffer"""
-        global mutator
+        mutator = get_mutator()
         keys = mutator.move_caret_back()
 
         mutator.disable_tracking()
@@ -446,12 +451,12 @@ class Actions:
 
     def marithime_forget_context():
         """Forget the current context of the virtual buffer completely"""
-        global mutator
+        mutator = get_mutator()
         mutator.clear_context()
 
     def marithime_best_match(phrases: List[str], correct_previous: bool = False, starting_phrase: str = '') -> str:
         """Improve accuracy by picking the best matches out of the words used"""
-        global mutator
+        mutator = get_mutator()
         match_dictionary = {}
         if starting_phrase:
             phrases.append( starting_phrase )
@@ -465,7 +470,7 @@ class Actions:
     
     def marithime_index_textarea():
         """Select the index area and update the internal state completely"""
-        global mutator
+        mutator = get_mutator()
         mutator.index_textarea()
     
     def marithime_update_sensory_state(scanning: bool, level: str, caret_confidence: int, content_confidence: int):
@@ -474,7 +479,7 @@ class Actions:
 
     def marithime_dump_context():
         """Dump the current state of the virtual buffer for debugging purposes"""
-        global mutator
+        mutator = get_mutator()
         mutator.disable_tracking("DUMP")
         actions.insert("Available contexts:" )
         for context in mutator.context.contexts:

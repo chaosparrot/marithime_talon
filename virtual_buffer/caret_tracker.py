@@ -61,7 +61,7 @@ class CaretTracker:
 
     shift_selection = True
     multiline_supported = True
-    clear_key:str = ""
+    clear_key:str = "backspace"
 
     def __init__(self, system = platform.system()):
         self.system = system

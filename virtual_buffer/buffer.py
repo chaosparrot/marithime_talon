@@ -93,8 +93,11 @@ class VirtualBuffer:
             self.insert_token(token, reformat_after_each_token or index == len(tokens) - 1)
 
     def insert_token(self, token_to_insert: VirtualBufferToken, reformat = True):
-        if self.is_selecting() and token_to_insert.text != "":
-            self.remove_selection()
+        if token_to_insert != "":
+            if self.is_selecting():
+                self.remove_selection()
+            elif len(self.virtual_selection) > 0:
+                self.remove_virtual_selection(self.caret_tracker.clear_key)
 
         line_index, character_index = self.caret_tracker.get_caret_index()
         if line_index > -1 and character_index > -1:
@@ -466,7 +469,7 @@ class VirtualBuffer:
                         self.tokens[previous_token_index].phrase = text_to_phrase(text)
                         del self.tokens[previous_token_index + 1]
 
-                        self.reformat_tokens()            
+                        self.reformat_tokens()
 
             self.caret_tracker.remove_before_caret(backspace_count)
         self.last_action_type = "remove"
@@ -701,8 +704,8 @@ class VirtualBuffer:
                         next_text += self.tokens[index].text[right_token_index[1]:]
 
         return next_text
-    
-    def remove_virtual_selection(self, remove_key) -> List[str]:
+
+    def remove_virtual_selection(self) -> List[str]:
         keys = []
         if len(self.virtual_selection) > 0:            
             total_amount = 0
@@ -714,7 +717,7 @@ class VirtualBuffer:
                 # TODO CALCULATE MULTILINE STUFF
 
             if total_amount:
-                keys = [remove_key + ":" + str(total_amount)]
+                keys = [self.caret_tracker.clear_key + ":" + str(total_amount)]
 
         return keys
 

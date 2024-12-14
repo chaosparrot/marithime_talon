@@ -32,7 +32,7 @@ def get_filled_vb(with_multiline = False):
     vb.insert_tokens(text_to_virtual_buffer_tokens("Words ", "words"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("can ", "can"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("be ", "be"))
-    vb.insert_tokens(text_to_virtual_buffer_tokens("anything.", "anything"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("anything.", "anything"), )
 
     return vb
 
@@ -41,19 +41,16 @@ def test_remove_selecting_single_tokens(assertion):
 
     assertion( "    Virtually selecting a single token to the left and remove it...")
     vb.select_phrases(["anything"])
-    assertion( vb.tokens, False )
     keys = vb.remove_virtual_selection()
     for key in keys:
         vb.apply_key(key)
-        assertion( vb.tokens, False )        
 
     caret_index = vb.caret_tracker.get_caret_index()
-    assertion( vb.tokens, False )
     assertion( "        Expect caret line index to be 0", caret_index[0] == 0)
     assertion( "        Expect caret character index to be the same as before (0)", caret_index[1] == 0)
     assertion( "        Expect 'backspace' to have been pressed 9 times to remove 'anything.'", keys[0] == "backspace:9")
     assertion( "        Expect no selection detected", vb.is_selecting() == False)
-    #assertion( "        Expect final token to have changed", vb.tokens[-2].text == "be ")
+    assertion( "        Expect final token to have changed", vb.tokens[-2].text == "be ")
 
     assertion( "    Virtually selecting a single token to the left in the middle of the text and remove it...")
     vb.select_phrases(["will"])
@@ -61,12 +58,11 @@ def test_remove_selecting_single_tokens(assertion):
     for key in keys:
         vb.apply_key(key)
     caret_index = vb.caret_tracker.get_caret_index()
-    assertion( caret_index, False )
     assertion( "        Expect caret line index to be 0", caret_index[0] == 0)
-    assertion( "        Expect caret character index to be different than before behind 'will'", caret_index[1] == 32)
-    #assertion( "        Expect 'backspace' to have been pressed 5 times to remove 'will '", keys[0] == "backspace:5")
-    #assertion( "        Expect no selection detected", vb.is_selecting() == False)
-    #assertion( "        Expect final token to not have changed", vb.tokens[-2].text == "be ")
+    assertion( "        Expect caret character index to be different than before behind 'will'", caret_index[1] == 41)
+    assertion( "        Expect 'backspace' to have been pressed 5 times to remove 'will '", keys[0] == "backspace:5")
+    assertion( "        Expect no selection detected", vb.is_selecting() == False)
+    assertion( "        Expect final token to not have changed", vb.tokens[-2].text == "be ")
 
 def test_remove_selecting_multiple_tokens_left(assertion):
     vb = get_filled_vb()
@@ -84,6 +80,6 @@ def test_remove_selecting_multiple_tokens_left(assertion):
 
 suite = create_test_suite("Removing virtually selected text")
 suite.add_test(test_remove_selecting_single_tokens)
-#suite.add_test(test_remove_selecting_multiple_tokens_left)
+# suite.add_test(test_remove_selecting_multiple_tokens_left)
 # suite.add_test(test_remove_multiline_multiple_tokens)
 suite.run()

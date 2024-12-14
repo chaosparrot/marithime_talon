@@ -49,6 +49,9 @@ _COARSE_MARKER = "$COARSE_CARET" # Keeps track of the line number if we arent su
 # 28 - From a coarse position, we can always move back to the end of the current line to have a consistent position
 # 29 - By default, when a selection is made, going to the left places the caret on the left end of the selection, and going to the right places it on the right
 # 30 - Certain programs do not allow selection, like terminals
+# 31 - There are some standard Terminal key bindings - Like Ctrl+E ( end line ), Ctrl+A ( start line ) and Ctrl+U ( clear line ) that we can use for removal and navigation.
+# 32 - There are multiple ways to get to the end of the line or the start of the line on windows terminals ( Ctrl+A and Home, Ctrl+E and End )
+
 class CaretTracker:
     system: str = ""
     is_macos: bool = False
@@ -62,6 +65,9 @@ class CaretTracker:
     shift_selection = True
     multiline_supported = True
     clear_key:str = "backspace"
+    clear_line_key:str = ""
+    end_of_line_key:str = "end"
+    start_of_line_key:str = "home"
 
     def __init__(self, system = platform.system()):
         self.system = system
@@ -687,13 +693,13 @@ class CaretTracker:
 
         # Move to line end to have a consistent line ending, as that seems to be consistent
         if current[1] == -1:
-            keys.append("end" if not self.is_macos else "cmd-right")
+            keys.append(self.end_of_line_key)
             current = (current[0], 0)
 
         # Move to the right character position
         if not character_from_end == current[1] and current[1] != -1:
             char_diff = current[1] - character_from_end
-            renewed_selection = selecting and not deselection and not self.shift_down
+            renewed_selection = selecting and not deselection and not self.shift_down and self.shift_selection
             keys.append( ("shift-" if renewed_selection else "" ) + ("left:" if char_diff < 0 else "right:") + str(abs(char_diff)))
 
         if current[0] == -1 or current[1] == -1:

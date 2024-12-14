@@ -554,3 +554,12 @@ class InputContextManager:
 
     def set_clear_key(self, clear_key: str):
         self.get_current_context().set_clear_key(clear_key)
+
+    def set_end_of_line_key(self, end_of_line_key: str):
+        self.get_current_context().set_end_of_line_key(end_of_line_key)
+
+    def set_start_of_line_key(self, start_of_line_key: str):
+        self.get_current_context().set_start_of_line_key(start_of_line_key)
+
+    def set_clear_line_key(self, clear_line_key: str):
+        self.get_current_context().set_clear_line_key(clear_line_key)

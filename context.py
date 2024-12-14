@@ -21,6 +21,7 @@ mod.setting("marithime_context_remove_word", type=str, default="ctrl-backspace",
 mod.setting("marithime_context_remove_letter", type=str, default="backspace", desc="The key combination to clear a single letter to the left of the caret")
 mod.setting("marithime_context_remove_forward_word", type=str, default="ctrl-delete", desc="The key combination to clear a word to the right of the caret")
 mod.setting("marithime_context_remove_forward_letter", type=str, default="delete", desc="The key combination to clear a single letter to the right of the caret")
+mod.setting("marithime_context_remove_line", type=str, default="", desc="The key to remove an entire line from the current text")
 
 # Options - "" (default) - Whenever the confidence that it has lost the location in the file, re-index
 #         - aggressive - After every marithime command that requires context, we re-index
@@ -28,4 +29,8 @@ mod.setting("marithime_context_remove_forward_letter", type=str, default="delete
 mod.setting("marithime_indexing_strategy", type=str, default="", desc="Determine what strategy we should use to begin reindexing documents")
 
 ctx.tags = ["user.marithime_available"]
-ctx.lists["user.marithime_terminator_word"] = ["quill", "quilt"]
+ctx.lists["user.marithime_terminator_word"] = [
+#    "over",
+    "quill",
+    "quilt"
+]

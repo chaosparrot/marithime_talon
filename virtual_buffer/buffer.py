@@ -730,3 +730,12 @@ class VirtualBuffer:
 
     def set_clear_key(self, clear_key: str):
         self.caret_tracker.clear_key = clear_key
+    
+    def set_end_of_line_key(self, end_of_line_key: str):
+        self.caret_tracker.end_of_line_key = end_of_line_key
+
+    def set_start_of_line_key(self, start_of_line_key: str):
+        self.caret_tracker.start_of_line_key = start_of_line_key
+
+    def set_clear_line_key(self, clear_line_key: str):
+        self.caret_tracker.clear_line_key = clear_line_key

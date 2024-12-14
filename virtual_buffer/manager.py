@@ -301,6 +301,15 @@ class VirtualBufferManager:
     def set_clear_key(self, clear_key: str):
         self.context.set_clear_key(clear_key)
 
+    def set_clear_line_key(self, clear_line_key: str):
+        self.context.set_clear_line_key(clear_line_key)
+
+    def set_start_of_line_key(self, start_of_line_key: str):
+        self.context.set_start_of_line_key(start_of_line_key)
+
+    def set_end_of_line_key(self, end_of_line_key: str):
+        self.context.set_end_of_line_key(end_of_line_key)
+
 def update_language(language: str):
     global mutator
     if not language:
@@ -328,6 +337,18 @@ def update_clear_key(clear_key: str):
     global mutator
     mutator.set_clear_key(clear_key)
 
+def update_remove_line_key(remove_line_key: str):
+    global mutator
+    mutator.set_remove_line_key(remove_line_key)
+
+def update_start_of_line_key(start_of_line_key: str):
+    global mutator
+    mutator.set_start_of_line_key(start_of_line_key)
+
+def update_end_of_line_key(end_of_line_key: str):
+    global mutator
+    mutator.set_end_of_line_key(end_of_line_key)
+
 mutator = None
 def init_mutator():
     global mutator
@@ -340,6 +361,10 @@ def init_mutator():
     settings.register("user.marithime_context_shift_selection", lambda shift_enabled: update_shift_selection(shift_enabled > 0))
     settings.register("user.marithime_context_clear_key", lambda clear_key: update_clear_key(clear_key))
     settings.register("user.marithime_context_multiline_supported", lambda supported: update_multiline_supported(supported > 0))
+    settings.register("user.marithime_context_remove_line_key", lambda remove_line: update_remove_line_key(remove_line))
+    settings.register("user.marithime_context_start_of_line_key", lambda start_of_line: update_start_of_line_key(start_of_line))
+    settings.register("user.marithime_context_end_of_line_key", lambda end_of_line: update_end_of_line_key(end_of_line))
+
     update_language("")
 
 app.register("ready", init_mutator)

@@ -97,7 +97,13 @@ class VirtualBuffer:
             if self.is_selecting():
                 self.remove_selection()
             elif len(self.virtual_selection) > 0:
-                self.remove_virtual_selection(self.caret_tracker.clear_key)
+                self.remove_virtual_selection()
+
+        # Edge case - If we clear the input on Enter press,
+        # We also need to clear if a newline is added through insertion
+        if self.caret_tracker.clear_key.lower() == "enter" and token_to_insert.text.endswith("\n"):
+            self.clear_tokens()
+            return
 
         line_index, character_index = self.caret_tracker.get_caret_index()
         if line_index > -1 and character_index > -1:
@@ -717,7 +723,8 @@ class VirtualBuffer:
                 # TODO CALCULATE MULTILINE STUFF
 
             if total_amount:
-                keys = [self.caret_tracker.clear_key + ":" + str(total_amount)]
+                # TODO - Are there any other single character removal methods?
+                keys = ["backspace:" + str(total_amount)]
 
         return keys
 

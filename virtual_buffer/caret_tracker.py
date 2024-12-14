@@ -64,7 +64,7 @@ class CaretTracker:
 
     shift_selection = True
     multiline_supported = True
-    clear_key:str = "backspace"
+    clear_key:str = ""
     clear_line_key:str = ""
     end_of_line_key:str = "end"
     start_of_line_key:str = "home"

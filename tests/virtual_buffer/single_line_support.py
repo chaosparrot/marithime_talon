@@ -15,6 +15,8 @@ def get_filled_vb():
     vb.shift_selection = True
     vb.caret_tracker.multiline_supported = False
     vb.caret_tracker.clear_key = ""
+    vb.caret_tracker.start_of_line_key = "home"
+    vb.caret_tracker.end_of_line_key = "end"
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("two ", "two"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("words ", "words"))
@@ -108,7 +110,50 @@ def test_newline_insert(assertion):
     assertion( "        Expect no selection detected", vb.is_selecting() == False)
     assertion( "        Expect only two tokens available", len(vb.tokens) == 2)
 
+def test_arrow_key_press(assertion):
+    vb = get_filled_vb()
+    assertion( "    Pressing 'Down' in a single line field")
+    caret_index = vb.caret_tracker.get_caret_index()
+
+    vb.apply_key("down")
+    caret_index = vb.caret_tracker.get_caret_index()
+    assertion( "        Expect caret line index to be the same", caret_index[0] == 0)
+    assertion( "        Expect caret character index to be coarse", caret_index[1] == -1)
+    assertion( "        Expect no selection detected", vb.is_selecting() == False)
+    assertion( "        Expect token length to be the same", len(vb.tokens) == 20)
+
+    assertion( "    Pressing 'Up' in a single line field")
+    vb.apply_key("up")
+    caret_index = vb.caret_tracker.get_caret_index()
+    assertion( "        Expect caret line index to be the same", caret_index[0] == 0)
+    assertion( "        Expect caret character index to be coarse", caret_index[1] == -1)
+    assertion( "        Expect no selection detected", vb.is_selecting() == False)
+    assertion( "        Expect token length to be the same", len(vb.tokens) == 20)
+
+def test_line_navigation_key_press(assertion):
+    vb = get_filled_vb()
+    assertion( "    Pressing 'Home' in a single line field")
+
+    vb.apply_key("home")
+    caret_index = vb.caret_tracker.get_caret_index()
+    assertion( caret_index, False )
+    assertion( "        Expect caret line index to be the same", caret_index[0] == 0)
+    assertion( "        Expect caret character index to be at the start", caret_index[1] == 119)
+    assertion( "        Expect no selection detected", vb.is_selecting() == False)
+    assertion( "        Expect token length to be the same", len(vb.tokens) == 20)
+
+    assertion( "    Pressing 'End' in a single line field")
+    vb.apply_key("end")
+    caret_index = vb.caret_tracker.get_caret_index()
+    assertion( "        Expect caret line index to be the same", caret_index[0] == 0)
+    assertion( "        Expect caret character index to be at the end", caret_index[1] == 0)
+    assertion( "        Expect no selection detected", vb.is_selecting() == False)
+    assertion( "        Expect token length to be the same", len(vb.tokens) == 20)
+
 suite = create_test_suite("Handling 'Enter' presses within fields that do not have multiline support")
 suite.add_test(test_press_enter_key)
 suite.add_test(test_press_enter_on_select_key)
 suite.add_test(test_newline_insert)
+suite.add_test(test_arrow_key_press)
+suite.add_test(test_line_navigation_key_press)
+suite.run()

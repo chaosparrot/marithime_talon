@@ -5,7 +5,9 @@ from ...virtual_buffer.indexer import text_to_virtual_buffer_tokens
 def test_single_line_exact_caret_navigation(assertion):
     vb = VirtualBuffer()
     vb.caret_tracker.system = "Windows"
-    vb.caret_tracker.is_macos = False    
+    vb.caret_tracker.is_macos = False
+    vb.caret_tracker.end_of_line_key = "end"
+    vb.caret_tracker.start_of_line_key = "home"
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("a ", "a"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("new ", "new"))
@@ -46,6 +48,8 @@ def test_multi_line_exact_caret_navigation(assertion):
     vb = VirtualBuffer()
     vb.caret_tracker.system = "Windows"
     vb.caret_tracker.is_macos = False
+    vb.caret_tracker.end_of_line_key = "end"
+    vb.caret_tracker.start_of_line_key = "home"
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("a ", "a"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("new ", "new"))
@@ -105,6 +109,8 @@ def test_multi_line_exact_caret_navigation_macos(assertion):
     vb = VirtualBuffer()
     vb.caret_tracker.system = "Darwin"
     vb.caret_tracker.is_macos = True
+    vb.caret_tracker.end_of_line_key = "cmd-right"
+    vb.caret_tracker.start_of_line_key = "cmd-left"
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("a ", "a"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("new ", "new"))

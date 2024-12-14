@@ -8,6 +8,8 @@ def exact_caret_tracking(assertion):
     vb = VirtualBuffer()
     vb.caret_tracker.is_macos = False
     vb.caret_tracker.system = "Windows"
+    vb.caret_tracker.end_of_line_key = "end"
+    vb.caret_tracker.start_of_line_key = "home"
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a new sentence. \n", "insert a new sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a second sentence. \n", "insert a second sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a third sentence.", "insert a third sentence"))
@@ -69,8 +71,10 @@ Insert a third sentence."""
     vb.apply_key("left:10")
     assertion( "    Moving one character to the left and pressing CMD-right ( on MacOS ) instead...")    
     vb.caret_tracker.is_macos = True
+    vb.caret_tracker.end_of_line_key = "cmd-right"
+    vb.caret_tracker.start_of_line_key = "cmd-left"
     vb.caret_tracker.system = "Darwin"
-    vb.apply_key("super-right")
+    vb.apply_key("cmd-right")
     caret_index = vb.caret_tracker.get_caret_index()
     assertion( "        Expect caret line index to be 1", caret_index[0] == 1)
     assertion( "        Expect caret character index to be at the end of the second sentence", caret_index[1] == 0)
@@ -78,3 +82,4 @@ Insert a third sentence."""
 
 suite = create_test_suite("Exact caret tracking with a filled virtual buffer ( Windows + MacOS )")
 suite.add_test(exact_caret_tracking)
+suite.run()

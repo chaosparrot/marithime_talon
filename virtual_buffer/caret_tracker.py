@@ -51,6 +51,7 @@ _COARSE_MARKER = "$COARSE_CARET" # Keeps track of the line number if we arent su
 # 30 - Certain programs do not allow selection, like terminals
 # 31 - There are some standard Terminal key bindings - Like Ctrl+E ( end line ), Ctrl+A ( start line ) and Ctrl+U ( clear line ) that we can use for removal and navigation.
 # 32 - There are multiple ways to get to the end of the line or the start of the line on windows terminals ( Ctrl+A and Home, Ctrl+E and End )
+# 33 - UP and DOWN in terminals might change the context completely, so we need to remove the context we have in that case
 
 class CaretTracker:
     system: str = ""
@@ -189,27 +190,55 @@ class CaretTracker:
                     self.track_caret_right(right_movements)
                 key_used = True
                 self.last_caret_movement = "right"
-            elif ( not self.is_macos and "end" in key ) or ( self.is_macos and ("cmd" in key or "super" in key) and "right" in key ):
+
+            # TODO PROPER SPLIT UP WITH OTHER MODIFIERS
+            elif self.end_of_line_key in key:
                 self.mark_caret_to_end_of_line()
                 key_used = True
                 self.last_caret_movement = "right"
-            elif ( not self.is_macos and "home" in key ) or ( self.is_macos and ("cmd" in key or "super" in key) and "left" in key ):
-                self.mark_line_as_coarse()
+
+            # TODO PROPER SPLIT UP WITH OTHER MODIFIERS
+            elif self.start_of_line_key in key:
+
+                # In VSCODE - Moving to the start of the line depends on the whitespace
+                if self.multiline_supported:
+                    self.mark_line_as_coarse()
+                else:
+                    self.mark_caret_to_start_of_line()
+
                 key_used = True
                 self.last_caret_movement = "left"
             elif "up" in key and ( not self.is_macos or ("cmd" not in key and "super" not in key)):
                 up_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     up_movements = int(key_modifier[-1])
-                for _ in range(up_movements):
-                    self.mark_above_line_as_coarse()
+
+                # For single line input fields, going up has the behavior of either
+                # 1 - Moving to the start of the line
+                # 2 - Ignoring the character altogether
+                # 3 - Changing the line completely ( history of terminals )
+                # So at least mark the line as coarse in that case
+                if self.multiline_supported == False:
+                    self.mark_line_as_coarse()
+                else:
+                    for _ in range(up_movements):
+                        self.mark_above_line_as_coarse()
                 key_used = True
             elif "down" in key and ( not self.is_macos or ("cmd" not in key and "super" not in key)):
                 down_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     down_movements = int(key_modifier[-1])
-                for _ in range(down_movements):
-                    self.mark_below_line_as_coarse()
+
+                # For single line input fields, going down has the behavior of either
+                # 1 - Moving to the end of the line
+                # 2 - Ignoring the character altogether
+                # 3 - Changing the line completely ( history of terminals )
+                # So at least mark the line as coarse in that case
+                if self.multiline_supported == False:
+                    self.mark_line_as_coarse()
+                else:
+                    for _ in range(down_movements):
+                        self.mark_below_line_as_coarse()
                 key_used = True
         return key_used
 
@@ -230,7 +259,28 @@ class CaretTracker:
 
         before_caret_text = "\n".join(before_caret)
         after_caret_text = "\n".join(after_caret)
-        if len(after_caret) > 0:
+        if len(after_caret) > 0 and len(lines) > 1:
+            after_caret_text = "\n" + after_caret_text
+        self.set_buffer(before_caret_text, after_caret_text)
+
+    def mark_caret_to_start_of_line(self):
+        lines = self.text_buffer.splitlines()
+        before_caret = []
+        after_caret = []
+        before_caret_marker = True
+        for line in lines:
+            if _CARET_MARKER in line or _COARSE_MARKER in line:
+                after_caret.append(line.replace(_CARET_MARKER, "").replace(_COARSE_MARKER, ""))
+                before_caret_marker = False
+            else:
+                if before_caret_marker:
+                    before_caret.append(line)
+                else:
+                    after_caret.append(line)
+
+        before_caret_text = "\n".join(before_caret)
+        after_caret_text = "\n".join(after_caret)
+        if len(after_caret) > 0 and len(lines) > 1:
             after_caret_text = "\n" + after_caret_text
         self.set_buffer(before_caret_text, after_caret_text)
 
@@ -251,7 +301,7 @@ class CaretTracker:
 
         # If the line falls outside of the known line count, we have lost the caret position entirely
         # And must clear the input entirely
-        line_out_of_known_bounds = line_with_caret + difference_from_line < 0 or line_with_caret + difference_from_line > len(lines)
+        line_out_of_known_bounds = self.multiline_supported and ( line_with_caret + difference_from_line < 0 or line_with_caret + difference_from_line > len(lines) )
         if line_out_of_known_bounds:
             before_caret = []
             after_caret = []
@@ -275,7 +325,7 @@ class CaretTracker:
         
         before_caret_text = "\n".join(before_caret)
         after_caret_text = "\n".join(after_caret)
-        if len(after_caret) > 0:
+        if len(after_caret) > 0 and len(lines) > 0:
             if difference_from_line == 0:
                 before_caret_text += "\n"
             elif char_index == 0:
@@ -585,7 +635,7 @@ class CaretTracker:
             for index, line in enumerate(lines):
                 if _COARSE_MARKER in line:
                     line_index = index
-                    character_index = len(line.split(_COARSE_MARKER)[1]) if check_coarse else -1
+                    character_index = len(line.split(_COARSE_MARKER)[0]) if check_coarse else -1
                     break
 
         return line_index, character_index

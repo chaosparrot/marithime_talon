@@ -89,8 +89,8 @@ class TestSuiteCollection:
 
     def run(self, verbosity = 0):
         # Only run tests if marithime testing is turned on
-        if settings.get("user.marithime_testing") == 0:
-            return
+        #if settings.get("user.marithime_testing") == 0:
+        #    return
         start_time = time.perf_counter()
         total_results = []
         suite_results = []
@@ -130,5 +130,5 @@ def run_tests():
 def run_tests_ready():
     test_suite_collection.ready = True
     test_suite_collection.run()
-
+ 
 app.register("ready", run_tests_ready)

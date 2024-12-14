@@ -105,6 +105,13 @@ class VirtualBuffer:
             self.clear_tokens()
             return
 
+        # Inserting newlines is different from enter presses in single line fields
+        # As it clears the input field and makes the final line the one used
+        # Rather than ignoring the new line
+        if self.caret_tracker.multiline_supported == False and token_to_insert.text.endswith("\n"):
+            self.clear_tokens()
+            return
+
         line_index, character_index = self.caret_tracker.get_caret_index()
         if line_index > -1 and character_index > -1:
             token_index, token_character_index = self.determine_token_index()

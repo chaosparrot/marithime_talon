@@ -103,7 +103,6 @@ While there's programs where it nails the accessibility API pretty well, others 
 Right now terminals have a ton of issues because they do not allow for text selection, have painful accessibility support, and use a ton of custom key binds that don't correlate with other document builders.
 # TODO - SELECT
 # TODO - CORRECT
-# TODO - MULTILINE
 # TODO - FIX COARSE TRACKING SINGLE AND MULTI LINE
 # TODO - NO BACKSPACE WRAP MODE
 

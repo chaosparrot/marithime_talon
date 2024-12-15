@@ -661,56 +661,27 @@ class CaretTracker:
         return re.sub(r"[" + re.escape("!\"#$%&'()*+, -./:;<=>?@[\\]^`{|}~") + "]+", " ", text).split()
     
     def get_selection_text(self) -> str:
-        selection_lines = []
         if self.is_selecting():
             left = self.get_leftmost_caret_index(True)
             right = self.get_rightmost_caret_index(True)
 
-            lines = self.text_buffer.splitlines()
-            for line_index, line in enumerate(lines):
-                replaced_line = line.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
-                if line_index == left[0] and line_index == right[0]:
-                    selection_lines.append(replaced_line[len(replaced_line) - left[1]:len(replaced_line) - right[1]])
-                elif line_index == left[0] and line_index < right[0]:
-                    selection_lines.append( replaced_line[len(replaced_line) - left[1]] )
-                elif line_index > left[0] and line_index < right[0]:
-                    selection_lines.append( replaced_line )
-                elif line_index > left[0] and line_index == right[0]:
-                    selection_lines.append( replaced_line[:len(replaced_line) - right[1]] )
-        return "\n".join(selection_lines)
+            return self.get_text_between_tokens(left, right)
+        return ""
 
-    def get_text_between_tokens(self, left_index = (-1, -1), right_index = (-1, -1), from_end = False) -> str:
+    def get_text_between_tokens(self, left_index = (-1, -1), right_index = (-1, -1)) -> str:
         cursor_lines = []
         if left_index != (-1, -1) and right_index != (-1, -1):
             lines = self.text_buffer.splitlines()
-            left_index_line  = left_index[0]
-            left_index_character_index  = left_index[1]
-            right_index_line  = right_index[0]
-            right_index_character_index  = right_index[1]            
 
-            # Normalize the ends to be the same as the character index on the line
-            if from_end:
-                if left_index_line < len(lines):
-                    replaced_line = lines[left_index_line].replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
-                    left_index_character_index = len(replaced_line) - left_index_character_index
-                else:
-                    return ""
-
-                if right_index_line < len(lines):
-                    replaced_line = lines[right_index_line].replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
-                    right_index_character_index = len(replaced_line) - right_index_character_index
-                else:
-                    return ""
-
-            left = (left_index_line, left_index_character_index)
-            right =  (right_index_line, right_index_character_index)
+            left = (left_index[0], left_index[1])
+            right =  (right_index[0], right_index[1])
 
             for line_index, line in enumerate(lines):
                 replaced_line = line.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
                 if line_index == left[0] and line_index == right[0]:
                     cursor_lines.append(replaced_line[len(replaced_line) - left[1]:len(replaced_line) - right[1]])
                 elif line_index == left[0] and line_index < right[0]:
-                    cursor_lines.append( replaced_line[len(replaced_line) - left[1]] )
+                    cursor_lines.append( replaced_line[-left[1]:] )
                 elif line_index > left[0] and line_index < right[0]:
                     cursor_lines.append( replaced_line )
                 elif line_index > left[0] and line_index == right[0]:

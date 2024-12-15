@@ -4,6 +4,7 @@ from ..test import create_test_suite
 
 def test_select_single_word_and_extending(assertion):
     vb = VirtualBuffer()
+    vb.shift_selection = True
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("a ", "a"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("new ", "new"))
@@ -18,7 +19,7 @@ def test_select_single_word_and_extending(assertion):
     assertion( "        Should go right 2 times to connect the end of 'Insert ' with 'a '", keys[0] == "shift-right:2")
     assertion( "    Deselecting, and then selecting 'Insert ' until 'new ' after that...")
     vb.select_phrases(["insert"])
-    keys = vb.select_phrases(["new"], extend_selection=True) 
+    keys = vb.select_phrases(["new"], extend_selection=True)
     assertion( "        Should have the text 'Insert a new ' selected", vb.caret_tracker.get_selection_text() == 'Insert a new ')
     assertion( "        Should not deselect the previous selection", keys[0] not in ["left", "right"])
     assertion( "        Should go right 6 times to connect the end of 'Insert ' with 'new '", keys[0] == "shift-right:6") 
@@ -41,6 +42,7 @@ def test_select_single_word_and_extending(assertion):
 
 def test_selecting_multiple_phrases_with_duplicates(assertion):
     vb = VirtualBuffer()
+    vb.shift_selection = True
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("a ", "a"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("new ", "new"))
@@ -93,6 +95,7 @@ def test_selecting_multiple_phrases_with_duplicates(assertion):
 
 def test_select_phrase_inside_selection_with_duplicates(assertion):
     vb = VirtualBuffer()
+    vb.shift_selection = True
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("a ", "a"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("new ", "new"))
@@ -117,4 +120,3 @@ suite = create_test_suite("Selection range after words")
 suite.add_test(test_select_single_word_and_extending)
 suite.add_test(test_selecting_multiple_phrases_with_duplicates)
 suite.add_test(test_select_phrase_inside_selection_with_duplicates)
-suite.run()

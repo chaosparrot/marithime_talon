@@ -541,6 +541,9 @@ class VirtualBuffer:
                 self.virtual_selection = [self.virtual_selection[0], self.tokens[-1]]
                 keys.extend(self.navigate_to_token(self.tokens[-1]))
 
+            if self.shift_selection:
+                keys.extend(self.select_token(self.tokens[-1], True))
+
         return keys
     
     def select_phrases(self, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, extend_selection: bool = False, for_correction: bool = False, verbose = False) -> List[str]:
@@ -727,14 +730,13 @@ class VirtualBuffer:
                 total_amount += len(self.virtual_selection[0].text)
             else:
                 text_buffer = self.caret_tracker.get_text_between_tokens(
-                    (self.virtual_selection[0].line_index, self.virtual_selection[0].index_from_line_end - len(self.virtual_selection[0].text)),
-                    (self.virtual_selection[1].line_index, self.virtual_selection[1].index_from_line_end),
-                    False
+                    (self.virtual_selection[0].line_index, self.virtual_selection[0].index_from_line_end + len(self.virtual_selection[0].text)),
+                    (self.virtual_selection[1].line_index, self.virtual_selection[1].index_from_line_end)
                 )
 
-                print( "BUFFER!", text_buffer )
-
                 total_amount = len(text_buffer)
+                # TODO - SUPPORT NO BACKSPACE WRAPPING
+
             if total_amount:
                 keys = ["backspace:" + str(total_amount)]
 

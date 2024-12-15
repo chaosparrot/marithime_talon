@@ -162,4 +162,7 @@ class WindowsAccessibilityApi(AccessibilityApi):
             else:
                 return []
 
+        return []
+
+
 windows_api = WindowsAccessibilityApi()

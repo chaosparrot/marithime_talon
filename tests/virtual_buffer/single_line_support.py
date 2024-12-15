@@ -117,6 +117,8 @@ def test_arrow_key_press(assertion):
 
     vb.apply_key("down")
     caret_index = vb.caret_tracker.get_caret_index()
+    assertion( caret_index )
+    assertion( vb.caret_tracker.text_buffer )    
     assertion( "        Expect caret line index to be the same", caret_index[0] == 0)
     assertion( "        Expect caret character index to be coarse", caret_index[1] == -1)
     assertion( "        Expect no selection detected", vb.is_selecting() == False)
@@ -136,7 +138,6 @@ def test_line_navigation_key_press(assertion):
 
     vb.apply_key("home")
     caret_index = vb.caret_tracker.get_caret_index()
-    assertion( caret_index, False )
     assertion( "        Expect caret line index to be the same", caret_index[0] == 0)
     assertion( "        Expect caret character index to be at the start", caret_index[1] == 119)
     assertion( "        Expect no selection detected", vb.is_selecting() == False)
@@ -156,4 +157,4 @@ suite.add_test(test_press_enter_on_select_key)
 suite.add_test(test_newline_insert)
 suite.add_test(test_arrow_key_press)
 suite.add_test(test_line_navigation_key_press)
-suite.run() 
+suite.run()

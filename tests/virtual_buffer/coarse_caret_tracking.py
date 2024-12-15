@@ -189,16 +189,14 @@ Insert a third sentence."""
     assertion( "        Expect caret line index to be 2", caret_index[0] == 2)
     assertion( "    Pressing cmd-LEFT to go to the start of the third sentence...")
     vb.apply_key("cmd-left")
-    caret_index = vb.caret_tracker.get_caret_index(True)  
-    assertion( caret_index )
-    assertion( vb.caret_tracker.text_buffer )
+    
+    caret_index = vb.caret_tracker.get_caret_index(True)
     assertion( "        Expect caret line index to be 2", caret_index[0] == 2)
     assertion( "        Expect coarse character index to be before the word insert (24)", caret_index[1] == 24)
-
 
 suite = create_test_suite("Coarse caret tracking")
 suite.add_test(coarse_caret_tracker_splitting)
 suite.add_test(coarse_caret_tracking_single_line)
 suite.add_test(coarse_caret_tracking_multi_line)
-suite.add_test(coarse_caret_tracking_single_line_macos)
+suite.add_test(coarse_caret_tracking_single_line_macos) 
 suite.add_test(coarse_caret_tracking_multi_line_macos)

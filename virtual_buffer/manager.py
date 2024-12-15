@@ -129,10 +129,18 @@ class VirtualBufferManager:
         repair_keys = []
 
         # Allow the user to do self repair in speech
-        # TODO - TRACK VIRTUAL SELECTION CORRECTION
         correction_insertion = self.is_selecting()
         previous_selection = "" if not correction_insertion else vbm.caret_tracker.get_selection_text()
         current_insertion = ""
+
+        # Make sure we remove the virtual selection if we apply a new insert
+        if len(vbm.virtual_selection) > 0:
+            previous_selection = "" if not correction_insertion else vbm.caret_tracker.get_text_between_tokens(
+                vbm.virtual_selection[0],
+                vbm.virtual_selection[-1]
+            )
+            repair_keys.extend(vbm.remove_virtual_selection())
+
         if enable_self_repair:
             
             # Remove stutters / repeats in the same phrase

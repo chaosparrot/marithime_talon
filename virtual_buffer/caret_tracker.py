@@ -326,7 +326,7 @@ class CaretTracker:
         
         before_caret_text = "\n".join(before_caret)
         after_caret_text = "\n".join(after_caret)
-        if len(after_caret) > 0 and len(lines) > 0:
+        if len(after_caret) > 0 and len(before_caret) > 0 and len(lines) > 0:
             if difference_from_line == 0:
                 before_caret_text += "\n"
             elif char_index == 0:
@@ -636,7 +636,7 @@ class CaretTracker:
             for index, line in enumerate(lines):
                 if _COARSE_MARKER in line:
                     line_index = index
-                    character_index = len(line.split(_COARSE_MARKER)[0]) if check_coarse else -1
+                    character_index = len(line.split(_COARSE_MARKER)[1]) if check_coarse else -1
                     break
 
         return line_index, character_index

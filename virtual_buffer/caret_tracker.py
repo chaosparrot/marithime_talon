@@ -52,6 +52,7 @@ _COARSE_MARKER = "$COARSE_CARET" # Keeps track of the line number if we arent su
 # 31 - There are some standard Terminal key bindings - Like Ctrl+E ( end line ), Ctrl+A ( start line ) and Ctrl+U ( clear line ) that we can use for removal and navigation.
 # 32 - There are multiple ways to get to the end of the line or the start of the line on windows terminals ( Ctrl+A and Home, Ctrl+E and End )
 # 33 - UP and DOWN in terminals might change the context completely, so we need to remove the context we have in that case
+# 34 - Text editors do not have wrapping ( pressing backspace does not remove newlines and move to the next line )
 
 class CaretTracker:
     system: str = ""
@@ -677,6 +678,44 @@ class CaretTracker:
                 elif line_index > left[0] and line_index == right[0]:
                     selection_lines.append( replaced_line[:len(replaced_line) - right[1]] )
         return "\n".join(selection_lines)
+
+    def get_text_between_tokens(self, left_index = (-1, -1), right_index = (-1, -1), from_end = False) -> str:
+        cursor_lines = []
+        if left_index != (-1, -1) and right_index != (-1, -1):
+            lines = self.text_buffer.splitlines()
+            left_index_line  = left_index[0]
+            left_index_character_index  = left_index[1]
+            right_index_line  = right_index[0]
+            right_index_character_index  = right_index[1]            
+
+            # Normalize the ends to be the same as the character index on the line
+            if from_end:
+                if left_index_line < len(lines):
+                    replaced_line = lines[left_index_line].replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
+                    left_index_character_index = len(replaced_line) - left_index_character_index
+                else:
+                    return ""
+
+                if right_index_line < len(lines):
+                    replaced_line = lines[right_index_line].replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
+                    right_index_character_index = len(replaced_line) - right_index_character_index
+                else:
+                    return ""
+
+            left = (left_index_line, left_index_character_index)
+            right =  (right_index_line, right_index_character_index)
+
+            for line_index, line in enumerate(lines):
+                replaced_line = line.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
+                if line_index == left[0] and line_index == right[0]:
+                    cursor_lines.append(replaced_line[len(replaced_line) - left[1]:len(replaced_line) - right[1]])
+                elif line_index == left[0] and line_index < right[0]:
+                    cursor_lines.append( replaced_line[len(replaced_line) - left[1]] )
+                elif line_index > left[0] and line_index < right[0]:
+                    cursor_lines.append( replaced_line )
+                elif line_index > left[0] and line_index == right[0]:
+                    cursor_lines.append( replaced_line[:len(replaced_line) - right[1]] )
+        return "\n".join(cursor_lines)
 
     def navigate_to_position(self, line_index: int, character_from_end: int, deselection: bool = True, selecting: bool = None) -> List[str]:
         current = self.get_caret_index()

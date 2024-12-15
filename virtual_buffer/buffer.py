@@ -726,11 +726,16 @@ class VirtualBuffer:
                 total_amount = self.virtual_selection[0].index_from_line_end - self.virtual_selection[-1].index_from_line_end
                 total_amount += len(self.virtual_selection[0].text)
             else:
-                total_amount = self.virtual_selection[0].index_from_line_end + len(self.virtual_selection[0].text)
-                # TODO CALCULATE MULTILINE STUFF
+                text_buffer = self.caret_tracker.get_text_between_tokens(
+                    (self.virtual_selection[0].line_index, self.virtual_selection[0].index_from_line_end - len(self.virtual_selection[0].text)),
+                    (self.virtual_selection[1].line_index, self.virtual_selection[1].index_from_line_end),
+                    False
+                )
 
+                print( "BUFFER!", text_buffer )
+
+                total_amount = len(text_buffer)
             if total_amount:
-                # TODO - Are there any other single character removal methods?
                 keys = ["backspace:" + str(total_amount)]
 
         return keys

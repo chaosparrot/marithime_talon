@@ -105,6 +105,7 @@ Right now terminals have a ton of issues because they do not allow for text sele
 # TODO - CORRECT
 # TODO - MULTILINE
 # TODO - FIX COARSE TRACKING SINGLE AND MULTI LINE
+# TODO - NO BACKSPACE WRAP MODE
 
 [~] - Single line detection / support  
 Some fields, like name fields, do not have the possibility to add multiple lines. In that case, we probably want to either clear the buffer or simply not allow the enter to change the field. We should probably do a refresh if we are in an accessible field, and a clear in a terminal. 

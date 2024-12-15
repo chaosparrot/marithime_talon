@@ -129,6 +129,7 @@ class VirtualBufferManager:
         repair_keys = []
 
         # Allow the user to do self repair in speech
+        # TODO - TRACK VIRTUAL SELECTION CORRECTION
         correction_insertion = self.is_selecting()
         previous_selection = "" if not correction_insertion else vbm.caret_tracker.get_selection_text()
         current_insertion = ""

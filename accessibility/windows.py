@@ -10,34 +10,64 @@ class WindowsAccessibilityApi(AccessibilityApi):
             element = self.get_focused_element()
             if element is None:
                 return None
-        
+
+        # Takes the precedence order of Text2, Text, LegacyIAccessble, Value
+        # NOTE - TextEdit is not a read value but a way to change the text
         accessibility_text = None
         value = None
-        if "LegacyIAccessible" in element.patterns:
-            try:
-                value = element.legacyiaccessible_pattern.value
-            # Windows sometimes just throws operation successful errors...
-            except OSError:
-                value = value
-            accessibility_text = AccessibilityText(value)
-
-        elif "Text2" in element.patterns:
+        if "Text2" in element.patterns:
             try:
                 value = element.text_pattern2.document_range.text
             # Windows sometimes just throws operation successful errors...
-            except OSError:
-                value = value
-            accessibility_text = AccessibilityText(value)
+            except OSError as e:
+                # NotImplemented error
+                if str(e) == "0x80004001":
+                    value = None
             
-        elif "Value" in element.patterns:
+            if value is not None:
+                accessibility_text = AccessibilityText(value)
+        
+        if accessibility_text and "Text" in element.patterns:
+            try:
+                value = element.text_pattern.document_range.text
+            # Windows sometimes just throws operation successful errors...
+            except OSError as e:
+                # NotImplemented error
+                if str(e) == "0x80004001":
+                    value = None
+
+            if value is not None:
+                accessibility_text = AccessibilityText(value)
+        
+        if not accessibility_text and "LegacyIAccessible" in element.patterns:
+            # IAccessible Enum values
+            # https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.accessiblerole?view=windowsdesktop-8.0
+            try:
+                if element.legacyiaccessible_pattern.role == 42:
+                    value = element.legacyiaccessible_pattern.value
+            # Windows sometimes just throws operation successful errors...
+            except OSError as e:
+                # NotImplemented error
+                if str(e) == "0x80004001":
+                    value = None
+
+            if value is not None:
+                accessibility_text = AccessibilityText(value)
+
+        # Finally fallback to the Value pattern
+        if (not accessibility_text or accessibility_text.text == "") and "Value" in element.patterns:
             try:
                 value = element.value_pattern.value
             # Windows sometimes just throws operation successful errors...
             except OSError:
-                value = value
-            accessibility_text = AccessibilityText(value)
+                # NotImplemented error
+                if str(e) == "0x80004001":
+                    value = None
 
-        if accessibility_text:
+            if value is not None:
+                accessibility_text = AccessibilityText(value)
+
+        if accessibility_text and accessibility_text.text != "":
             caret_position = self.determine_caret_positions(element)
             if caret_position is not None and len(caret_position) == 2:
                 accessibility_text.active_caret = caret_position[0]
@@ -54,37 +84,57 @@ class WindowsAccessibilityApi(AccessibilityApi):
                 return None
         
         # Code adapted from AndreasArvidsson's talon files
-        # Currently only Text2 is supported
-        if "Text2" in element.patterns:
-            text_pattern = element.text_pattern2
+        # Currently only Text and Text2 are supported
+        has_text_pattern = False if "Text2" not in element.patterns and "Text" not in element.patterns else True
+        if has_text_pattern:
+            text_pattern = element.text_pattern2 if "Text2" in element.patterns else element.text_pattern
 
             # Make copy of the document range to avoid modifying the original
             range_before_selection = text_pattern.document_range.clone()
-            selection_ranges = text_pattern.selection
-            if len(selection_ranges) != 1:
-                print("ACCESSIBILITY INDEXATION ERROR - Found multiple selections")
+            try:
+                selection_ranges = text_pattern.selection
+            except OSError as e:
+                # NotImplemented error - Cannot check selection so early return
+                if str(e) == "0x80004001":
+                    return []
+
+            if len(selection_ranges) > 1:
+                print("ACCESSIBILITY INDEXATION ERROR - Found multiple or no selections")
                 return []
             selection_range = selection_ranges[0].clone()
                     
             # Move the end of the copy to the start of the selection
             # range_before_selection.end = selection_range.start
             range_before_selection.move_endpoint_by_range("End", "Start", target=selection_range)
+
+            range_before_selection_text = None
             try:
                 range_before_selection_text = range_before_selection.text
             # Windows sometimes just throws operation successful errors...
-            except OSError:
+            except OSError as e:
+                # NotImplemented error
+                if str(e) == "0x80004001":
+                    return []
                 pass
 
+            selection_range_text = None
             try:
                 selection_range_text = selection_range.text
             # Windows sometimes just throws operation successful errors...
-            except OSError:
+            except OSError as e:
+                # NotImplemented error
+                if str(e) == "0x80004001":
+                    return []                
                 pass
 
+            document_range_text = None
             try:
                 document_range_text = text_pattern.document_range.text
             # Windows sometimes just throws operation successful errors...
-            except OSError:
+            except OSError as e:
+                # NotImplemented error
+                if str(e) == "0x80004001":
+                    return []                
                 pass
 
             # Find the index by using the before selection text and the indexed text
@@ -99,7 +149,10 @@ class WindowsAccessibilityApi(AccessibilityApi):
                 try:
                     is_reversed = text_pattern.caret_range.compare_endpoints("Start", "Start", target=selection_ranges[0]) == 0
                 # Windows sometimes just throws operation successful errors...
-                except OSError:
+                except OSError as e:
+                    # NotImplemented error
+                    if str(e) == "0x80004001":
+                        return []                    
                     pass
 
                 start_caret = AccessibilityCaret(start, start_position[0], start_position[1])

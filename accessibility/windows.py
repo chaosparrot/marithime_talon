@@ -23,6 +23,9 @@ class WindowsAccessibilityApi(AccessibilityApi):
                 # NotImplemented error
                 if str(e) == "0x80004001":
                     value = None
+            # Talon pre 0.4 beta
+            except NameError as e:
+                value = None
             
             if value is not None:
                 accessibility_text = AccessibilityText(value)
@@ -35,6 +38,9 @@ class WindowsAccessibilityApi(AccessibilityApi):
                 # NotImplemented error
                 if str(e) == "0x80004001":
                     value = None
+            # Talon pre 0.4 beta
+            except NameError as e:
+                value = None
 
             if value is not None:
                 accessibility_text = AccessibilityText(value)
@@ -50,6 +56,12 @@ class WindowsAccessibilityApi(AccessibilityApi):
                 # NotImplemented error
                 if str(e) == "0x80004001":
                     value = None
+            # Talon pre 0.4 beta
+            except NameError as e:
+                value = None
+            # Talon pre 0.4 beta - no selection supported
+            except AttributeError as e:
+                return []
 
             if value is not None:
                 accessibility_text = AccessibilityText(value)
@@ -63,6 +75,9 @@ class WindowsAccessibilityApi(AccessibilityApi):
                 # NotImplemented error
                 if str(e) == "0x80004001":
                     value = None
+            # Talon pre 0.4 beta
+            except NameError as e:
+                value = None
 
             if value is not None:
                 accessibility_text = AccessibilityText(value)
@@ -105,7 +120,11 @@ class WindowsAccessibilityApi(AccessibilityApi):
                     
             # Move the end of the copy to the start of the selection
             # range_before_selection.end = selection_range.start
-            range_before_selection.move_endpoint_by_range("End", "Start", target=selection_range)
+            try:
+                range_before_selection.move_endpoint_by_range("End", "Start", target=selection_range)
+            # Talon pre 0.4 beta - no selection supported
+            except AttributeError as e:
+                return []
 
             range_before_selection_text = None
             try:

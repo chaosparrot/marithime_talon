@@ -335,28 +335,22 @@ def update_language(language: str):
     mutator.fixer.load_fixes(language, engine_description)
 
 def update_shift_selection(shift_selection: bool):
-    global mutator
-    mutator.set_shift_selection(shift_selection)
+    get_mutator().set_shift_selection(shift_selection)
 
 def update_multiline_supported(multiline_support: bool):
-    global mutator
-    mutator.set_multiline_supported(multiline_support)
+    get_mutator().set_multiline_supported(multiline_support)
 
 def update_clear_key(clear_key: str):
-    global mutator
-    mutator.set_clear_key(clear_key)
+    get_mutator().set_clear_key(clear_key)
 
 def update_remove_line_key(remove_line_key: str):
-    global mutator
-    mutator.set_remove_line_key(remove_line_key)
+    get_mutator().set_remove_line_key(remove_line_key)
 
 def update_start_of_line_key(start_of_line_key: str):
-    global mutator
-    mutator.set_start_of_line_key(start_of_line_key)
+    get_mutator().set_start_of_line_key(start_of_line_key)
 
 def update_end_of_line_key(end_of_line_key: str):
-    global mutator
-    mutator.set_end_of_line_key(end_of_line_key)
+    get_mutator().set_end_of_line_key(end_of_line_key)
 
 mutator = None
 def init_mutator():
@@ -571,3 +565,24 @@ class Actions:
         actions.key("enter")
 
         mutator.enable_tracking("DUMP")
+
+    def marithime_enable_track_context():
+        """Start tracking the marithime virtual buffer context as it changes"""
+        mutator = get_mutator()
+        mutator.context.set_context_tracking(True)
+        actions.user.marithime_show_context()
+
+    def marithime_disable_track_context():
+        """Stop tracking the marithime virtual buffer context as it changes"""
+        mutator = get_mutator()
+        mutator.context.set_context_tracking(False)
+
+    def marithime_show_context() -> str:
+        """Show the current context in a Window if supported"""
+        mutator = get_mutator()
+        current_context = mutator.context.get_current_context()
+        lines = "Using " + current_context.title + " - PID " + str(current_context.pid ) + "\n"
+        lines += "------------------------------------------------\n"
+        lines += (current_context.buffer.caret_tracker.text_buffer).replace("$CARET", "|^|")
+
+        return lines

@@ -1,4 +1,4 @@
-from talon import ui, actions, clip, settings
+from talon import ui, actions, clip, settings, cron
 from .input_context import InputContext
 import time
 from typing import List, Callable, Tuple
@@ -23,6 +23,8 @@ class InputContextManager:
     active_formatters: List[TextFormatter]
     formatter_names: List[str]
     state_callback: Callable[[str, int, int, bool], None] = None
+    context_tracking = False
+    context_tracking_cron = None
 
     last_title: str = ""
     last_pid: int = -1
@@ -90,7 +92,7 @@ class InputContextManager:
 
                     if accessible_text and accessible_text.active_caret.line_index == caret_index[0] and accessible_text.active_caret.characters_from_end == caret_index[1]:
                         caret_confidence = 2
-
+                
                 self.update_visual_state("accessibility" if context_to_switch_to.accessible_api_available else "text", caret_confidence=caret_confidence, content_confidence=content_confidence)
             else:
                 self.update_visual_state("text", 0, 0, False)
@@ -258,7 +260,7 @@ class InputContextManager:
                 del contexts_to_clear[-1]
 
     def get_current_context(self) -> InputContext:
-        if self.current_context:
+        if self.current_context is not None:
             if self.current_context.pid == -1:
                 self.switch_context(ui.active_window())
 
@@ -563,3 +565,14 @@ class InputContextManager:
 
     def set_clear_line_key(self, clear_line_key: str):
         self.get_current_context().set_clear_line_key(clear_line_key)
+
+    def set_context_tracking(self, tracking = False):
+        self.context_tracking = tracking
+        cron.cancel(self.context_tracking_cron)
+        if tracking == False:
+            self.context_tracking_cron = None
+        else:
+            self.context_tracking_cron = cron.interval("1s", self.update_context_debug_state)
+
+    def update_context_debug_state(self):
+        actions.user.marithime_show_context()

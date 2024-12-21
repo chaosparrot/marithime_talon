@@ -99,14 +99,11 @@ We need to find a way to deal with word wrap, meaning things being on a single l
 [] - Improved MacOS support  
 While there's programs where it nails the accessibility API pretty well, others just don't connect properly with finding the right focused element. We'll need to address these one by one unfortunately, because accessibility APIs are all over the place from program to program.
 
-[~] - Terminal support  
-Right now terminals have a ton of issues because they do not allow for text selection, have painful accessibility support, and use a ton of custom key binds that don't correlate with other document builders.
-
-[~] - Single line detection / support  
-Some fields, like name fields, do not have the possibility to add multiple lines. In that case, we probably want to either clear the buffer or simply not allow the enter to change the field. We should probably do a refresh if we are in an accessible field, and a clear in a terminal. 
-
 [] - Text editor support  
 This means we should be able to support vim, nano and other keybindings. This runs into the same issues as using a terminal does however, namely poor accessibility support and hard to detect when something is inside of a text editor in the first place. Another is no line wrapping when reaching the start or end of the line and key-pressing beyond that boundary.
+
+[~] - Single line detection  
+Some fields, like name fields, do not have the possibility to add multiple lines. In that case, we probably want to either clear the buffer or simply not allow the enter to change the field. We should probably do a refresh if we are in an accessible field, and a clear in a terminal. 
 
 [] - Accessiblity input tags  
 We can detect a field type, like email, phone number etc from the accessibility APIs. That means we could expose that information for other packages to use as well, so you can say `Homer` to input `homer@odyssey.com` for example.

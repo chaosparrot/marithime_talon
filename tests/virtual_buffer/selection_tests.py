@@ -727,8 +727,7 @@ def percentage_test_selfrepair(assertion):
     percentage_tests(assertion, False, False, True, 0.95)
 
 suite = create_test_suite("Selecting whole phrases inside of a selection")
-#suite.add_test(percentage_test_selection)
-#suite.add_test(percentage_test_correction)
-#suite.add_test(percentage_test_selfrepair)
+suite.add_test(percentage_test_selection)
+suite.add_test(percentage_test_correction)
+suite.add_test(percentage_test_selfrepair)
 #suite.add_test(percentage_tests)
-suite.run()

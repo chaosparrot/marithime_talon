@@ -142,7 +142,7 @@ class InputContextManager:
                     second_caret = (accessible_content.selection_caret.line_index, accessible_content.selection_caret.characters_from_end)
                 results = [accessible_content.text, first_caret, second_caret]
 
-            if not accessible_content or ( accessible_content.active_caret.line_index == -1 and accessible_content.active_caret.characters_from_end == -1 ):
+            if not accessible_content or not accessible_content.active_caret or ( accessible_content.active_caret.line_index == -1 and accessible_content.active_caret.characters_from_end == -1 ):
                 results = self.find_caret_position(value, -1)
 
             # Only if the caret position is not the same as the known position do we need to reindex
@@ -305,7 +305,7 @@ class InputContextManager:
 
         # Update the visual state to accessible if a value was found        
         if accessible_text:
-            caret_confidence = 2 if accessible_text.active_caret.line_index > -1 else 0
+            caret_confidence = 2 if accessible_text.active_caret and accessible_text.active_caret.line_index > -1 else 0
             text_confidence = 2 if accessible_text.text is not None else -1
             self.update_visual_state("accessibility", caret_confidence, text_confidence)
 

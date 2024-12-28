@@ -2,6 +2,7 @@ os: macos
 os: windows
 os: linux
 tag: terminal
+# TODO - Windows Powershell supports shift selection?!
 -
 settings():
     user.marithime_indexing_strategy = "disabled"

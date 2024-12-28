@@ -22,6 +22,8 @@ mod.setting("marithime_context_remove_letter", type=str, default="backspace", de
 mod.setting("marithime_context_remove_forward_word", type=str, default="ctrl-delete", desc="The key combination to clear a word to the right of the caret")
 mod.setting("marithime_context_remove_forward_letter", type=str, default="delete", desc="The key combination to clear a single letter to the right of the caret")
 mod.setting("marithime_context_remove_line", type=str, default="", desc="The key to remove an entire line from the current text")
+mod.setting("marithime_context_start_line_key", type=str, default="home", desc="The key to move to the start of the line")
+mod.setting("marithime_context_end_line_key", type=str, default="end", desc="The key to move to the end of the line")
 
 # Options - "" (default) - Whenever the confidence that it has lost the location in the file, re-index
 #         - aggressive - After every marithime command that requires context, we re-index

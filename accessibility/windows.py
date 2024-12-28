@@ -99,10 +99,11 @@ class WindowsAccessibilityApi(AccessibilityApi):
                 return None
         
         # Code adapted from AndreasArvidsson's talon files
-        # Currently only Text and Text2 are supported
-        has_text_pattern = "Text2" in element.patterns or "Text" in element.patterns
+        # Currently only Text2 is supported
+        # Text(1) doesn't seem to have caret_range and other methods 
+        has_text_pattern = "Text2" in element.patterns# or "Text" in element.patterns
         if has_text_pattern:
-            text_pattern = element.text_pattern2 if "Text2" in element.patterns else element.text_pattern
+            text_pattern = element.text_pattern2# if "Text2" in element.patterns else element.text_pattern
 
             # Make copy of the document range to avoid modifying the original
             range_before_selection = text_pattern.document_range.clone()

@@ -28,6 +28,7 @@ class VirtualBuffer:
         self.caret_tracker = CaretTracker()
         self.matcher = VirtualBufferMatcher(phonetic_search)
         self.set_tokens()
+        print("CREATING NEW BUFFER!!!")
 
     def is_selecting(self) -> bool:
         return self.caret_tracker.is_selecting()
@@ -576,6 +577,7 @@ class VirtualBuffer:
 
         self.virtual_selection = []
         keys = []
+        print("USES SHIFT SELECTION!?!?!?!", self.shift_selection)
         if self.shift_selection:
             if not extend_selection:
                 keys = self.navigate_to_token(start_token, 0)
@@ -745,6 +747,7 @@ class VirtualBuffer:
     def set_shift_selection(self, shift_selection: bool):
         self.caret_tracker.shift_selection = shift_selection
         self.shift_selection = shift_selection
+        print("SETTING SHIFT SELECTION ON BUFFER", shift_selection)
 
     def set_multiline_supported(self, multiline_supported: bool):
         self.caret_tracker.multiline_supported = multiline_supported

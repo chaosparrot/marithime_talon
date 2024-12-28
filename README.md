@@ -102,6 +102,9 @@ While there's programs where it nails the accessibility API pretty well, others 
 [] - Text editor support  
 This means we should be able to support vim, nano and other keybindings. This runs into the same issues as using a terminal does however, namely poor accessibility support and hard to detect when something is inside of a text editor in the first place. Another is no line wrapping when reaching the start or end of the line and key-pressing beyond that boundary.
 
+[~] - Fix desynchronization issues  
+There are a bunch of desynchronization issues with settings, context and process ids that cause all kinds of weird things like completely losing the context at random intervals, buffers being created without any need for it, and things like shift selection being turned on when it shouldn't. This will need to be fixed before we can actually support terminals.
+
 [~] - Single line detection  
 Some fields, like name fields, do not have the possibility to add multiple lines. In that case, we probably want to either clear the buffer or simply not allow the enter to change the field. We should probably do a refresh if we are in an accessible field, and a clear in a terminal. 
 

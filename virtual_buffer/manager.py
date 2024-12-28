@@ -277,7 +277,7 @@ class VirtualBufferManager:
         words_list = []
         for token in vbm.tokens:
             words_list.append(token.phrase)
-        ctx.lists["user.marithime_indexed_words"] = words_list
+        #ctx.lists["user.marithime_indexed_words"] = words_list
 
         tags = []
         token_index = vbm.determine_token_index()
@@ -566,6 +566,14 @@ class Actions:
 
         mutator.enable_tracking("DUMP")
 
+    def marithime_toggle_track_context():
+        """Toggle between tracking and not tracking the marithime virtual buffer context"""
+        mutator = get_mutator()
+        if mutator.context.context_tracking == True:
+            actions.user.marithime_disable_track_context()
+        else:
+            actions.user.marithime_enable_track_context()
+
     def marithime_enable_track_context():
         """Start tracking the marithime virtual buffer context as it changes"""
         mutator = get_mutator()
@@ -584,5 +592,6 @@ class Actions:
         lines = "Using " + current_context.title + " - PID " + str(current_context.pid ) + "\n"
         lines += "------------------------------------------------\n"
         lines += (current_context.buffer.caret_tracker.text_buffer).replace("$CARET", "|^|")
+        # TODO only show relevant lines around cursor?
 
         return lines

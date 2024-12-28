@@ -30,7 +30,7 @@ class WindowsAccessibilityApi(AccessibilityApi):
             if value is not None:
                 accessibility_text = AccessibilityText(value)
         
-        if accessibility_text and "Text" in element.patterns:
+        if not accessibility_text and "Text" in element.patterns:
             try:
                 value = element.text_pattern.document_range.text
             # Windows sometimes just throws operation successful errors...
@@ -100,7 +100,7 @@ class WindowsAccessibilityApi(AccessibilityApi):
         
         # Code adapted from AndreasArvidsson's talon files
         # Currently only Text and Text2 are supported
-        has_text_pattern = False if "Text2" not in element.patterns and "Text" not in element.patterns else True
+        has_text_pattern = "Text2" in element.patterns or "Text" in element.patterns
         if has_text_pattern:
             text_pattern = element.text_pattern2 if "Text2" in element.patterns else element.text_pattern
 
@@ -180,8 +180,17 @@ class WindowsAccessibilityApi(AccessibilityApi):
                 return [end_caret, start_caret] if is_reversed else [start_caret, end_caret]
             else:
                 return []
+        # IAccessible proves to be harder to implement
+        # Further investigation can be done with the code seen in NVAccess
+        # https://github.com/nvaccess/nvda/blob/e80d7822160f7d2ff151140bc97ca84e5798c1fb/source/NVDAObjects/IAccessible/__init__.py#L465
+        #elif "LegacyIAccessible" in element.patterns:
+        #    print("ATTEMPTING!")
+        #    pattern = element.legacyiaccessible_pattern
+        #    selection = pattern.selection
+        #    if len(selection) > 0:
+        #        print( dir( selection ), selection )
+        #    print( dir(element), element.aria_role )
 
         return []
-
 
 windows_api = WindowsAccessibilityApi()

@@ -5,6 +5,7 @@ import os
 
 def index_document(_ = None, _2 = None):
     actions.user.marithime_index_textarea()
+    actions.user.marithime_toggle_track_context()
 
 ctx_override = Context()
 ctx_override.matches = """

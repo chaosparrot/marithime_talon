@@ -142,7 +142,12 @@ class VirtualBufferManager:
                 vbm.virtual_selection[0],
                 vbm.virtual_selection[-1]
             )
-            repair_keys.extend(vbm.remove_virtual_selection())
+
+            # Apply virtual selection removal so the formatter has up to date information
+            keys_to_remove_virtual_selection = vbm.remove_virtual_selection()
+            repair_keys.extend(keys_to_remove_virtual_selection)
+            for key in keys_to_remove_virtual_selection:
+                self.context.apply_key(key)
 
         if enable_self_repair:
             
@@ -197,8 +202,18 @@ class VirtualBufferManager:
                             previous_selection = vbm.caret_tracker.get_selection_text()
                             current_insertion = " ".join(insert.split()[:end_index - start_index])
 
-                            repair_keys.append("backspace")
-                            self.context.apply_key("backspace")
+                            # Regular shift selection
+                            if len(vbm.virtual_selection) == 0:
+                                remove_character_left_key = self.settings.get_remove_character_left_key()
+                                repair_keys.append(remove_character_left_key)
+                                self.context.apply_key(remove_character_left_key)
+
+                            # Let self repair work for virtual selection as well
+                            else:
+                                keys_to_remove_virtual_selection = vbm.remove_virtual_selection()
+                                repair_keys.extend(keys_to_remove_virtual_selection)
+                                for key in keys_to_remove_virtual_selection:
+                                    self.context.apply_key(key)
                             correction_insertion = True
 
         # Determine formatter
@@ -436,7 +451,7 @@ class Actions:
         """Select a fuzzy match of the words and apply the given words"""
         mutator = get_mutator()
         keys = mutator.select_phrases(selection_and_correction, for_correction=True)
-        if len(keys) > 0:
+        if len(keys) > 0 or mutator.is_virtual_selecting():
             mutator.disable_tracking()
             if keys:
                 for key in keys:

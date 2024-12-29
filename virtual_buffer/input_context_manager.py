@@ -261,12 +261,11 @@ class InputContextManager:
 
     def get_current_context(self) -> InputContext:
         if self.current_context is not None:
-            print("USING CONTEXTS", self.current_context.pid)
             if self.current_context.pid == -1:
                 self.switch_context(ui.active_window())
 
             self.current_context.update_modified_at()
-            #self.clear_stale_contexts()
+            self.clear_stale_contexts()
         else:
             self.create_context()
 

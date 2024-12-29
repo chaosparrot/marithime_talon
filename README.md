@@ -101,6 +101,9 @@ We need to find a way to deal with word wrap, meaning things being on a single l
 [] - Zero width space indexation selection fix  
 When a zero width space indexation is used, it is possible that a current selection is removed. We can fix that selection afterwards so we don't have issues where content is removed unnecessarily
 
+[] - Add clipboard pasting insert support  
+Right now it isn't possible to use clipboard pasting as a way to insert things rather than typing out the characters one by one. This makes the insertion slower than it could be. This can be done with 'Ctrl+C' and 'Ctrl+V', or 'Ctrl+Shift+C' and 'Ctrl+Shift+V' in terminals. Though we probably want to use `action.edit.paste()` to make it compatible with other packages. We do need to be aware that in terminals there is a possibility that `Remove trailing white-space when pasting` is turned on, which might cause desyncs.
+
 #### Programs
 
 [] - Improved MacOS support  

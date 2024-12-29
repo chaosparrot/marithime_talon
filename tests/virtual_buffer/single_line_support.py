@@ -4,19 +4,24 @@ from ...virtual_buffer.indexer import text_to_virtual_buffer_tokens
 from ..test import create_test_suite
 from ...phonetics.phonetics import PhoneticSearch
 from ...virtual_buffer.matcher import VirtualBufferMatcher
+from ...virtual_buffer.settings import VirtualBufferSettings
+
+def get_virtual_buffer() -> VirtualBuffer:
+    settings = VirtualBufferSettings(live_checking=False)
+    return VirtualBuffer(settings)
 
 def get_filled_vb():
     search = PhoneticSearch()
     search.set_homophones("")
     search.set_phonetic_similiarities("")
 
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.matcher = VirtualBufferMatcher(search)
-    vb.shift_selection = True
-    vb.caret_tracker.multiline_supported = False
-    vb.caret_tracker.clear_key = ""
-    vb.caret_tracker.start_of_line_key = "home"
-    vb.caret_tracker.end_of_line_key = "end"
+    vb.settings.shift_selection = True
+    vb.settings.multiline_supported = False
+    vb.settings.clear_key = ""
+    vb.settings.start_of_line_key = "home"
+    vb.settings.end_of_line_key = "end"
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("two ", "two"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("words ", "words"))

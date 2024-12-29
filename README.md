@@ -25,6 +25,10 @@ If you do not want marithime dictation, but instead only want to use the selecti
 
 You can always say `marithime` followed by a phrase to use it if you do not want to override the regular dictation insert.
 
+### List of supported programs
+
+Generally this package tries to support all kinds of programs through the accessibility APIs. Though in order to properly know whether they work, the programs are tested manually for support. [The list of supported programs is documented here](programs/SUPPORTED.md)
+
 ### Privacy statement
 
 Because most software isn't accessible, this package relies on a couple of ways to understand what is inside a text field, and where the caret inside of it is. One of these methods is **locally tracking keystrokes that happen through Talon voice**.
@@ -93,6 +97,9 @@ Right now, you still need to say `numb zero` every time between commands. We can
 
 [] - Word wrap detection  
 We need to find a way to deal with word wrap, meaning things being on a single line, but visually ( and most importantly, keyboard relatively ) they are on multiple lines. Our current Up and Down arrow key pressing does not deal with that.
+
+[] - Zero width space indexation selection fix  
+When a zero width space indexation is used, it is possible that a current selection is removed. We can fix that selection afterwards so we don't have issues where content is removed unnecessarily
 
 #### Programs
 

@@ -2,6 +2,7 @@ from talon import Module, Context, actions, settings, ui, speech_system, app
 from .input_context_manager import InputContextManager
 from .input_fixer import InputFixer
 from .typing import CORRECTION_THRESHOLD, SELECTION_THRESHOLD
+from .settings import VirtualBufferSettings, virtual_buffer_settings
 from ..phonetics.detection import EXACT_MATCH
 from typing import List, Union
 import json
@@ -34,9 +35,11 @@ class VirtualBufferManager:
     tracking_lock: str = ""
     use_last_set_formatter = False
 
-    def __init__(self):
+    def __init__(self, settings: VirtualBufferSettings = None):
+        global virtual_buffer_settings
         self.context = InputContextManager(actions.user.marithime_update_sensory_state)
         self.fixer = InputFixer()
+        self.settings = settings if settings is not None else virtual_buffer_settings
         # self.fixer.verbose = True
         # TODO - Improve logging for fixes when the fixer is improved
 
@@ -93,7 +96,7 @@ class VirtualBufferManager:
             else:
                 return vbm.navigate_to_token(last_token, -1, keep_selection)
         else:
-            return ["end"]
+            return [vbm.settings.get_end_of_line_key()]
 
     def select_phrases(self, phrases: List[str], until_end = False, for_correction=False) -> List[str]:
         self.disable_tracking()
@@ -249,27 +252,27 @@ class VirtualBufferManager:
         context = vbm.determine_context()
 
         if self.is_selecting():
-            return [settings.get("user.marithime_context_remove_letter")]
+            return [self.settings.get_remove_character_left_key()]
         elif self.is_virtual_selecting():
-            return vbm.clear_virtual_selection(settings.get("user.marithime_context_remove_letter"))
+            return vbm.remove_virtual_selection()
         
         if context.current is not None:
             if context.character_index == 0 and backwards and context.previous is not None:
-                return [settings.get("user.marithime_context_remove_letter") + ":" + str(len(context.previous.text))]
+                return [self.settings.get_remove_character_left_key() + ":" + str(len(context.previous.text))]
 
             elif context.character_index == len(context.current.text):
                 if not backwards and context.next is not None:
-                    return [settings.get("user.marithime_context_remove_forward_letter") + ":" + str(len(context.next.text))]
+                    return [self.settings.get_remove_character_right_key() + ":" + str(len(context.next.text))]
                 elif backwards:
-                    return [settings.get("user.marithime_context_remove_letter") + ":" + str(len(context.current.text))]
+                    return [self.settings.get_remove_character_left_key() + ":" + str(len(context.current.text))]
 
             if context.character_index > 0 and context.character_index < len(context.current.text) - 1:
                 if backwards:
-                    return [settings.get("user.marithime_context_remove_letter") + ":" + str(context.character_index)]
+                    return [self.settings.get_remove_character_left_key() + ":" + str(context.character_index)]
                 else:
-                    return [settings.get("user.marithime_context_remove_forward_letter") + ":" + str(len(context.current.text) - context.character_index)]
+                    return [self.settings.get_remove_character_right_key() + ":" + str(len(context.current.text) - context.character_index)]
 
-        return [settings.get("user.marithime_context_remove_word") if backwards else settings.get("user.marithime_context_remove_forward_word")]
+        return [self.settings.get_remove_word_left_key() if backwards else self.settings.get_remove_word_right_key()]
 
     def index(self):
         vbm = self.context.get_current_context().buffer
@@ -277,7 +280,7 @@ class VirtualBufferManager:
         words_list = []
         for token in vbm.tokens:
             words_list.append(token.phrase)
-        #ctx.lists["user.marithime_indexed_words"] = words_list
+        ctx.lists["user.marithime_indexed_words"] = words_list
 
         tags = []
         token_index = vbm.determine_token_index()
@@ -296,38 +299,10 @@ class VirtualBufferManager:
     def focus_changed(self, event):
         context_switched = self.context.switch_context(event)
         if context_switched:
-            # Update the context after the focus event to make sure we are updating the right context
-            self.set_shift_selection(settings.get("user.marithime_context_shift_selection"))
-            self.set_clear_key(settings.get("user.marithime_context_clear_key"))
-            self.set_multiline_supported(settings.get("user.marithime_context_multiline_supported"))
-            self.set_clear_line_key(settings.get("user.marithime_context_remove_line_key"))
-            self.set_start_of_line_key(settings.get("user.marithime_context_start_line_key"))
-            self.set_end_of_line_key(settings.get("user.marithime_context_end_line_key"))
-
-            # Then index the values
             self.index()
-
 
     def window_closed(self, event):
         self.context.close_context(event)
-
-    def set_shift_selection(self, shift_selection: bool):
-        self.context.set_shift_selection(shift_selection)
-
-    def set_multiline_supported(self, multiline_supported: bool):
-        self.context.set_multiline_supported(multiline_supported)
-
-    def set_clear_key(self, clear_key: str):
-        self.context.set_clear_key(clear_key)
-
-    def set_clear_line_key(self, clear_line_key: str):
-        self.context.set_clear_line_key(clear_line_key)
-
-    def set_start_of_line_key(self, start_of_line_key: str):
-        self.context.set_start_of_line_key(start_of_line_key)
-
-    def set_end_of_line_key(self, end_of_line_key: str):
-        self.context.set_end_of_line_key(end_of_line_key)
 
 def update_language(language: str):
     global mutator
@@ -524,36 +499,6 @@ class Actions:
         """Visually or audibly update the state for the user"""
         pass
 
-    def marithime_dump_context():
-        """Dump the current state of the virtual buffer for debugging purposes"""
-        mutator = get_mutator()
-        mutator.disable_tracking("DUMP")
-        actions.insert("Available contexts:" )
-        for context in mutator.context.contexts:
-            actions.insert( "    " + context.app_name + " - " + context.title + " - PID - " + str(context.pid))
-
-        actions.key("enter")
-        actions.insert("Using " + mutator.context.get_current_context().title + " - PID " + str(mutator.context.get_current_context().pid ))
-        actions.key("enter")
-        actions.insert(mutator.context.get_current_context().buffer.caret_tracker.text_buffer)
-        actions.key("enter:2")
-        tokens = []
-        for token in mutator.context.get_current_context().buffer.tokens:
-            tokens.append({
-                "index_from_line_end": token.index_from_line_end,
-                "line_index": token.line_index,
-                "phrase": token.phrase,
-                "text": token.text
-            })
-        actions.insert(json.dumps(tokens))
-        actions.key("enter")
-        actions.key("enter")
-
-        actions.insert(json.dumps(list(mutator.fixer.done_fixes.keys())))
-        actions.key("enter")
-
-        mutator.enable_tracking("DUMP")
-
     def marithime_toggle_track_context():
         """Toggle between tracking and not tracking the marithime virtual buffer context"""
         mutator = get_mutator()
@@ -579,7 +524,20 @@ class Actions:
         current_context = mutator.context.get_current_context()
         lines = "Using " + current_context.title + " - PID " + str(current_context.pid ) + "\n"
         lines += "------------------------------------------------\n"
-        lines += (current_context.buffer.caret_tracker.text_buffer).replace("$CARET", "|^|")
-        # TODO only show relevant lines around cursor?
+        text_lines = current_context.buffer.caret_tracker.text_buffer.splitlines()
+        found_index = -1
+        for index, text_line in enumerate(text_lines):
+            if "$CARET" in text_line:
+                found_index = index
+
+        # Only show the relevant lines around the cursor
+        if found_index == -1:
+            lines += (current_context.buffer.caret_tracker.text_buffer).replace("$CARET", "|^|")
+        else:
+            if found_index > 0:
+                lines += text_lines[found_index - 1] + "\n"
+            lines += text_lines[found_index].replace("$CARET", "|^|")
+            if found_index < len(text_lines) - 1:
+                lines += "\n" + text_lines[found_index + 1]
 
         return lines

@@ -6,6 +6,12 @@ import os
 from ...virtual_buffer.typing import SELECTION_THRESHOLD, CORRECTION_THRESHOLD
 from talon import resource
 from ..test import create_test_suite
+from ...virtual_buffer.settings import VirtualBufferSettings
+
+def get_virtual_buffer() -> VirtualBuffer:
+    settings = VirtualBufferSettings(live_checking=False)
+    return VirtualBuffer(settings)
+
 test_path = os.path.dirname(os.path.realpath(__file__))
 
 # Auto reload test cases if the csvs are changed
@@ -14,7 +20,7 @@ test_path = os.path.dirname(os.path.realpath(__file__))
 #resource.open(os.path.join(test_path, "testcase_selection.csv"))
 
 def get_uncached_virtual_buffer():
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
 
     # Reset the phonetic search to make sure there is no influence from user settings    
     vb.matcher.phonetic_search = PhoneticSearch()

@@ -2,9 +2,14 @@ from ...virtual_buffer.caret_tracker import _CARET_MARKER
 from ...virtual_buffer.buffer import VirtualBuffer
 from ...virtual_buffer.indexer import text_to_virtual_buffer_tokens
 from ..test import create_test_suite
+from ...virtual_buffer.settings import VirtualBufferSettings
+
+def get_virtual_buffer() -> VirtualBuffer:
+    settings = VirtualBufferSettings(live_checking=False)
+    return VirtualBuffer(settings)
 
 def test_remove_selecting_single_tokens(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a new sentence. \n", "insert a new sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a second sentence. \n", "insert a second sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a third sentence.", "insert a third sentence"))
@@ -50,7 +55,7 @@ Insert a third sentence."""
     assertion( "        Expect phrase to be merged", vb.tokens[0].phrase == "insert a new sentencesert a third sentence")
 
 def test_remove_selecting_multiple_tokens_left(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.insert_tokens(text_to_virtual_buffer_tokens("Suggest", "suggest"))
     vb.insert_tokens(text_to_virtual_buffer_tokens(" create", "create"))
     vb.insert_tokens(text_to_virtual_buffer_tokens(" delete", "delete"))
@@ -77,7 +82,7 @@ def test_remove_selecting_multiple_tokens_left(assertion):
     assertion( "        Expect phrase to be merged", vb.tokens[-1].phrase == "suggestion")
 
 def test_remove_selecting_multiple_tokens_right(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.insert_tokens(text_to_virtual_buffer_tokens("Suggest ", "suggest"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("create ", "create"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("delete ", "delete"))

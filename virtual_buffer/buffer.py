@@ -6,6 +6,7 @@ from .caret_tracker import CaretTracker
 from ..phonetics.actions import phonetic_search
 from .indexer import text_to_phrase, normalize_text, reindex_tokens
 import re
+from .settings import VirtualBufferSettings, virtual_buffer_settings
 mod = Module()
 ctx = Context()
 
@@ -22,13 +23,14 @@ class VirtualBuffer:
     caret_tracker: CaretTracker = None
     virtual_selection = None
     last_action_type = "insert"
-    shift_selection = True
+    settings: VirtualBufferSettings = None
 
-    def __init__(self):
-        self.caret_tracker = CaretTracker()
+    def __init__(self, settings: VirtualBufferSettings = None):
+        global virtual_buffer_settings
+        self.settings = settings if settings is not None else virtual_buffer_settings        
+        self.caret_tracker = CaretTracker(settings=self.settings)
         self.matcher = VirtualBufferMatcher(phonetic_search)
         self.set_tokens()
-        print("CREATING NEW BUFFER!!!")
 
     def is_selecting(self) -> bool:
         return self.caret_tracker.is_selecting()
@@ -102,14 +104,14 @@ class VirtualBuffer:
 
         # Edge case - If we clear the input on Enter press,
         # We also need to clear if a newline is added through insertion
-        if self.caret_tracker.clear_key.lower() == "enter" and token_to_insert.text.endswith("\n"):
+        if self.settings.get_clear_key().lower() == "enter" and token_to_insert.text.endswith("\n"):
             self.clear_tokens()
             return
 
         # Inserting newlines is different from enter presses in single line fields
         # As it clears the input field and makes the final line the one used
         # Rather than ignoring the new line
-        if self.caret_tracker.multiline_supported == False and token_to_insert.text.endswith("\n"):
+        if self.settings.has_multiline_support() == False and token_to_insert.text.endswith("\n"):
             self.clear_tokens()
             return
 
@@ -532,17 +534,17 @@ class VirtualBuffer:
             if phrase != "":
                 start_token = self.find_token_by_phrase(phrase, 0, True, False)
                 if start_token:
-                    if self.shift_selection:
+                    if self.settings.has_shift_selection():
                         keys.extend(self.navigate_to_token(start_token, 0, False))
                         keys.extend(self.select_token(self.tokens[-1], True))
                     else:
                         keys.extend(self.navigate_to_token(self.tokens[-1]))
                         self.virtual_selection = [start_token, self.tokens[-1]]
-            elif not self.shift_selection and len(self.virtual_selection) > 0:
+            elif not self.settings.has_shift_selection() and len(self.virtual_selection) > 0:
                 self.virtual_selection = [self.virtual_selection[0], self.tokens[-1]]
                 keys.extend(self.navigate_to_token(self.tokens[-1]))
 
-            if self.shift_selection:
+            if self.settings.has_shift_selection():
                 keys.extend(self.select_token(self.tokens[-1], True))
 
         return keys
@@ -577,8 +579,7 @@ class VirtualBuffer:
 
         self.virtual_selection = []
         keys = []
-        print("USES SHIFT SELECTION!?!?!?!", self.shift_selection)
-        if self.shift_selection:
+        if self.settings.has_shift_selection():
             if not extend_selection:
                 keys = self.navigate_to_token(start_token, 0)
             else:
@@ -681,6 +682,11 @@ class VirtualBuffer:
                 self.last_action_type = self.caret_tracker.last_caret_movement
         else:
             key_events = []
+
+        # Make sure we don't accidentally remove virtual selections
+        if keep_selection == False and len(self.virtual_selection):
+            self.virtual_selection = []
+
         return key_events
     
     def get_current_formatters(self) -> List[str]:
@@ -725,7 +731,7 @@ class VirtualBuffer:
 
     def remove_virtual_selection(self) -> List[str]:
         keys = []
-        if len(self.virtual_selection) > 0:            
+        if len(self.virtual_selection) > 0:
             total_amount = 0
             if self.virtual_selection[0].line_index == self.virtual_selection[-1].line_index:
                 total_amount = self.virtual_selection[0].index_from_line_end - self.virtual_selection[-1].index_from_line_end
@@ -740,26 +746,6 @@ class VirtualBuffer:
                 # TODO - SUPPORT NO BACKSPACE WRAPPING
 
             if total_amount:
-                keys = ["backspace:" + str(total_amount)]
+                keys = [self.settings.get_remove_character_left_key() + ":" + str(total_amount)]
 
         return keys
-
-    def set_shift_selection(self, shift_selection: bool):
-        self.caret_tracker.shift_selection = shift_selection
-        self.shift_selection = shift_selection
-        print("SETTING SHIFT SELECTION ON BUFFER", shift_selection)
-
-    def set_multiline_supported(self, multiline_supported: bool):
-        self.caret_tracker.multiline_supported = multiline_supported
-
-    def set_clear_key(self, clear_key: str):
-        self.caret_tracker.clear_key = clear_key
-    
-    def set_end_of_line_key(self, end_of_line_key: str):
-        self.caret_tracker.end_of_line_key = end_of_line_key
-
-    def set_start_of_line_key(self, start_of_line_key: str):
-        self.caret_tracker.start_of_line_key = start_of_line_key
-
-    def set_clear_line_key(self, clear_line_key: str):
-        self.caret_tracker.clear_line_key = clear_line_key

@@ -60,7 +60,6 @@ class InputContext:
         self.buffer = None
 
     def set_shift_selection(self, shift_selection: bool):
-        print("SET SHIFT SELECTION IN CONTEXT", self.pid, self.app_name, shift_selection)
         self.buffer.set_shift_selection(shift_selection)
 
     def set_multiline_supported(self, multiline_supported: bool):

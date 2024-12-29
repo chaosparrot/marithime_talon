@@ -239,9 +239,19 @@ class InputContextManager:
         self.last_title = title
         return (app_name, title, pid)
     
-    def create_context(self):
-        self.current_context = InputContext(self.last_app_name, self.last_title, self.last_pid)
-        self.contexts.append(self.current_context)
+    def create_context_if_not_exists(self):
+        existing_context = None
+        for context in self.contexts:
+            if context.match_pattern(self.last_app_name, self.last_title, self.last_pid):
+                existing_context = context
+                break
+
+        # Make sure we don't accidentally create new contexts where we already have an exact match
+        if existing_context is None:
+            self.current_context = InputContext(self.last_app_name, self.last_title, self.last_pid)
+            self.contexts.append(self.current_context)
+        else:
+            self.current_context = existing_context
     
     def clear_stale_contexts(self):
         # Only check stale contexts every minute
@@ -267,7 +277,7 @@ class InputContextManager:
             self.current_context.update_modified_at()
             self.clear_stale_contexts()
         else:
-            self.create_context()
+            self.create_context_if_not_exists()
 
         return self.current_context
 

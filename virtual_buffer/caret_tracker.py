@@ -75,6 +75,7 @@ class CaretTracker:
         self.clear()
 
     def clear(self):
+        print("CLEAR CARET TRACKER!")        
         self.set_buffer("")
 
     def disable_caret_tracking(self):

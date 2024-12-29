@@ -36,7 +36,7 @@ class InputContext:
             self.pid = pid
 
     def match_pattern(self, app_name: str, title: str, pid: int) -> bool:
-        return self.coarse_match_pattern(app_name, title, pid) and title.lower() == self.title
+        return self.coarse_match_pattern(app_name, title, pid) and title.lower() == self.title.lower()
     
     def coarse_match_pattern(self, app_name: str, title: str, pid: int) -> bool:
         return self.app_name.lower() == app_name.lower() or self.pid == pid
@@ -57,22 +57,6 @@ class InputContext:
         self.pid = -1
         self.key_matching = ""
         self.modified_at = 0
+        self.buffer.caret_tracker.settings = None
+        self.buffer.settings = None
         self.buffer = None
-
-    def set_shift_selection(self, shift_selection: bool):
-        self.buffer.set_shift_selection(shift_selection)
-
-    def set_multiline_supported(self, multiline_supported: bool):
-        self.buffer.set_multiline_supported(multiline_supported)
-
-    def set_clear_key(self, clear_key: str):
-        self.buffer.set_clear_key(clear_key)
-    
-    def set_end_of_line_key(self, end_of_line_key: str):
-        self.buffer.set_end_of_line_key(end_of_line_key)
-
-    def set_start_of_line_key(self, start_of_line_key: str):
-        self.buffer.set_start_of_line_key(start_of_line_key)
-
-    def set_clear_line_key(self, clear_line_key: str):
-        self.buffer.set_clear_line_key(clear_line_key)

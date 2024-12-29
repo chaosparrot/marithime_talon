@@ -747,5 +747,6 @@ class VirtualBuffer:
 
             if total_amount:
                 keys = [self.settings.get_remove_character_left_key() + ":" + str(total_amount)]
+            self.virtual_selection = []
 
         return keys

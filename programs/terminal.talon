@@ -1,4 +1,4 @@
-os: macos
+os: mac
 os: windows
 os: linux
 tag: terminal

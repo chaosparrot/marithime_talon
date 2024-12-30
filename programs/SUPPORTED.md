@@ -32,7 +32,11 @@ TODO
 | ConEmu          | Windows | Key tracking    | Key tracking     | Virtual   |       |
 | Cmder           | Windows | Key tracking    | Key tracking     | Shift     |       |
 | PowerShell      | Windows | Key tracking    | Key tracking     | Shift     |       |
-| VSCode terminal | Windows | Key tracking    | Key tracking     | Virtual   | This requires [changing the windows title as described in talonhub community](https://github.com/talonhub/community/tree/main/apps/vscode#terminal) |
+| iTerm           | MacOS   | Key tracking    | Key tracking     | Virtual   |       |
+| iTerm2          | MacOS   | Key tracking    | Key tracking     | Virtual   |       |
+| KiTTY           | MacOS   | Key tracking    | Key tracking     | Virtual   |       |
+| VSCode terminal | Windows / MacOS | Key tracking    | Key tracking     | Virtual   | This requires [changing the windows title as described in talonhub community](https://github.com/talonhub/community/tree/main/apps/vscode#terminal) |
+
 
 Terminal programs generally aren't as well supported as other programs with are more rich set of accessibility APIs. Not to mention that text editors such as VIM, emacs and nano each have their own set of hotkeys to navigate the text displayed, so key tracking becomes increasingly hard to do and prone for desyncs.
 

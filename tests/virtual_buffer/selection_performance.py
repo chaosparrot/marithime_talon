@@ -3,6 +3,11 @@ from ...virtual_buffer.indexer import text_to_virtual_buffer_tokens, VirtualBuff
 from ..test import create_test_suite
 import time
 import os
+from ...virtual_buffer.settings import VirtualBufferSettings
+
+def get_virtual_buffer() -> VirtualBuffer:
+    settings = VirtualBufferSettings(live_checking=False)
+    return VirtualBuffer(settings)
 
 token_1 = text_to_virtual_buffer_tokens("Insert ", "insert")
 token_2 = text_to_virtual_buffer_tokens("a ", "a")
@@ -34,7 +39,7 @@ def fill_tokens():
 tokens = []
 
 def test_selection_performance_no_match(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.set_tokens(fill_tokens(), True)
     vb.reformat_tokens()
 
@@ -47,7 +52,7 @@ def test_selection_performance_no_match(assertion):
     assertion( "        Actual milliseconds: " + str((end_time - start_time) * 1000), made_performance_check)
 
 def test_selection_performance_no_match_lorum(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.set_tokens(fill_lorum_tokens(), True)
     vb.reformat_tokens()
 
@@ -60,7 +65,7 @@ def test_selection_performance_no_match_lorum(assertion):
     assertion( "        Actual milliseconds: " + str((end_time - start_time) * 1000), made_performance_check)
 
 def test_selection_performance_multiple_no_matches_lorum(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.set_tokens(fill_lorum_tokens(), True)
 
     assertion( "    Starting from the end of a large document and searching for text that isn't in the document'...")
@@ -73,7 +78,7 @@ def test_selection_performance_multiple_no_matches_lorum(assertion):
 
 
 def test_selection_performance_single_match(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.set_tokens(fill_tokens(), True)
 
     assertion( "    Starting from the end of a large document and searching for a word that is in the document'...")
@@ -85,7 +90,7 @@ def test_selection_performance_single_match(assertion):
     assertion( "        Actual milliseconds: " + str((end_time - start_time) * 1000), made_performance_check)
 
 def test_selection_performance_multiple_match(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.set_tokens(fill_tokens(), True)
 
     assertion( "    Starting from the end of a large document and searching for two words that are exactly in the document'...")
@@ -97,7 +102,7 @@ def test_selection_performance_multiple_match(assertion):
     assertion( "        Actual milliseconds: " + str((end_time - start_time) * 1000), made_performance_check)
     
 def test_selection_performance_multiple_no_matches(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.set_tokens(fill_tokens(), True)
 
     assertion( "    Starting from the end of a large document and searching for text that isn't in the document'...")
@@ -109,7 +114,7 @@ def test_selection_performance_multiple_no_matches(assertion):
     assertion( "        Actual milliseconds: " + str((end_time - start_time) * 1000), made_performance_check)
 
 def test_selection_performance_single_fuzzy_match(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.set_tokens(fill_tokens(), True)
 
     assertion( "    Starting from the end of a large document and searching for one word that is fuzzy within the document'...")
@@ -121,7 +126,7 @@ def test_selection_performance_single_fuzzy_match(assertion):
     assertion( "        Actual milliseconds: " + str((end_time - start_time) * 1000), made_performance_check)
 
 def test_selection_performance_multiple_fuzzy_match(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.set_tokens(fill_tokens(), True)
 
     assertion( "    Starting from the end of a large document and searching for two words that are fuzzy within the document'...")
@@ -133,7 +138,7 @@ def test_selection_performance_multiple_fuzzy_match(assertion):
     assertion( "        Actual milliseconds: " + str((end_time - start_time) * 1000), made_performance_check)
 
 def test_selection_performance_four_fuzzy_matches(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.set_tokens(fill_tokens(), True)
 
     assertion( "    Starting from the end of a large document and searching for four words that are fuzzy within the document'...")
@@ -145,7 +150,7 @@ def test_selection_performance_four_fuzzy_matches(assertion):
     assertion( "        Actual milliseconds: " + str((end_time - start_time) * 1000), made_performance_check)
 
 def test_selection_performance_four_fuzzy_matches_lorum(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.set_tokens(fill_lorum_tokens(), True)
 
     assertion( "    Starting from the end of a large document without a lot of duplicates and searching for four words that are fuzzy within the document'...")

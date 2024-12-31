@@ -2,14 +2,21 @@ from ...virtual_buffer.caret_tracker import _CARET_MARKER
 from ...virtual_buffer.buffer import VirtualBuffer
 from ...virtual_buffer.indexer import text_to_virtual_buffer_tokens
 from ..test import create_test_suite
+from ...virtual_buffer.settings import VirtualBufferSettings
+
+def get_virtual_buffer() -> VirtualBuffer:
+    settings = VirtualBufferSettings(live_checking=False)
+    return VirtualBuffer(settings)
 
 def coarse_caret_tracker_splitting(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a new sentence. \n", "insert a new sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a second sentence. \n", "insert a second sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a third sentence.", "insert a third sentence"))
     vb.caret_tracker.system = "Windows"
     vb.caret_tracker.is_macos = False
+    vb.caret_tracker.end_of_line_key = "end"
+    vb.caret_tracker.start_of_line_key = "home"
     vb.caret_tracker.text_buffer = """Insert a new sentence. 
     Insert a second """ + _CARET_MARKER + """sentence. 
     Insert a third sentence."""
@@ -33,9 +40,11 @@ def coarse_caret_tracker_splitting(assertion):
     assertion( "    Expect a sentence with new lines to have a length of 5", len(items) == 5 )
 
 def coarse_caret_tracking_single_line(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.caret_tracker.system = "Windows"
-    vb.caret_tracker.is_macos = False    
+    vb.caret_tracker.is_macos = False
+    vb.settings.end_of_line_key = "end"
+    vb.settings.start_of_line_key = "home"
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a new sentence. \n", "insert a new sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a second sentence. \n", "insert a second sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a third sentence.", "insert a third sentence"))
@@ -84,9 +93,12 @@ def coarse_caret_tracking_single_line(assertion):
     assertion( "        Expect caret line index to be lost", caret_index[0] == -1 )
  
 def coarse_caret_tracking_multi_line(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.caret_tracker.system = "Windows"
-    vb.caret_tracker.is_macos = False    
+    vb.caret_tracker.is_macos = False
+    vb.settings.end_of_line_key = "end"
+    vb.settings.start_of_line_key = "home"
+
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a new sentence. \n", "insert a new sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a second sentence. \n", "insert a second sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a third sentence.", "insert a third sentence"))
@@ -108,9 +120,11 @@ Insert a third sentence."""
     assertion( "        Expect coarse character index to be before the word insert (24)", caret_index[1] == 24)
 
 def coarse_caret_tracking_single_line_macos(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.caret_tracker.system = "Darwin"
-    vb.caret_tracker.is_macos = True    
+    vb.caret_tracker.is_macos = True
+    vb.settings.end_of_line_key = "cmd-right"
+    vb.settings.start_of_line_key = "cmd-left"
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a new sentence. \n", "insert a new sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a second sentence. \n", "insert a second sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a third sentence.", "insert a third sentence"))
@@ -159,9 +173,11 @@ def coarse_caret_tracking_single_line_macos(assertion):
     assertion( "        Expect caret line index to be lost", caret_index[0] == -1 )
 
 def coarse_caret_tracking_multi_line_macos(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.caret_tracker.system = "Darwin"
-    vb.caret_tracker.is_macos = True    
+    vb.caret_tracker.is_macos = True
+    vb.settings.end_of_line_key = "cmd-right"
+    vb.settings.start_of_line_key = "cmd-left"
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a new sentence. \n", "insert a new sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a second sentence. \n", "insert a second sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a third sentence.", "insert a third sentence"))
@@ -176,16 +192,16 @@ Insert a third sentence."""
     vb.apply_key("down:2")
     caret_index = vb.caret_tracker.get_caret_index(True) 
     assertion( "        Expect caret line index to be 2", caret_index[0] == 2)
-    assertion( "    Pressing CMD+LEFT to go to the start of the third sentence...")
+    assertion( "    Pressing cmd-LEFT to go to the start of the third sentence...")
     vb.apply_key("cmd-left")
-    caret_index = vb.caret_tracker.get_caret_index(True)  
+    
+    caret_index = vb.caret_tracker.get_caret_index(True)
     assertion( "        Expect caret line index to be 2", caret_index[0] == 2)
     assertion( "        Expect coarse character index to be before the word insert (24)", caret_index[1] == 24)
-
 
 suite = create_test_suite("Coarse caret tracking")
 suite.add_test(coarse_caret_tracker_splitting)
 suite.add_test(coarse_caret_tracking_single_line)
 suite.add_test(coarse_caret_tracking_multi_line)
-suite.add_test(coarse_caret_tracking_single_line_macos)
+suite.add_test(coarse_caret_tracking_single_line_macos) 
 suite.add_test(coarse_caret_tracking_multi_line_macos)

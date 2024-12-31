@@ -2,6 +2,11 @@ from ...virtual_buffer.buffer import VirtualBuffer
 from ...virtual_buffer.typing import VirtualBufferToken
 from ...virtual_buffer.indexer import text_to_virtual_buffer_tokens
 from ..test import create_test_suite
+from ...virtual_buffer.settings import VirtualBufferSettings
+
+def get_virtual_buffer() -> VirtualBuffer:
+    settings = VirtualBufferSettings(live_checking=False)
+    return VirtualBuffer(settings)
 
 def text_to_virtual_buffer_token_replacement(assertion):
     assertion( "    Expect token without phrase is expected phrase", text_to_virtual_buffer_tokens("Insert")[0].phrase == "insert")
@@ -16,7 +21,7 @@ def text_to_virtual_buffer_token_replacement(assertion):
 
 def detect_insert_strategies(assertion):
     assertion( "Detecting insert strategies for inserting tokens" )
-    empty_vb = VirtualBuffer()
+    empty_vb = get_virtual_buffer()
     assertion( "    From an empty virtual buffer")
     empty_append = empty_vb.detect_merge_strategy(0, 0, VirtualBufferToken("This ", "this", ""))
     assertion( "        Should append 'This ' if the virtual buffer is empty", empty_append == (-1, 0, -1))
@@ -34,7 +39,7 @@ def detect_insert_strategies(assertion):
     assertion( "        Should merge a new line because new lines cannot exist on their own", final_append == (-1, 1, -1))
 
 def appending_to_buffer(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     assertion( "Appending to virtual buffer")
     assertion( "    Inserting text into a clean virtual buffer...") 
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))

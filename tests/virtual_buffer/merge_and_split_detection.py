@@ -2,9 +2,15 @@ from ...virtual_buffer.buffer import VirtualBuffer
 from ...virtual_buffer.indexer import text_to_virtual_buffer_tokens
 from ...virtual_buffer.typing import VirtualBufferToken
 from ..test import create_test_suite
+from ...virtual_buffer.settings import VirtualBufferSettings
+
+def get_virtual_buffer() -> VirtualBuffer:
+    settings = VirtualBufferSettings(live_checking=False)
+    return VirtualBuffer(settings)
+
 
 def get_empty_vb() -> VirtualBuffer:
-    return VirtualBuffer()
+    return get_virtual_buffer()
 
 def get_filled_vb() -> VirtualBuffer:
     vb = get_empty_vb()

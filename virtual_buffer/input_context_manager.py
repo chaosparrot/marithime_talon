@@ -1,4 +1,4 @@
-from talon import ui, actions, clip, settings
+from talon import ui, actions, clip, settings, cron
 from .input_context import InputContext
 import time
 from typing import List, Callable, Tuple
@@ -23,6 +23,8 @@ class InputContextManager:
     active_formatters: List[TextFormatter]
     formatter_names: List[str]
     state_callback: Callable[[str, int, int, bool], None] = None
+    context_tracking = False
+    context_tracking_cron = None
 
     last_title: str = ""
     last_pid: int = -1
@@ -90,7 +92,7 @@ class InputContextManager:
 
                     if accessible_text and accessible_text.active_caret.line_index == caret_index[0] and accessible_text.active_caret.characters_from_end == caret_index[1]:
                         caret_confidence = 2
-
+                
                 self.update_visual_state("accessibility" if context_to_switch_to.accessible_api_available else "text", caret_confidence=caret_confidence, content_confidence=content_confidence)
             else:
                 self.update_visual_state("text", 0, 0, False)
@@ -100,9 +102,13 @@ class InputContextManager:
 
     def ensure_viable_context(self):
         # Reset the confidence for every pol
-        if (settings.get("user.marithime_indexing_strategy") == "aggressive"):
+        indexing_strategy = settings.get("user.marithime_indexing_strategy")
+        if indexing_strategy == "aggressive":
             self.visual_state['content_confidence'] = 0
             self.visual_state['caret_confidence'] = 1
+        # Don't do indexing at all
+        elif indexing_strategy == "disabled":
+            return
         
         update_caret = self.visual_state['caret_confidence'] != 2
         update_content = self.visual_state['caret_confidence'] == 1 and self.visual_state['content_confidence'] < 1
@@ -233,9 +239,19 @@ class InputContextManager:
         self.last_title = title
         return (app_name, title, pid)
     
-    def create_context(self):
-        self.current_context = InputContext(self.last_app_name, self.last_title, self.last_pid)
-        self.contexts.append(self.current_context)
+    def create_context_if_not_exists(self):
+        existing_context = None
+        for context in self.contexts:
+            if context.match_pattern(self.last_app_name, self.last_title, self.last_pid):
+                existing_context = context
+                break
+
+        # Make sure we don't accidentally create new contexts where we already have an exact match
+        if existing_context is None:
+            self.current_context = InputContext(self.last_app_name, self.last_title, self.last_pid)
+            self.contexts.append(self.current_context)
+        else:
+            self.current_context = existing_context
     
     def clear_stale_contexts(self):
         # Only check stale contexts every minute
@@ -254,14 +270,14 @@ class InputContextManager:
                 del contexts_to_clear[-1]
 
     def get_current_context(self) -> InputContext:
-        if self.current_context:
+        if self.current_context is not None:
             if self.current_context.pid == -1:
                 self.switch_context(ui.active_window())
 
             self.current_context.update_modified_at()
             self.clear_stale_contexts()
         else:
-            self.create_context()
+            self.create_context_if_not_exists()
 
         return self.current_context
 
@@ -292,6 +308,9 @@ class InputContextManager:
         self.use_last_set_formatter = use_last_formatter
     
     def index_accessible_content(self):
+        if settings.get("user.marithime_indexing_strategy") == "disabled":
+            return None
+
         accessible_text = actions.user.marithime_get_element_text()
         if self.current_context:
             self.current_context.set_accessible_api_available("text", True)
@@ -317,6 +336,9 @@ class InputContextManager:
         self.index_content(file_contents)
 
     def index_textarea(self, total_value: str = "", forced = True):
+        if settings.get("user.marithime_indexing_strategy") == "disabled":
+            return
+
         self.update_visual_state(scanning=True)
         accessible_text = self.index_accessible_content()
         if total_value == "" and accessible_text:
@@ -354,6 +376,8 @@ class InputContextManager:
         return self.indexer.determine_caret_position(zwsp, total_value)
     
     def find_caret_position(self, total_value: str, visibility_level = 0, accessible_text = None) -> (str, (int, int), (int, int)):
+        if settings.get("user.marithime_indexing_strategy") == "disabled":
+            return ("", (-1, -1), (-1, -1))
         self.update_visual_state(scanning=True)
         undefined_positions = (total_value, (-1, -1), (-1, -1))
         before_text = ""
@@ -533,3 +557,32 @@ class InputContextManager:
                 self.state_callback(self.visual_state['scanning'], self.visual_state['level'], self.visual_state['caret_confidence'], self.visual_state['content_confidence'])
         except NotImplementedError:
             pass
+    
+    def set_shift_selection(self, shift_selection: bool):
+        self.get_current_context().set_shift_selection(shift_selection)
+
+    def set_multiline_supported(self, multiline_supported: bool):
+        self.get_current_context().set_multiline_supported(multiline_supported)
+
+    def set_clear_key(self, clear_key: str):
+        self.get_current_context().set_clear_key(clear_key)
+
+    def set_end_of_line_key(self, end_of_line_key: str):
+        self.get_current_context().set_end_of_line_key(end_of_line_key)
+
+    def set_start_of_line_key(self, start_of_line_key: str):
+        self.get_current_context().set_start_of_line_key(start_of_line_key)
+
+    def set_clear_line_key(self, clear_line_key: str):
+        self.get_current_context().set_clear_line_key(clear_line_key)
+
+    def set_context_tracking(self, tracking = False):
+        self.context_tracking = tracking
+        cron.cancel(self.context_tracking_cron)
+        if tracking == False:
+            self.context_tracking_cron = None
+        else:
+            self.context_tracking_cron = cron.interval("1s", self.update_context_debug_state)
+
+    def update_context_debug_state(self):
+        actions.user.marithime_show_context()

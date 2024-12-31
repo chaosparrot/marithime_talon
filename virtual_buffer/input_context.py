@@ -36,7 +36,7 @@ class InputContext:
             self.pid = pid
 
     def match_pattern(self, app_name: str, title: str, pid: int) -> bool:
-        return self.coarse_match_pattern(app_name, title, pid) and title.lower() == self.title
+        return self.coarse_match_pattern(app_name, title, pid) and title.lower() == self.title.lower()
     
     def coarse_match_pattern(self, app_name: str, title: str, pid: int) -> bool:
         return self.app_name.lower() == app_name.lower() or self.pid == pid
@@ -57,6 +57,6 @@ class InputContext:
         self.pid = -1
         self.key_matching = ""
         self.modified_at = 0
+        self.buffer.caret_tracker.settings = None
+        self.buffer.settings = None
         self.buffer = None
-
-    

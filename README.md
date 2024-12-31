@@ -25,6 +25,10 @@ If you do not want marithime dictation, but instead only want to use the selecti
 
 You can always say `marithime` followed by a phrase to use it if you do not want to override the regular dictation insert.
 
+### List of supported programs
+
+Generally this package tries to support all kinds of programs through the accessibility APIs. Though in order to properly know whether they work, the programs are tested manually for support. [The list of supported programs is documented here](programs/SUPPORTED.md)
+
 ### Privacy statement
 
 Because most software isn't accessible, this package relies on a couple of ways to understand what is inside a text field, and where the caret inside of it is. One of these methods is **locally tracking keystrokes that happen through Talon voice**.
@@ -49,10 +53,10 @@ If you want to highlight a specific set of tests, go inside of the specific test
 
 #### Documentation
 
-[] - Create a usage and installation video
+[] - Create a usage and installation video  
 Videos seem to speak to people more than written text does, so accompany this with a video as well
 
-[] - Extension possibilities for other packages
+[] - Extension possibilities for other packages  
 There's a ton of ways other packages can make use of our captures, settings and detections, but we will need to document them so they are easier to reuse as well.
 
 #### Dictation
@@ -61,7 +65,7 @@ There's a ton of ways other packages can make use of our captures, settings and 
 This boils down to matching `an` and `the` to be similar despite them being phonetically different.
 We can add something configurable so its easy for users to extend.
 
-[] - Terminator words  
+[~] - Terminator words  
 Right now the word `quill` is used, instead of the word `over`, to terminate a command. We probably want to extend this a bit, though we need to take into account that they need to not only be used in commands, but filtered out in other ways.
 
 [] - Making automatic fixing work  
@@ -91,16 +95,25 @@ We could make it easier to loop through sentences since we already have the buff
 [] - Implement flow for digits  
 Right now, you still need to say `numb zero` every time between commands. We can detect if we should allow digits, periods and other kinds of formatters as single words if we can be very certain that the next character will be 
 
+[] - Word wrap detection  
+We need to find a way to deal with word wrap, meaning things being on a single line, but visually ( and most importantly, keyboard relatively ) they are on multiple lines. Our current Up and Down arrow key pressing does not deal with that.
+
+[] - Zero width space indexation selection fix  
+When a zero width space indexation is used, it is possible that a current selection is removed. We can fix that selection afterwards so we don't have issues where content is removed unnecessarily
+
+[] - Add clipboard pasting insert support  
+Right now it isn't possible to use clipboard pasting as a way to insert things rather than typing out the characters one by one. This makes the insertion slower than it could be. This can be done with 'Ctrl+C' and 'Ctrl+V', or 'Ctrl+Shift+C' and 'Ctrl+Shift+V' in terminals. Though we probably want to use `action.edit.paste()` to make it compatible with other packages. We do need to be aware that in terminals there is a possibility that `Remove trailing white-space when pasting` is turned on, which might cause desyncs.
+
 #### Programs
 
 [] - Improved MacOS support  
 While there's programs where it nails the accessibility API pretty well, others just don't connect properly with finding the right focused element. We'll need to address these one by one unfortunately, because accessibility APIs are all over the place from program to program.
 
-[] - Terminal support  
-Right now terminals have a ton of issues because they do not allow for text selection, have painful accessibility support, and use a ton of custom key binds that don't correlate with other document builders.
+[] - Text editor support  
+This means we should be able to support vim, nano and other keybindings. This runs into the same issues as using a terminal does however, namely poor accessibility support and hard to detect when something is inside of a text editor in the first place. Another is no line wrapping when reaching the start or end of the line and key-pressing beyond that boundary.
 
-[] - Single line detection / support  
-Some fields, like name fields, do not have the possibility to add multiple lines. In that case, we probably want to either clear the buffer or simply not allow the enter to change the field. We should probably do a refresh if we are in an accessible field, and a clear in a terminal.
+[~] - Single line detection  
+Some fields, like name fields, do not have the possibility to add multiple lines. In that case, we probably want to either clear the buffer or simply not allow the enter to change the field. We should probably do a refresh if we are in an accessible field, and a clear in a terminal. 
 
 [] - Accessiblity input tags  
 We can detect a field type, like email, phone number etc from the accessibility APIs. That means we could expose that information for other packages to use as well, so you can say `Homer` to input `homer@odyssey.com` for example.

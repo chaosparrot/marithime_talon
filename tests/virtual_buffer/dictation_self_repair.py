@@ -2,9 +2,15 @@ from ...virtual_buffer.buffer import VirtualBuffer
 from ...virtual_buffer.typing import VirtualBufferTokenList
 from ...virtual_buffer.indexer import text_to_virtual_buffer_tokens
 from ..test import create_test_suite
+from ...virtual_buffer.settings import VirtualBufferSettings
+
+def get_virtual_buffer() -> VirtualBuffer:
+    settings = VirtualBufferSettings(live_checking=False)
+    return VirtualBuffer(settings)
+
 
 def get_filled_vb():
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("a ", "a"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("new ", "new"))
@@ -17,7 +23,7 @@ def get_filled_vb():
     return vb
 
 def get_filled_vb_with_examples(examples):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     for index, example in enumerate(examples):
         vb.insert_tokens(text_to_virtual_buffer_tokens(example + " " if index < len(examples) - 1 else example, example))
     return vb

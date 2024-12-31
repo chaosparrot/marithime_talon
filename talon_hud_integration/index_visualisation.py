@@ -5,6 +5,7 @@ import os
 
 def index_document(_ = None, _2 = None):
     actions.user.marithime_index_textarea()
+    actions.user.marithime_toggle_track_context()
 
 ctx_override = Context()
 ctx_override.matches = """
@@ -64,3 +65,9 @@ class HudActions:
         absolute_status_bar_image = os.path.join(IMAGES_DIR, status_bar_image + ".png")
         status_bar_icon = actions.user.hud_create_status_icon("virtual_buffer", absolute_status_bar_image, "", "Virtual buffer unavailable", index_document)
         actions.user.hud_publish_status_icon("virtual_buffer", status_bar_icon)
+
+    def marithime_show_context() -> str:
+        """Show the current context in a Window if given the chance"""
+        content_to_render = actions.next()
+        actions.user.hud_publish_content(content_to_render, "documentation", "Virtual buffer context", True, [], [])
+        return content_to_render

@@ -2,6 +2,7 @@ from talon import Module, Context, actions, settings, ui, speech_system, app
 from .input_context_manager import InputContextManager
 from .input_fixer import InputFixer
 from .typing import CORRECTION_THRESHOLD, SELECTION_THRESHOLD
+from .settings import VirtualBufferSettings, virtual_buffer_settings
 from ..phonetics.detection import EXACT_MATCH
 from typing import List, Union
 import json
@@ -34,9 +35,11 @@ class VirtualBufferManager:
     tracking_lock: str = ""
     use_last_set_formatter = False
 
-    def __init__(self):
+    def __init__(self, settings: VirtualBufferSettings = None):
+        global virtual_buffer_settings
         self.context = InputContextManager(actions.user.marithime_update_sensory_state)
         self.fixer = InputFixer()
+        self.settings = settings if settings is not None else virtual_buffer_settings
         # self.fixer.verbose = True
         # TODO - Improve logging for fixes when the fixer is improved
 
@@ -71,6 +74,9 @@ class VirtualBufferManager:
 
     def is_selecting(self) -> bool:
         return self.context.get_current_context().buffer.is_selecting()
+    
+    def is_virtual_selecting(self) -> bool:
+        return len(self.context.get_current_context().buffer.virtual_selection) > 0
 
     def has_phrase(self, phrase: str) -> bool:
         return self.context.get_current_context().buffer.has_matching_phrase(phrase)
@@ -90,7 +96,7 @@ class VirtualBufferManager:
             else:
                 return vbm.navigate_to_token(last_token, -1, keep_selection)
         else:
-            return ["end"]
+            return [vbm.settings.get_end_of_line_key()]
 
     def select_phrases(self, phrases: List[str], until_end = False, for_correction=False) -> List[str]:
         self.disable_tracking()
@@ -129,6 +135,20 @@ class VirtualBufferManager:
         correction_insertion = self.is_selecting()
         previous_selection = "" if not correction_insertion else vbm.caret_tracker.get_selection_text()
         current_insertion = ""
+
+        # Make sure we remove the virtual selection if we apply a new insert
+        if len(vbm.virtual_selection) > 0:
+            previous_selection = "" if not correction_insertion else vbm.caret_tracker.get_text_between_tokens(
+                vbm.virtual_selection[0],
+                vbm.virtual_selection[-1]
+            )
+
+            # Apply virtual selection removal so the formatter has up to date information
+            keys_to_remove_virtual_selection = vbm.remove_virtual_selection()
+            repair_keys.extend(keys_to_remove_virtual_selection)
+            for key in keys_to_remove_virtual_selection:
+                self.context.apply_key(key)
+
         if enable_self_repair:
             
             # Remove stutters / repeats in the same phrase
@@ -182,8 +202,18 @@ class VirtualBufferManager:
                             previous_selection = vbm.caret_tracker.get_selection_text()
                             current_insertion = " ".join(insert.split()[:end_index - start_index])
 
-                            repair_keys.append("backspace")
-                            self.context.apply_key("backspace")
+                            # Regular shift selection
+                            if len(vbm.virtual_selection) == 0:
+                                remove_character_left_key = self.settings.get_remove_character_left_key()
+                                repair_keys.append(remove_character_left_key)
+                                self.context.apply_key(remove_character_left_key)
+
+                            # Let self repair work for virtual selection as well
+                            else:
+                                keys_to_remove_virtual_selection = vbm.remove_virtual_selection()
+                                repair_keys.extend(keys_to_remove_virtual_selection)
+                                for key in keys_to_remove_virtual_selection:
+                                    self.context.apply_key(key)
                             correction_insertion = True
 
         # Determine formatter
@@ -237,25 +267,27 @@ class VirtualBufferManager:
         context = vbm.determine_context()
 
         if self.is_selecting():
-            return [settings.get("user.marithime_context_remove_letter")]
+            return [self.settings.get_remove_character_left_key()]
+        elif self.is_virtual_selecting():
+            return vbm.remove_virtual_selection()
         
         if context.current is not None:
             if context.character_index == 0 and backwards and context.previous is not None:
-                return [settings.get("user.marithime_context_remove_letter") + ":" + str(len(context.previous.text))]
+                return [self.settings.get_remove_character_left_key() + ":" + str(len(context.previous.text))]
 
             elif context.character_index == len(context.current.text):
                 if not backwards and context.next is not None:
-                    return [settings.get("user.marithime_context_remove_forward_letter") + ":" + str(len(context.next.text))]
+                    return [self.settings.get_remove_character_right_key() + ":" + str(len(context.next.text))]
                 elif backwards:
-                    return [settings.get("user.marithime_context_remove_letter") + ":" + str(len(context.current.text))]
+                    return [self.settings.get_remove_character_left_key() + ":" + str(len(context.current.text))]
 
             if context.character_index > 0 and context.character_index < len(context.current.text) - 1:
                 if backwards:
-                    return [settings.get("user.marithime_context_remove_letter") + ":" + str(context.character_index)]
+                    return [self.settings.get_remove_character_left_key() + ":" + str(context.character_index)]
                 else:
-                    return [settings.get("user.marithime_context_remove_forward_letter") + ":" + str(len(context.current.text) - context.character_index)]
+                    return [self.settings.get_remove_character_right_key() + ":" + str(len(context.current.text) - context.character_index)]
 
-        return [settings.get("user.marithime_context_remove_word") if backwards else settings.get("user.marithime_context_remove_forward_word")]
+        return [self.settings.get_remove_word_left_key() if backwards else self.settings.get_remove_word_right_key()]
 
     def index(self):
         vbm = self.context.get_current_context().buffer
@@ -308,8 +340,12 @@ def init_mutator():
     mutator = VirtualBufferManager()
     ui.register("win_focus", mutator.focus_changed)
     ui.register("win_close", mutator.window_closed)
+
     settings.register("speech.language", lambda language: update_language(language))
     settings.register("speech.engine", lambda _: update_language(""))
+
+    # Enable this line to allow for quicker debugging
+    # actions.menu.open_log()
     update_language("")
     return mutator
 
@@ -415,7 +451,7 @@ class Actions:
         """Select a fuzzy match of the words and apply the given words"""
         mutator = get_mutator()
         keys = mutator.select_phrases(selection_and_correction, for_correction=True)
-        if len(keys) > 0:
+        if len(keys) > 0 or mutator.is_virtual_selecting():
             mutator.disable_tracking()
             if keys:
                 for key in keys:
@@ -478,32 +514,45 @@ class Actions:
         """Visually or audibly update the state for the user"""
         pass
 
-    def marithime_dump_context():
-        """Dump the current state of the virtual buffer for debugging purposes"""
+    def marithime_toggle_track_context():
+        """Toggle between tracking and not tracking the marithime virtual buffer context"""
         mutator = get_mutator()
-        mutator.disable_tracking("DUMP")
-        actions.insert("Available contexts:" )
-        for context in mutator.context.contexts:
-            actions.insert( "    " + context.app_name + " - " + context.title + " - PID - " + str(context.pid))
+        if mutator.context.context_tracking == True:
+            actions.user.marithime_disable_track_context()
+        else:
+            actions.user.marithime_enable_track_context()
 
-        actions.key("enter")
-        actions.insert("Using " + mutator.context.get_current_context().title + " - PID " + str(mutator.context.get_current_context().pid ))
-        actions.key("enter")
-        actions.insert(mutator.context.get_current_context().buffer.caret_tracker.text_buffer)
-        actions.key("enter:2")
-        tokens = []
-        for token in mutator.context.get_current_context().buffer.tokens:
-            tokens.append({
-                "index_from_line_end": token.index_from_line_end,
-                "line_index": token.line_index,
-                "phrase": token.phrase,
-                "text": token.text
-            })
-        actions.insert(json.dumps(tokens))
-        actions.key("enter")
-        actions.key("enter")
+    def marithime_enable_track_context():
+        """Start tracking the marithime virtual buffer context as it changes"""
+        mutator = get_mutator()
+        mutator.context.set_context_tracking(True)
+        actions.user.marithime_show_context()
 
-        actions.insert(json.dumps(list(mutator.fixer.done_fixes.keys())))
-        actions.key("enter")
+    def marithime_disable_track_context():
+        """Stop tracking the marithime virtual buffer context as it changes"""
+        mutator = get_mutator()
+        mutator.context.set_context_tracking(False)
 
-        mutator.enable_tracking("DUMP")
+    def marithime_show_context() -> str:
+        """Show the current context in a Window if supported"""
+        mutator = get_mutator()
+        current_context = mutator.context.get_current_context()
+        lines = "Using " + current_context.title + " - PID " + str(current_context.pid ) + "\n"
+        lines += "------------------------------------------------\n"
+        text_lines = current_context.buffer.caret_tracker.text_buffer.splitlines()
+        found_index = -1
+        for index, text_line in enumerate(text_lines):
+            if "$CARET" in text_line:
+                found_index = index
+
+        # Only show the relevant lines around the cursor
+        if found_index == -1:
+            lines += (current_context.buffer.caret_tracker.text_buffer).replace("$CARET", "|^|")
+        else:
+            if found_index > 0:
+                lines += text_lines[found_index - 1] + "\n"
+            lines += text_lines[found_index].replace("$CARET", "|^|")
+            if found_index < len(text_lines) - 1:
+                lines += "\n" + text_lines[found_index + 1]
+
+        return lines

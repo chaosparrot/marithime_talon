@@ -1,9 +1,15 @@
 from ...virtual_buffer.buffer import VirtualBuffer
 from ...virtual_buffer.indexer import text_to_virtual_buffer_tokens
 from ..test import create_test_suite
+from ...virtual_buffer.settings import VirtualBufferSettings
+
+def get_virtual_buffer() -> VirtualBuffer:
+    settings = VirtualBufferSettings(live_checking=False)
+    return VirtualBuffer(settings)
 
 def test_select_single_word_and_extending(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
+    vb.settings.shift_selection = True
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("a ", "a"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("new ", "new"))
@@ -18,7 +24,7 @@ def test_select_single_word_and_extending(assertion):
     assertion( "        Should go right 2 times to connect the end of 'Insert ' with 'a '", keys[0] == "shift-right:2")
     assertion( "    Deselecting, and then selecting 'Insert ' until 'new ' after that...")
     vb.select_phrases(["insert"])
-    keys = vb.select_phrases(["new"], extend_selection=True) 
+    keys = vb.select_phrases(["new"], extend_selection=True)
     assertion( "        Should have the text 'Insert a new ' selected", vb.caret_tracker.get_selection_text() == 'Insert a new ')
     assertion( "        Should not deselect the previous selection", keys[0] not in ["left", "right"])
     assertion( "        Should go right 6 times to connect the end of 'Insert ' with 'new '", keys[0] == "shift-right:6") 
@@ -40,7 +46,8 @@ def test_select_single_word_and_extending(assertion):
     assertion( "        Should go right 22 times to connect the end of 'Insert ' with 'sentence.'", keys[2] == "shift-right:22")
 
 def test_selecting_multiple_phrases_with_duplicates(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
+    vb.settings.shift_selection = True
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("a ", "a"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("new ", "new"))
@@ -92,7 +99,8 @@ def test_selecting_multiple_phrases_with_duplicates(assertion):
     assertion( "        And then should move from the start of the previous selection to the end of the new selection", keys[1] == "shift-right:10")
 
 def test_select_phrase_inside_selection_with_duplicates(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
+    vb.settings.shift_selection = True
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("a ", "a"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("new ", "new"))

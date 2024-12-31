@@ -1,11 +1,18 @@
 from ...virtual_buffer.buffer import VirtualBuffer
 from ..test import create_test_suite
 from ...virtual_buffer.indexer import text_to_virtual_buffer_tokens
+from ...virtual_buffer.settings import VirtualBufferSettings
+
+def get_virtual_buffer() -> VirtualBuffer:
+    settings = VirtualBufferSettings(live_checking=False)
+    return VirtualBuffer(settings)
 
 def test_single_line_exact_caret_navigation(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.caret_tracker.system = "Windows"
-    vb.caret_tracker.is_macos = False    
+    vb.caret_tracker.is_macos = False
+    vb.settings.end_of_line_key = "end"
+    vb.settings.start_of_line_key = "home"
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("a ", "a"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("new ", "new"))
@@ -43,9 +50,11 @@ def test_single_line_exact_caret_navigation(assertion):
     assertion( "        Expect caret index to be the same", caret_index == (0, 0))
 
 def test_multi_line_exact_caret_navigation(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.caret_tracker.system = "Windows"
     vb.caret_tracker.is_macos = False
+    vb.settings.end_of_line_key = "end"
+    vb.settings.start_of_line_key = "home"
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("a ", "a"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("new ", "new"))
@@ -102,9 +111,11 @@ def test_multi_line_exact_caret_navigation(assertion):
     assertion( "        Expect caret index to be the same", caret_index == (2, 5))
 
 def test_multi_line_exact_caret_navigation_macos(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.caret_tracker.system = "Darwin"
     vb.caret_tracker.is_macos = True
+    vb.settings.end_of_line_key = "cmd-right"
+    vb.settings.start_of_line_key = "cmd-left"
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert ", "insert"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("a ", "a"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("new ", "new"))

@@ -2,9 +2,14 @@ from ...virtual_buffer.caret_tracker import _CARET_MARKER
 from ...virtual_buffer.buffer import VirtualBuffer
 from ...virtual_buffer.indexer import text_to_virtual_buffer_tokens
 from ..test import create_test_suite
+from ...virtual_buffer.settings import VirtualBufferSettings
+
+def get_virtual_buffer() -> VirtualBuffer:
+    settings = VirtualBufferSettings(live_checking=False)
+    return VirtualBuffer(settings)
 
 def test_removing_characters(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a new sentence. \n", "insert a new sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a second sentence. \n", "insert a second sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a third sentence.", "insert a third sentence"))
@@ -125,7 +130,7 @@ Insert a third sentence."""
     assertion( "        Expect caret character index to be at the start of the second line", caret_index[1] == 22) 
 
 def test_remove_single_line_ending_remaining(assertion):
-    vb = VirtualBuffer()
+    vb = get_virtual_buffer()
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a new sentence. \n", "insert a new sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a second sentence", "insert a second sentence"))
     vb.insert_tokens(text_to_virtual_buffer_tokens(". \n", ""))

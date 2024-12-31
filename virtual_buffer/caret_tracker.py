@@ -1,6 +1,7 @@
 from typing import List
 import re
 import platform
+from .settings import VirtualBufferSettings, virtual_buffer_settings
 
 # CARET MARKERS
  # TODO APPEND RANDOM NUMBER FOR LESS COLLISIONS?
@@ -49,8 +50,15 @@ _COARSE_MARKER = "$COARSE_CARET" # Keeps track of the line number if we arent su
 # 28 - From a coarse position, we can always move back to the end of the current line to have a consistent position
 # 29 - By default, when a selection is made, going to the left places the caret on the left end of the selection, and going to the right places it on the right
 # 30 - Certain programs do not allow selection, like terminals
+# 31 - There are some standard Terminal key bindings - Like Ctrl+E ( end line ), Ctrl+A ( start line ) and Ctrl+U ( clear line ) that we can use for removal and navigation.
+# 32 - There are multiple ways to get to the end of the line or the start of the line on windows terminals ( Ctrl+A and Home, Ctrl+E and End )
+# 33 - UP and DOWN in terminals might change the context completely, so we need to remove the context we have in that case
+# 34 - Text editors do not have wrapping ( pressing backspace does not remove newlines and move to the next line )
+
 class CaretTracker:
     system: str = ""
+
+    settings: VirtualBufferSettings = None    
     is_macos: bool = False
     text_buffer: str = ""
     enable_caret_tracking: bool = True
@@ -59,9 +67,11 @@ class CaretTracker:
     selection_caret_marker = (-1, -1)
     last_caret_movement: str = ""
 
-    def __init__(self, system = platform.system()):
+    def __init__(self, system = platform.system(), settings: VirtualBufferSettings = None):
+        global virtual_buffer_settings
         self.system = system
         self.is_macos = system == "Darwin"
+        self.settings = settings if settings is not None else virtual_buffer_settings
         self.clear()
 
     def clear(self):
@@ -86,9 +96,15 @@ class CaretTracker:
                     self.shift_down = False
                 continue
 
+            # Clear the full context after the clear key was pressed
+            if  key_modifier[0] in self.settings.get_clear_key():
+                self.clear()
+                key_used = True
+                return
+
             if self.is_macos:
                 if "alt" in key:
-                    self.selecting_text = "shift" in key or self.shift_down
+                    self.selecting_text = self.settings.has_shift_selection() and "shift" in key or self.shift_down
                     key_combinations = key_modifier[0].lower().split("-")                
                     if "left" in key: 
                         left_movements = 1
@@ -113,7 +129,7 @@ class CaretTracker:
 
                 # Control keys are slightly inconsistent across programs, but generally they skip a word
                 elif "ctrl" in key:
-                    self.selecting_text = "shift" in key or self.shift_down
+                    self.selecting_text = self.settings.has_shift_selection() and "shift" in key or self.shift_down
                     key_combinations = key_modifier[0].lower().split("-")                
                     if "left" in key: 
                         left_movements = 1
@@ -148,7 +164,7 @@ class CaretTracker:
 
                 key_used = True
             elif "left" in key and not ("cmd" in key or "super" in key):
-                selecting_text = "shift" in key or self.shift_down
+                selecting_text = self.settings.has_shift_selection() and "shift" in key or self.shift_down
                 left_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     left_movements = int(key_modifier[-1])
@@ -161,7 +177,7 @@ class CaretTracker:
                 key_used = True
                 self.last_caret_movement = "left"
             elif "right" in key and not ("cmd" in key or "super" in key):
-                selecting_text = "shift" in key or self.shift_down
+                selecting_text = self.settings.has_shift_selection() and "shift" in key or self.shift_down
                 right_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     right_movements = int(key_modifier[-1])
@@ -173,27 +189,55 @@ class CaretTracker:
                     self.track_caret_right(right_movements)
                 key_used = True
                 self.last_caret_movement = "right"
-            elif ( not self.is_macos and "end" in key ) or ( self.is_macos and ("cmd" in key or "super" in key) and "right" in key ):
+
+            # TODO PROPER SPLIT UP WITH OTHER MODIFIERS
+            elif self.settings.get_end_of_line_key() in key:
                 self.mark_caret_to_end_of_line()
                 key_used = True
                 self.last_caret_movement = "right"
-            elif ( not self.is_macos and "home" in key ) or ( self.is_macos and ("cmd" in key or "super" in key) and "left" in key ):
-                self.mark_line_as_coarse()
+
+            # TODO PROPER SPLIT UP WITH OTHER MODIFIERS
+            elif self.settings.get_start_of_line_key() in key:
+
+                # In VSCODE - Moving to the start of the line depends on the whitespace
+                if self.settings.has_multiline_support():
+                    self.mark_line_as_coarse()
+                else:
+                    self.mark_caret_to_start_of_line()
+
                 key_used = True
                 self.last_caret_movement = "left"
             elif "up" in key and ( not self.is_macos or ("cmd" not in key and "super" not in key)):
                 up_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     up_movements = int(key_modifier[-1])
-                for _ in range(up_movements):
-                    self.mark_above_line_as_coarse()
+
+                # For single line input fields, going up has the behavior of either
+                # 1 - Moving to the start of the line
+                # 2 - Ignoring the character altogether
+                # 3 - Changing the line completely ( history of terminals )
+                # So at least mark the line as coarse in that case
+                if self.settings.has_multiline_support() == False:
+                    self.mark_line_as_coarse()
+                else:
+                    for _ in range(up_movements):
+                        self.mark_above_line_as_coarse()
                 key_used = True
             elif "down" in key and ( not self.is_macos or ("cmd" not in key and "super" not in key)):
                 down_movements = 1
                 if len(key_modifier) >= 1 and key_modifier[-1].isnumeric():
                     down_movements = int(key_modifier[-1])
-                for _ in range(down_movements):
-                    self.mark_below_line_as_coarse()
+
+                # For single line input fields, going down has the behavior of either
+                # 1 - Moving to the end of the line
+                # 2 - Ignoring the character altogether
+                # 3 - Changing the line completely ( history of terminals )
+                # So at least mark the line as coarse in that case
+                if self.settings.multiline_supported() == False:
+                    self.mark_line_as_coarse()
+                else:
+                    for _ in range(down_movements):
+                        self.mark_below_line_as_coarse()
                 key_used = True
         return key_used
 
@@ -214,7 +258,28 @@ class CaretTracker:
 
         before_caret_text = "\n".join(before_caret)
         after_caret_text = "\n".join(after_caret)
-        if len(after_caret) > 0:
+        if len(after_caret) > 0 and len(lines) > 1:
+            after_caret_text = "\n" + after_caret_text
+        self.set_buffer(before_caret_text, after_caret_text)
+
+    def mark_caret_to_start_of_line(self):
+        lines = self.text_buffer.splitlines()
+        before_caret = []
+        after_caret = []
+        before_caret_marker = True
+        for line in lines:
+            if _CARET_MARKER in line or _COARSE_MARKER in line:
+                after_caret.append(line.replace(_CARET_MARKER, "").replace(_COARSE_MARKER, ""))
+                before_caret_marker = False
+            else:
+                if before_caret_marker:
+                    before_caret.append(line)
+                else:
+                    after_caret.append(line)
+
+        before_caret_text = "\n".join(before_caret)
+        after_caret_text = "\n".join(after_caret)
+        if len(after_caret) > 0 and len(lines) > 1:
             after_caret_text = "\n" + after_caret_text
         self.set_buffer(before_caret_text, after_caret_text)
 
@@ -235,7 +300,7 @@ class CaretTracker:
 
         # If the line falls outside of the known line count, we have lost the caret position entirely
         # And must clear the input entirely
-        line_out_of_known_bounds = line_with_caret + difference_from_line < 0 or line_with_caret + difference_from_line > len(lines)
+        line_out_of_known_bounds = self.settings.has_multiline_support() and ( line_with_caret + difference_from_line < 0 or line_with_caret + difference_from_line > len(lines) )
         if line_out_of_known_bounds:
             before_caret = []
             after_caret = []
@@ -259,7 +324,7 @@ class CaretTracker:
         
         before_caret_text = "\n".join(before_caret)
         after_caret_text = "\n".join(after_caret)
-        if len(after_caret) > 0:
+        if len(after_caret) > 0 and len(before_caret) > 0 and len(lines) > 0:
             if difference_from_line == 0:
                 before_caret_text += "\n"
             elif char_index == 0:
@@ -594,23 +659,32 @@ class CaretTracker:
         return re.sub(r"[" + re.escape("!\"#$%&'()*+, -./:;<=>?@[\\]^`{|}~") + "]+", " ", text).split()
     
     def get_selection_text(self) -> str:
-        selection_lines = []
         if self.is_selecting():
             left = self.get_leftmost_caret_index(True)
             right = self.get_rightmost_caret_index(True)
 
+            return self.get_text_between_tokens(left, right)
+        return ""
+
+    def get_text_between_tokens(self, left_index = (-1, -1), right_index = (-1, -1)) -> str:
+        cursor_lines = []
+        if left_index != (-1, -1) and right_index != (-1, -1):
             lines = self.text_buffer.splitlines()
+
+            left = (left_index[0], left_index[1])
+            right =  (right_index[0], right_index[1])
+
             for line_index, line in enumerate(lines):
                 replaced_line = line.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
                 if line_index == left[0] and line_index == right[0]:
-                    selection_lines.append(replaced_line[len(replaced_line) - left[1]:len(replaced_line) - right[1]])
+                    cursor_lines.append(replaced_line[len(replaced_line) - left[1]:len(replaced_line) - right[1]])
                 elif line_index == left[0] and line_index < right[0]:
-                    selection_lines.append( replaced_line[len(replaced_line) - left[1]] )
+                    cursor_lines.append( replaced_line[-left[1]:] )
                 elif line_index > left[0] and line_index < right[0]:
-                    selection_lines.append( replaced_line )
+                    cursor_lines.append( replaced_line )
                 elif line_index > left[0] and line_index == right[0]:
-                    selection_lines.append( replaced_line[:len(replaced_line) - right[1]] )
-        return "\n".join(selection_lines)
+                    cursor_lines.append( replaced_line[:len(replaced_line) - right[1]] )
+        return "\n".join(cursor_lines)
 
     def navigate_to_position(self, line_index: int, character_from_end: int, deselection: bool = True, selecting: bool = None) -> List[str]:
         current = self.get_caret_index()
@@ -677,13 +751,13 @@ class CaretTracker:
 
         # Move to line end to have a consistent line ending, as that seems to be consistent
         if current[1] == -1:
-            keys.append("end" if not self.is_macos else "cmd-right")
+            keys.append(self.settings.get_end_of_line_key())
             current = (current[0], 0)
 
         # Move to the right character position
         if not character_from_end == current[1] and current[1] != -1:
             char_diff = current[1] - character_from_end
-            renewed_selection = selecting and not deselection and not self.shift_down
+            renewed_selection = selecting and not deselection and not self.shift_down and self.settings.has_shift_selection()
             keys.append( ("shift-" if renewed_selection else "" ) + ("left:" if char_diff < 0 else "right:") + str(abs(char_diff)))
 
         if current[0] == -1 or current[1] == -1:

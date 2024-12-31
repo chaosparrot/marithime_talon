@@ -1,7 +1,7 @@
 from typing import List, Callable
 from .detection import detect_phonetic_fix_type, phonetic_normalize, levenshtein, syllable_count, EXACT_MATCH, HOMOPHONE_MATCH, PHONETIC_MATCH
 
-class PhoneticSearch:    
+class PhoneticSearch:
 
     # The file content and callbacks, - Separated from talon bindings for easier testing
     homophone_content = ""

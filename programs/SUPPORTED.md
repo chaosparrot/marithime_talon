@@ -6,11 +6,12 @@ This is a list of programs that are known to be supported. Others might have var
 
 Both Windows and MacOS have supported accessibility APIs, which allow us to introspect the currently focused text area in great detail, but Linux does not. For that reason, Linux doesn't have as good of a user experience since we cannot poll the content of a text area directly.
 
-## Browser support
+## Word processor support
 
 TODO
 
-## Word processor support
+
+## Browser support
 
 TODO
 
@@ -20,6 +21,8 @@ TODO
 |-----------------|---------|-----------------|------------------|-------|
 | VSCode editor   | Windows | Yes*            | Yes*             | This requires turning on accessiblity support |
 | VSCode editor   | MacOS   | Yes*            | Yes*             | This requries turning on accessibility support `Shift+Option+F1`|
+
+VSCode has some issues when creating new files that do not have a sticky filename however.
 
 ## Terminal support
 
@@ -35,8 +38,9 @@ TODO
 | iTerm           | MacOS   | Key tracking    | Key tracking     | Virtual   |       |
 | iTerm2          | MacOS   | Key tracking    | Key tracking     | Virtual   |       |
 | KiTTY           | MacOS   | Key tracking    | Key tracking     | Virtual   |       |
-| VSCode terminal | Windows / MacOS | Key tracking    | Key tracking     | Virtual   | This requires [changing the windows title as described in talonhub community](https://github.com/talonhub/community/tree/main/apps/vscode#terminal) |
-
+| Gnome Terminal  | Linux   | Key tracking    | Key tracking     | Virtual   |       |
+| Guake           | Linux   | Key tracking    | Key tracking     | Virtual   |       |
+| VSCode terminal | Windows / MacOS / Linux | Key tracking    | Key tracking     | Virtual   | This requires [changing the windows title as described in talonhub community](https://github.com/talonhub/community/tree/main/apps/vscode#terminal) |
 
 Terminal programs generally aren't as well supported as other programs with are more rich set of accessibility APIs. Not to mention that text editors such as VIM, emacs and nano each have their own set of hotkeys to navigate the text displayed, so key tracking becomes increasingly hard to do and prone for desyncs.
 

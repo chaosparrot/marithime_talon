@@ -345,7 +345,7 @@ def init_mutator():
     settings.register("speech.engine", lambda _: update_language(""))
 
     # Enable this line to allow for quicker debugging
-    actions.menu.open_log()
+    # actions.menu.open_log()
     update_language("")
     return mutator
 

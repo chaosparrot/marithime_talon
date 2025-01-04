@@ -14,6 +14,7 @@ def get_filled_vb(with_multiline = False):
     search = PhoneticSearch()
     search.set_homophones("")
     search.set_phonetic_similiarities("")
+    search.set_semantic_similarities("")
 
     vb = get_virtual_buffer()
     vb.matcher = VirtualBufferMatcher(search)

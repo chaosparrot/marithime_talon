@@ -8,6 +8,7 @@ def test_detect_fixes(assertion):
     phonetic_search = PhoneticSearch()
     phonetic_search.set_homophones(homophone_contents)
     phonetic_search.set_phonetic_similiarities(phonetic_contents)
+    phonetic_search.set_semantic_similarities("")
 
     assertion("Phonetic search with a given set of homophones and phonetic similarities") 
     where_list = phonetic_search.get_known_fixes("where")
@@ -36,6 +37,7 @@ def test_updating_fixes(assertion):
     phonetic_search = PhoneticSearch()
     phonetic_search.set_homophones(homophone_contents)
     phonetic_search.set_phonetic_similiarities(phonetic_contents)
+    phonetic_search.set_semantic_similarities("")
     phonetic_search.update_fix('ad', 'add')
     assertion("    should be able to add 'add', and 'ad' as a homophone", phonetic_search.find_homophones("ad") == ['add'])
     assertion("    should be able to find homophones for 'add' as well", phonetic_search.find_homophones("add") == ['ad'])
@@ -47,6 +49,7 @@ def test_updating_fixes(assertion):
 def test_similarity_scores(assertion):
     phonetic_search = PhoneticSearch()
     phonetic_search.set_homophones(homophone_contents)
+    phonetic_search.set_semantic_similarities("")
     assertion("Phonetic scores")
     assertion("    should give a score of 0.8 for 'that's' and 'that' ( 1 less character in 5 letter word )", round(phonetic_search.phonetic_similarity_score("that", "thats") * 10) / 10 == 0.8)
     assertion("    should give a score of 0.75 for 'do' and 'to' as a similar word ( average of 1 missing from 2 letter word and 1 complete match )", phonetic_search.phonetic_similarity_score("do", "to") == 0.75)

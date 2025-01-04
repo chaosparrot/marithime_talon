@@ -541,8 +541,9 @@ class VirtualBuffer:
                         keys.extend(self.navigate_to_token(self.tokens[-1]))
                         self.virtual_selection = [start_token, self.tokens[-1]]
             elif not self.settings.has_shift_selection() and len(self.virtual_selection) > 0:
-                self.virtual_selection = [self.virtual_selection[0], self.tokens[-1]]
+                virtual_start_token = self.virtual_selection[0]
                 keys.extend(self.navigate_to_token(self.tokens[-1]))
+                self.virtual_selection = [virtual_start_token, self.tokens[-1]]
 
             if self.settings.has_shift_selection():
                 keys.extend(self.select_token(self.tokens[-1], True))

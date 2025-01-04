@@ -6,7 +6,9 @@ class PhoneticSearch:
     # The file content and callbacks, - Separated from talon bindings for easier testing
     homophone_content = ""
     phonetic_similarities_content = ""
+    semantic_similarities_content = ""
     homophone_update = None
+    semantics_update = None
     phonetic_similarities_update = None
 
     language: str = 'en'
@@ -14,12 +16,19 @@ class PhoneticSearch:
     # The dictionaries containing the mapping for easier finding
     homophones = None
     phonetic_similarities = None
+    semantic_similarities = None
 
     def set_homophones(self, homophone_content: str, update_callback: Callable[[str], None] = None):
         self.homophone_content = homophone_content
         self.homophones = self.parse_contents(homophone_content)
         if update_callback is not None:
             self.homophone_update = update_callback
+
+    def set_semantic_similarities(self, semantic_content: str, update_callback: Callable[[str], None] = None):
+        self.semantic_similarities_content = semantic_content
+        self.semantic_similarities = self.parse_contents(semantic_content)
+        if update_callback is not None:
+            self.semantics_update = update_callback
 
     def set_phonetic_similiarities(self, phonetic_similarities_content: str, update_callback: Callable[[str], None] = None):
         self.phonetic_similarities_content = phonetic_similarities_content
@@ -35,7 +44,7 @@ class PhoneticSearch:
         for line in contents.splitlines():
             words = line.rstrip().split(",")
 
-            # Merge the words with other homophones, but maintain the order in which they are available in the contents
+            # Merge the words with other similarities, but maintain the order in which they are available in the contents
             merged_words = list(dict.fromkeys(words))
             for word in words:
                 old_words = phones.get(word.lower(), [])
@@ -48,28 +57,7 @@ class PhoneticSearch:
         return phones
 
     def add_homophone(self, word: str, replaced_word: str):
-        check_word = word.lower()
-        check_replaced_word = replaced_word.lower()
-
-        # Update an existing row
-        if check_word in self.homophones or check_replaced_word in self.homophones:
-            new_contents = ""
-            lines = self.homophone_content.splitlines()
-            for line in lines:
-                split_line = line.lower().split(",")
-                if check_word in split_line:
-                    new_contents += line + "," + replaced_word + "\n"
-                elif check_replaced_word in split_line:
-                    new_contents += line + "," + word + "\n"
-                else:
-                    new_contents += line + "\n"
-
-        # Add a row to the homophones content
-        else:
-            new_contents = self.homophone_content
-            if not new_contents.endswith("\n"):
-                new_contents += "\n"
-            new_contents += word + "," + replaced_word
+        new_contents = self.append_to_contents(word, replaced_word, self.homophone_content)
 
         if self.homophone_update:
             self.homophone_update(new_contents)
@@ -77,13 +65,29 @@ class PhoneticSearch:
             self.set_homophones(new_contents)
 
     def add_phonetic_similarity(self, word: str, replaced_word: str):
+        new_contents = self.append_to_contents(word, replaced_word, self.phonetic_similarities_content)
+
+        if self.phonetic_similarities_update:
+            self.phonetic_similarities_update(new_contents)
+        else:
+            self.set_phonetic_similiarities(new_contents)
+
+    def add_semantic_similarity(self, word: str, replaced_word: str):
+        new_contents = self.append_to_contents(word, replaced_word, self.semantic_similarities_content)
+
+        if self.semantics_update:
+            self.semantics_update(new_contents)
+        else:
+            self.set_semantic_similarities(new_contents)
+
+    def append_to_contents(self, word: str, replaced_word: str, contents: str) -> str:
         check_word = word.lower()
         check_replaced_word = replaced_word.lower()
 
         # Update an existing row
-        if check_word in self.phonetic_similarities or check_replaced_word in self.phonetic_similarities:
+        if check_word in contents or check_replaced_word in contents:
             new_contents = ""
-            lines = self.phonetic_similarities_content.splitlines()
+            lines = contents.splitlines()
             for line in lines:
                 split_line = line.lower().split(",")
                 if check_word in split_line:
@@ -93,22 +97,25 @@ class PhoneticSearch:
                 else:
                     new_contents += line + "\n"
 
-        # Add a row to the phonetic similarities content
+        # Add a row to the content
         else:
-            new_contents = self.homophone_content
+            new_contents = contents
             if not new_contents.endswith("\n"):
                 new_contents += "\n"
             new_contents += word + "," + replaced_word
 
-        if self.phonetic_similarities_update:
-            self.phonetic_similarities_update(new_contents)
-        else:
-            self.set_phonetic_similiarities(new_contents)
+        return new_contents
 
     def find_homophones(self, word: str) -> List[str]:
         word = word.lower()
         if word in self.homophones:
             return self.homophones[word]
+        return []
+    
+    def find_semantic_similarities(self, word: str) -> List[str]:
+        word = word.lower()
+        if word in self.semantic_similarities:
+            return self.semantic_similarities[word]
         return []
     
     def find_phonetic_similarities(self, word: str) -> List[str]:
@@ -118,7 +125,7 @@ class PhoneticSearch:
         return []
     
     def get_known_fixes(self, word: str, replaced_word: str):
-        self.find_homophones(word)
+        return self.find_homophones(word)
 
     def update_fix(self, word: str, replaced_word: str):
         homophones = self.find_homophones(word)
@@ -158,6 +165,11 @@ class PhoneticSearch:
             homophones = self.find_homophones(word_a)
             if word_b.lower() in homophones:
                 return HOMOPHONE_MATCH
+            
+            # Match a known homophone
+            semantic_similarities = self.find_semantic_similarities(word_a)
+            if word_b.lower() in semantic_similarities:
+                return PHONETIC_MATCH
 
             # Attempt to find an unknown homophone
             homophone_a = phonetic_normalize(word_a, True, self.language)

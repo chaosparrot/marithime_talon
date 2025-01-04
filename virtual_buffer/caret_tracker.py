@@ -155,7 +155,7 @@ class CaretTracker:
             # Noop if it has already been used
             if key_used == True:
                 return key_used
-                
+
             # Only track a shift down if it is the ONLY key pressed down
             elif "shift" == key_modifier[0]:
                 self.shift_down = key_modifier[-1] == "down"
@@ -192,6 +192,7 @@ class CaretTracker:
 
             # TODO PROPER SPLIT UP WITH OTHER MODIFIERS
             elif self.settings.get_end_of_line_key() in key:
+
                 self.mark_caret_to_end_of_line()
                 key_used = True
                 self.last_caret_movement = "right"
@@ -233,7 +234,7 @@ class CaretTracker:
                 # 2 - Ignoring the character altogether
                 # 3 - Changing the line completely ( history of terminals )
                 # So at least mark the line as coarse in that case
-                if self.settings.multiline_supported() == False:
+                if self.settings.has_multiline_support() == False:
                     self.mark_line_as_coarse()
                 else:
                     for _ in range(down_movements):

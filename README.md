@@ -61,10 +61,6 @@ There's a ton of ways other packages can make use of our captures, settings and 
 
 #### Dictation
 
-[] - Similarity matching by meaning  
-This boils down to matching `an` and `the` to be similar despite them being phonetically different.
-We can add something configurable so its easy for users to extend.
-
 [~] - Terminator words  
 Right now the word `quill` is used, instead of the word `over`, to terminate a command. We probably want to extend this a bit, though we need to take into account that they need to not only be used in commands, but filtered out in other ways.
 

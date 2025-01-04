@@ -57,11 +57,27 @@ At the time of writing, the tests show a 95% accuracy in the current benchmarks,
 
 ### Phonetics
 
+There are multiple stages to comparing words. One is the direct matching ( "where" is equal to "where"), then there is [homophone](#homophones) matching ( "where" is equal to "wear" ) and finally there is [semantic](#semantics) matching ( "a" is equal to "the" ). If there is still no match, we do fuzzy matching according to phonetic similarity.
+
 The phonetic similarity, or how similar something sounds, is checked through turning the text into roughly similar letters. `The` and `de` both become `de`, `all` and `Al` will become `al`. The rules on how this process happens varies per language, and can be tweaked inside `phonetics/language/english.py` for english comparisons.
 
 Once we have this text converted, we compare it using [Levenshtein distance](https://en.wikipedia.org/wiki/Levenshtein_distance). 
 
 Note that, while this doesn't always give the perfect comparison, we are aiming for good enough. 
+
+#### Homophones
+
+Homophones are words that are spelled differently, but sound exactly the same. They are managed through the phonetics part, and new homophones are added automatically if they are detected and fixed through marithime corrections. If it detects that 'where' has been replaced with 'wear', we check if the phonetic similarity is the same. If it is, we automatically add the homophone to the list.
+
+The original homophones were copied over from the talonhub community repository. As such, if you have your own personal homophones file, you can paste it in `phonetics/lists/homophones.csv` to have it instantly match your configuration.
+
+#### Semantics
+
+Sometimes, words that do not sound the same can be considered similar in meaning enough to allow for a selection or correction to occur. For example, `the` and `a` do not sound alike at all, but if we want to select `the phone`, but the text has `a phone` instead, we don't want to not match it.
+
+Generally, with words sounding similar, this kind of matching isn't needed. But especially for some shorter words like `an` or `the`, `in` or `on`, we might want to allow for matching if we mispeak or talon accidentally hears the other word instead.
+
+The list of semantically similar words for matching is managed in the `phonetics/lists/semantics.csv` and can be managed by manually updating the CSV file.
 
 ### Selection
 

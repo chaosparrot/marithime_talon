@@ -19,9 +19,11 @@ def get_tokens_from_sentence(sentence: str):
 def get_matcher() -> VirtualBufferMatcher:
     homophone_contents = "where,wear,ware"
     phonetic_contents = "where,we're,were"
+    semantic_contents = ""
     phonetic_search = PhoneticSearch()
     phonetic_search.set_homophones(homophone_contents)
     phonetic_search.set_phonetic_similiarities(phonetic_contents)
+    phonetic_search.set_semantic_similarities(semantic_contents)
     return VirtualBufferMatcher(phonetic_search)
 
 def get_single_word_match_tree_root(matcher: VirtualBufferMatcher, calculation, sublist, query_index: int, buffer_index: int) -> VirtualBufferMatch:

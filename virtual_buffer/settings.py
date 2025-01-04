@@ -48,8 +48,8 @@ class VirtualBufferSettings:
     
     def get_start_of_line_key(self):
         if self.live_checking:
-            self.end_of_line_key = settings.get("user.marithime_context_start_line_key")
-        return self.end_of_line_key
+            self.start_of_line_key = settings.get("user.marithime_context_start_line_key")
+        return self.start_of_line_key
 
     def get_remove_line_key(self):
         if self.live_checking:

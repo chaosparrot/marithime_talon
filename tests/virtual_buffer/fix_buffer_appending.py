@@ -8,6 +8,7 @@ def get_input_fixer() -> InputFixer:
     search = PhoneticSearch()
     search.set_homophones("")
     search.set_phonetic_similiarities("")
+    search.set_semantic_similarities("")
     input_fixer.phonetic_search = search
     return input_fixer
 

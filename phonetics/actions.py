@@ -22,11 +22,13 @@ def update_language(language: str):
         current_language = language
         global homophones_file
         global phonetics_file
+        global semantics_file
         global phonetic_search
 
         postfix = "" if language == "en" else "_" + language
         homophones_file = os.path.join(cwd, "lists", "homophones" + postfix + ".csv")
         phonetics_file = os.path.join(cwd, "lists", "phonetic_similarties" + postfix + ".csv")
+        semantics_file = os.path.join(cwd, "lists", "semantics" + postfix + ".csv")        
 
         homophones_content = ""
         if os.path.exists(homophones_file):
@@ -37,9 +39,15 @@ def update_language(language: str):
         if os.path.exists(phonetics_file):
             with open(phonetics_file) as f:
                 phonetics_content = f.read()
-            
+
+        semantics_content = ""
+        if os.path.exists(semantics_file):
+            with open(semantics_file) as f:
+                semantics_content = f.read()
+
         phonetic_search.set_homophones(homophones_content, lambda content, file_location=homophones_file: write_file(file_location, content))
         phonetic_search.set_phonetic_similiarities(phonetics_content, lambda content, file_location=phonetics_file: write_file(file_location, content))
+        phonetic_search.set_semantic_similarities(semantics_content, lambda content, file_location=semantics_file: write_file(file_location, content))
         phonetic_search.set_language(language)
 
 settings.register("speech.language", update_language)
@@ -63,7 +71,7 @@ def reload_homophones(name, flags):
     global phonetic_search
     phonetic_search.set_homophones(contents)
 
-def reload_phonetic_similarties(name, flags):
+def reload_phonetic_similarities(name, flags):
     if name != phonetics_file:
         return
 
@@ -75,12 +83,27 @@ def reload_phonetic_similarties(name, flags):
     global phonetic_search
     phonetic_search.set_phonetic_similiarities(contents)
 
+def reload_semantic_similarities(name, flags):
+    if name != semantics_file:
+        return
+
+    contents = ""
+    if os.path.exists(semantics_file):
+        with open(semantics_file) as f:
+            contents = f.read()
+
+    global phonetic_search
+    phonetic_search.set_semantic_similarities(contents)
+
+
 def reload_files(name, flags):
     if name is not None:
         if name == homophones_file:
             reload_homophones(name, flags)
         elif name == phonetics_file:
-            reload_phonetic_similarties(name, flags)
+            reload_phonetic_similarities(name, flags)
+        elif name == phonetics_file:
+            reload_semantic_similarities(name, flags)
 
 fs.watch(cwd, reload_files)
 
@@ -106,6 +129,16 @@ class Actions:
         """Get phonetic similarties for the given word"""
         global phonetic_search
         phonetic_search.find_phonetic_similarities(word)
+
+    def marithime_semantic_similarities_add(word: str, replaced_word: str):
+        """Update the semantics file with a new addition"""
+        global phonetic_search
+        phonetic_search.add_semantic_similarity(word, replaced_word)
+
+    def marithime_semantic_similarities_get(word: str) -> [str] or None:
+        """Get semantic similarties for the given word"""
+        global phonetic_search
+        phonetic_search.find_semantic_similarities(word)
     
     def marithime_phonetic_similarity_score(word_a: str, word_b: str) -> int:
         """Test whether or not word a is similar enough to word b to be considered phonetically similar"""

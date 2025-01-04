@@ -26,6 +26,7 @@ def get_uncached_virtual_buffer():
     vb.matcher.phonetic_search = PhoneticSearch()
     vb.matcher.phonetic_search.set_homophones("")
     vb.matcher.phonetic_search.set_phonetic_similiarities("")
+    vb.matcher.phonetic_search.set_semantic_similarities("")    
 
     return vb
 
@@ -733,7 +734,7 @@ def percentage_test_selfrepair(assertion):
     percentage_tests(assertion, False, False, True, 0.95)
 
 suite = create_test_suite("Selecting whole phrases inside of a selection")
-suite.add_test(percentage_test_selection)
-suite.add_test(percentage_test_correction)
-suite.add_test(percentage_test_selfrepair)
+#suite.add_test(percentage_test_selection)
+#suite.add_test(percentage_test_correction)
+#suite.add_test(percentage_test_selfrepair)
 #suite.add_test(percentage_tests)

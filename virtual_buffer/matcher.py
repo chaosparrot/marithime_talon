@@ -18,10 +18,15 @@ class VirtualBufferMatcher:
 
     phonetic_search: PhoneticSearch = None
     similarity_token_list: Dict[str, float] = None
+    latest_search: List[str] = None
+    latest_direction = 0
+    
 
     def __init__(self, phonetic_search: PhoneticSearch):
         self.phonetic_search = phonetic_search
         self.similarity_token_list = {}
+        self.latest_search = []
+        self.latest_direction = 0
 
     # Calculate the best matching score
     # Based on the similarity score times the amount of syllables
@@ -51,13 +56,13 @@ class VirtualBufferMatcher:
         match_threshold += 0.1 * max(0, (3 - len(phrases)))
         return min(0.83, match_threshold)
 
-    def find_top_three_matches_in_token_list(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, selecting: bool = False, for_correction: bool = False, verbose: bool = False):
+    def find_top_three_matches_in_token_list(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, selecting: bool = False, for_correction: bool = False, verbose: bool = False, direction: int = 0, overwrite_token_index: int = -1):
         # Don't change the match threshold for corrections
         if not for_correction:
             match_threshold = self.get_threshold_for_selection(phrases, match_threshold)
 
-        leftmost_token_index = virtual_buffer.determine_leftmost_token_index()[0]
-        rightmost_token_index = virtual_buffer.determine_rightmost_token_index()[0]
+        leftmost_token_index = virtual_buffer.determine_leftmost_token_index()[0] if overwrite_token_index == -1 else overwrite_token_index
+        rightmost_token_index = virtual_buffer.determine_rightmost_token_index()[0] if overwrite_token_index == -1 else overwrite_token_index
         starting_index = 0
         ending_index = len(virtual_buffer.tokens)
         token_list = VirtualBufferTokenList(starting_index, virtual_buffer.tokens[starting_index:ending_index])
@@ -65,14 +70,24 @@ class VirtualBufferMatcher:
         match_calculation.cache.index_token_list(token_list)
         windowed_sublists = token_list.get_windowed_sublists(leftmost_token_index, match_calculation)
 
+        # Filter out all the sublists before or after the current selection if we are using a specific direction
+        if verbose:
+            print(" USED DIRECTION!!!!", direction )
+        if direction == 1:
+            windowed_sublists = list(map(lambda x: x.filter_after_index(rightmost_token_index), windowed_sublists))
+        elif direction == -1:
+            windowed_sublists = list(map(lambda x: x.filter_before_index(leftmost_token_index), windowed_sublists))
+        windowed_sublists = list(filter(lambda mapped: mapped.length > 0, windowed_sublists))
+
         if verbose:
             print( "- Using match threshold: " + str(match_calculation.match_threshold))
             print( "- Splitting into " + str(len(windowed_sublists)) + " windowed sublists for rapid searching")
 
+        matches = []
         highest_score_achieved = False
         for windowed_sublist in windowed_sublists:
             sublists, match_calculation = self.find_potential_sublists(match_calculation, windowed_sublist, verbose=verbose)
-            split_sublists = self.split_sublists_by_cursor_position(sublists, leftmost_token_index, rightmost_token_index)
+            split_sublists = self.split_sublists_by_cursor_position(sublists, leftmost_token_index, rightmost_token_index, direction)
             matches = []
 
             highest_found_match = match_threshold
@@ -137,7 +152,19 @@ class VirtualBufferMatcher:
                         print("DO NOT SKIP WORD", score_for_index, non_match_threshold, windowed_index)
                 elif verbose:
                     print("SKIP INDEX", windowed_index)
-        
+
+        # If we are doing repeats and looping
+        # We want to loop back around to the start of the field once we hit the end
+        # So retry finding matches from either the end or the start, but only one time
+        if len(matches) == 0 and direction != 0:
+            retry_index = -1
+            if direction == 1 and leftmost_token_index > 0:
+                retry_index = 0
+            elif direction == -1 and rightmost_token_index < ending_index:
+                retry_index = ending_index
+            
+            if retry_index != -1:
+                matches = self.find_top_three_matches_in_token_list(virtual_buffer, phrases, match_threshold, selecting, for_correction, verbose, direction, retry_index)
         return matches
 
     # Generate a match calculation based on the words to search for weighted by syllable count
@@ -182,7 +209,8 @@ class VirtualBufferMatcher:
 
     # Split the sublists up into three zones that are important for selection
     # The zone before, on and after the caret
-    def split_sublists_by_cursor_position(self, sublists: List[VirtualBufferTokenList], left_index: int, right_index: int) -> List[List[VirtualBufferTokenList]]:
+    # If a predefined direction is given, only use that
+    def split_sublists_by_cursor_position(self, sublists: List[VirtualBufferTokenList], left_index: int, right_index: int, direction: int = 0) -> List[List[VirtualBufferTokenList]]:
         before = []
         current = []
         after = []
@@ -199,7 +227,13 @@ class VirtualBufferMatcher:
         # the assumption being that the closest match to the cursor matters most
         before.reverse()
 
-        return [before, current, after]
+        split_sublists = [before, current, after]
+        if direction == 1:
+            split_sublists = [after]
+        elif direction == -1:
+            split_sublists = [before]
+
+        return split_sublists
     
     def find_matches_in_token_list(self, match_calculation: VirtualBufferMatchCalculation, sublist: VirtualBufferTokenList, highest_match: float = 0, early_stopping: bool = True, verbose: bool = False) -> Tuple[List[VirtualBufferMatch], VirtualBufferMatchCalculation]:
         branches = match_calculation.get_starting_branches(sublist)
@@ -1090,13 +1124,23 @@ class VirtualBufferMatcher:
         return match_calculation
 
     def find_best_match_by_phrases(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, verbose: bool = False) -> (List[VirtualBufferToken], VirtualBufferMatch):
-        matches = self.find_top_three_matches_in_token_list(virtual_buffer, phrases, match_threshold, selecting, for_correction, verbose)
+        # Give a direction if we are repeating a search so we can repeat a loop
+        self.latest_direction = self.latest_direction if " ".join(self.latest_search) == " ".join(phrases) else 0
+        self.latest_search = phrases
+
+        if verbose:
+            print(" MATCHES PREVIOUS SEARCH?", " ".join(self.latest_search) == " ".join(phrases), self.latest_direction )
+            print(phrases, self.latest_search)
+
+        matches = self.find_top_three_matches_in_token_list(virtual_buffer, phrases, match_threshold, selecting, for_correction, verbose, self.latest_direction)
 
         if verbose:
             print( "All available matches:", matches, next_occurrence )
 
         if len(matches) > 0:
             best_match_tokens = []
+
+            # Use the closest one in the center
             best_match = matches[0]
 
             if len(matches) > 1:
@@ -1105,17 +1149,14 @@ class VirtualBufferMatcher:
                     matches.sort(key = cmp_to_key(self.compare_match_trees_for_selection), reverse=True)
                 if for_correction:
                     matches.sort(key = cmp_to_key(self.compare_match_trees_for_correction), reverse=True)
-
-                # TODO SELECT NEXT IN DIRECTION IN CASE OF REPETITION
-                # For now it will just skip between two nearest elements
-                if verbose:
-                    print( "After sorting", matches)
-                if next_occurrence and len(matches) > 1:
-                    if verbose:
-                        print( "Discarding first item due to it being selected", matches )
-                    matches.pop(0)
-
                 best_match = matches[0]
+
+
+            # Only update if we have changed the search to allow looping around
+            if self.latest_direction == 0:
+                # Determine the last used direction
+                leftmost_token_index = virtual_buffer.determine_leftmost_token_index()[0]
+                self.latest_direction = 1 if matches[0].buffer_indices[0][0] >= leftmost_token_index else -1
 
             for index_list in best_match.buffer_indices:
                 for subindex in index_list:

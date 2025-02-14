@@ -295,6 +295,25 @@ class VirtualBufferTokenList:
             sublist_tokens = self.tokens[starting_index:ending_index]
         return VirtualBufferTokenList(self.index + starting_index, sublist_tokens)
 
+    def filter_before_index(self, filter_index: int):
+        sublist_tokens = []
+        if self.index < filter_index:
+            for token_index, token in enumerate(self.tokens):
+                if token_index + self.index < filter_index:
+                    sublist_tokens.append(token)
+        return VirtualBufferTokenList(self.index, sublist_tokens)
+
+    def filter_after_index(self, filter_index: int):
+        sublist_tokens = []
+        used_index = self.index
+        if self.end_index > filter_index:
+            for token_index, token in enumerate(self.tokens):
+                if token_index + self.index > filter_index:
+                    if len(sublist_tokens) == 0:
+                        used_index = token_index + self.index
+                    sublist_tokens.append(token)
+        return VirtualBufferTokenList(used_index, sublist_tokens)
+
     def is_valid_index(self, index) -> bool:
         return index >= 0 and index < self.length
 
@@ -355,7 +374,6 @@ class VirtualBufferMatch:
 
     def get_matched_words(self) -> VirtualBufferMatchWords:
         match_words = VirtualBufferMatchWords()
-        index_offset = 0
         buffer_index = -1
         local_query_index = -1
         local_buffer_index = -1

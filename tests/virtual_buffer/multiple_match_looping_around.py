@@ -81,4 +81,3 @@ suite = create_test_suite("Using a filled virtual buffer which contains duplicat
 
 suite.add_test(test_looping_new_from_end) 
 suite.add_test(test_looping_new_from_start)
-suite.run()

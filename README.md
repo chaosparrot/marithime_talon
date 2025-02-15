@@ -70,7 +70,7 @@ This feature has been implemented but it hasn't been tested very well. There's p
 [] - Incremental text field updates  
 Right now, indexing a text field causes it to lose all meaning with regards to formatters used. This causes problems with trying to re-use a formatter that was used.
 
-[] - Repeater noises - Looping through selections and corrections  
+[~] - Repeater noises - Looping through selections and corrections  
 Most of this architecture is already built, but since there has been a refactoring this functionality would probably loop between two values right now rather than go through the list like a 
 
 [] - Repeater noises - Looping through homophones  

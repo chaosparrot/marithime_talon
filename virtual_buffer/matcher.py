@@ -18,15 +18,10 @@ class VirtualBufferMatcher:
 
     phonetic_search: PhoneticSearch = None
     similarity_token_list: Dict[str, float] = None
-    latest_search: List[str] = None
-    latest_direction = 0
-    
 
     def __init__(self, phonetic_search: PhoneticSearch):
         self.phonetic_search = phonetic_search
         self.similarity_token_list = {}
-        self.latest_search = []
-        self.latest_direction = 0
 
     # Calculate the best matching score
     # Based on the similarity score times the amount of syllables
@@ -1123,16 +1118,8 @@ class VirtualBufferMatcher:
 
         return match_calculation
 
-    def find_best_match_by_phrases(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, verbose: bool = False) -> (List[VirtualBufferToken], VirtualBufferMatch):
-        # Give a direction if we are repeating a search so we can repeat a loop
-        self.latest_direction = self.latest_direction if " ".join(self.latest_search) == " ".join(phrases) else 0
-        self.latest_search = phrases
-
-        if verbose:
-            print(" MATCHES PREVIOUS SEARCH?", " ".join(self.latest_search) == " ".join(phrases), self.latest_direction )
-            print(phrases, self.latest_search)
-
-        matches = self.find_top_three_matches_in_token_list(virtual_buffer, phrases, match_threshold, selecting, for_correction, verbose, self.latest_direction)
+    def find_best_match_by_phrases(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, verbose: bool = False, direction: int = 0) -> (List[VirtualBufferToken], VirtualBufferMatch):
+        matches = self.find_top_three_matches_in_token_list(virtual_buffer, phrases, match_threshold, selecting, for_correction, verbose, direction)
 
         if verbose:
             print( "All available matches:", matches, next_occurrence )
@@ -1150,13 +1137,6 @@ class VirtualBufferMatcher:
                 if for_correction:
                     matches.sort(key = cmp_to_key(self.compare_match_trees_for_correction), reverse=True)
                 best_match = matches[0]
-
-
-            # Only update if we have changed the search to allow looping around
-            if self.latest_direction == 0:
-                # Determine the last used direction
-                leftmost_token_index = virtual_buffer.determine_leftmost_token_index()[0]
-                self.latest_direction = 1 if matches[0].buffer_indices[0][0] >= leftmost_token_index else -1
 
             for index_list in best_match.buffer_indices:
                 for subindex in index_list:

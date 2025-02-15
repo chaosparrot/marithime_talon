@@ -23,12 +23,16 @@ class VirtualBuffer:
     caret_tracker: CaretTracker = None
     virtual_selection = None
     last_action_type = "insert"
+    last_search = None
+    last_direction = None
     settings: VirtualBufferSettings = None
 
     def __init__(self, settings: VirtualBufferSettings = None):
         global virtual_buffer_settings
-        self.settings = settings if settings is not None else virtual_buffer_settings        
+        self.settings = settings if settings is not None else virtual_buffer_settings
         self.caret_tracker = CaretTracker(settings=self.settings)
+        self.last_search = []
+        self.last_direction = 0
         self.matcher = VirtualBufferMatcher(phonetic_search)
         self.set_tokens()
 
@@ -168,6 +172,7 @@ class VirtualBuffer:
             self.caret_tracker.append_before_caret(token_to_insert.text)
 
         self.last_action_type = "insert"
+        self.last_search = []
 
     def append_token_after(self, token_index: int, appended_token: VirtualBufferToken, should_reindex = True):
         appended_token.line_index = self.tokens[token_index].line_index
@@ -427,12 +432,14 @@ class VirtualBuffer:
 
             self.caret_tracker.remove_after_caret(delete_count)
         self.last_action_type = "remove"
+        self.last_search = []        
         
     def apply_backspace(self, backspace_count = 0):
         if self.is_selecting() and backspace_count > 0:
             if self.remove_selection():
                 backspace_count -= 1
             self.last_action_type = "remove"
+            self.last_search = []
 
         if backspace_count <= 0:
             return
@@ -489,6 +496,7 @@ class VirtualBuffer:
 
             self.caret_tracker.remove_before_caret(backspace_count)
         self.last_action_type = "remove"
+        self.last_search = []        
 
     def reformat_tokens(self):
         self.tokens = reindex_tokens(self.tokens)
@@ -558,11 +566,20 @@ class VirtualBuffer:
                 should_go_to_next_occurrence = self.matcher.is_phrase_selected(self, phrase)
                 if not should_go_to_next_occurrence:
                     break
-
-        best_match_tokens, _ = self.matcher.find_best_match_by_phrases(self, phrases, match_threshold, should_go_to_next_occurrence, selecting=True, for_correction=for_correction, verbose=verbose)
+        
+        self.last_direction = self.last_direction if should_go_to_next_occurrence and " ".join(self.last_search) == " ".join(phrases) else 0
+        best_match_tokens, match = self.matcher.find_best_match_by_phrases(self, phrases, match_threshold, should_go_to_next_occurrence, selecting=True, for_correction=for_correction, verbose=verbose, direction=self.last_direction)
         if best_match_tokens is not None and len(best_match_tokens) > 0:
             if verbose:
                 print("!!! SELECTING !!!", best_match_tokens)
+            
+            # Determine the last used direction
+            # Give a direction if we are repeating a search so we can repeat a loop                
+            leftmost_token_index = self.determine_leftmost_token_index()[0]
+            if not should_go_to_next_occurrence:
+                self.last_direction = 1 if match.buffer_indices[0][0] > leftmost_token_index else -1
+            self.last_search = phrases
+            
             return self.select_token_range(best_match_tokens[0], best_match_tokens[-1], extend_selection=extend_selection)
         else:
             return []
@@ -681,6 +698,7 @@ class VirtualBuffer:
             # If we do not move, still keep a memory that a caret movement was done rather than an insertion or removal
             if len(key_events) == 0:
                 self.last_action_type = self.caret_tracker.last_caret_movement
+                self.last_search = []
         else:
             key_events = []
 
@@ -751,3 +769,4 @@ class VirtualBuffer:
             self.virtual_selection = []
 
         return keys
+        

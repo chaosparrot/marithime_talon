@@ -270,7 +270,7 @@ class VirtualBufferTokenList:
     def get_windowed_sublists(self, cursor_token_index, match_calculation: VirtualBufferMatchCalculation) -> List[Self]:
         sublist_size = max(25, len(match_calculation.words) * 5)
         if len(self.tokens) <= sublist_size * 2:
-            return [self]
+            return [VirtualBufferTokenList(self.index, self.tokens)]
         else:
             window_overlap = len(match_calculation.words) * 2
             starting_index = 0

@@ -470,10 +470,10 @@ class Actions:
         # Positive - cycle through single corrections
         # Skip - Select the next correctable phrase
         # Positive_after_skip - Replace the selection with the insertion
-        if mutator.repeater_type != "positive_after_skip":
-            keys = mutator.select_phrases(selection_and_correction, for_correction=True)
-        else:
+        if mutator.repeater_type == "positive_after_skip":
             keys = []
+        else:
+            keys = mutator.select_phrases(selection_and_correction, for_correction=True)
         if len(keys) > 0 or mutator.is_virtual_selecting() or mutator.repeater_type == "positive_after_skip":
             mutator.disable_tracking()
             if keys:

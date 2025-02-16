@@ -56,8 +56,10 @@ class VirtualBufferMatcher:
         if not for_correction:
             match_threshold = self.get_threshold_for_selection(phrases, match_threshold)
 
-        leftmost_token_index = virtual_buffer.determine_leftmost_token_index()[0] if overwrite_token_index == -1 else overwrite_token_index
-        rightmost_token_index = virtual_buffer.determine_rightmost_token_index()[0] if overwrite_token_index == -1 else overwrite_token_index
+        leftmost_token_index, leftmost_character_index = virtual_buffer.determine_leftmost_token_index()
+        rightmost_token_index, rightmost_character_index = virtual_buffer.determine_rightmost_token_index()
+        leftmost_token_index = leftmost_token_index if overwrite_token_index == -1 else overwrite_token_index
+        rightmost_token_index = rightmost_token_index if overwrite_token_index == -1 else overwrite_token_index
         starting_index = 0
         ending_index = len(virtual_buffer.tokens)
         token_list = VirtualBufferTokenList(starting_index, virtual_buffer.tokens[starting_index:ending_index])
@@ -67,16 +69,19 @@ class VirtualBufferMatcher:
 
         # Filter out all the sublists before or after the current selection if we are using a specific direction
         if verbose:
-            print(" USED DIRECTION!!!!", direction )
+            print(" - Repeating in direction: " + ("right" if direction == 1 else "left"))
+            print( "TOKEN INDICES ", rightmost_token_index, leftmost_token_index )
+            print( "Character indices", rightmost_character_index, leftmost_character_index )
         if direction == 1:
-            windowed_sublists = list(map(lambda x: x.filter_after_index(rightmost_token_index), windowed_sublists))
+            windowed_sublists = list(map(lambda sublist: sublist.filter_after_index(rightmost_token_index), windowed_sublists))
         elif direction == -1:
-            windowed_sublists = list(map(lambda x: x.filter_before_index(leftmost_token_index), windowed_sublists))
+            windowed_sublists = list(map(lambda sublist: sublist.filter_before_index(leftmost_token_index), windowed_sublists))
         windowed_sublists = list(filter(lambda mapped: mapped.length > 0, windowed_sublists))
 
         if verbose:
             print( "- Using match threshold: " + str(match_calculation.match_threshold))
             print( "- Splitting into " + str(len(windowed_sublists)) + " windowed sublists for rapid searching")
+            print( windowed_sublists )
 
         matches = []
         highest_score_achieved = False
@@ -153,9 +158,9 @@ class VirtualBufferMatcher:
         # So retry finding matches from either the end or the start, but only one time
         if len(matches) == 0 and direction != 0:
             retry_index = -1
-            if direction == 1 and leftmost_token_index > 0:
+            if direction == 1 and rightmost_token_index > ending_index - 1:
                 retry_index = 0
-            elif direction == -1 and rightmost_token_index < ending_index:
+            elif direction == -1 and leftmost_token_index < 0:
                 retry_index = ending_index
             
             if retry_index != -1:

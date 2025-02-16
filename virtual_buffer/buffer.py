@@ -734,10 +734,6 @@ class VirtualBuffer:
             key_events = self.caret_tracker.navigate_to_position(token.line_index, index_from_end + char_position, not keep_selection, keep_selection)
             for key in key_events:
                 self.apply_key(key)
-
-            # If we do not move, still keep a memory that a caret movement was done rather than an insertion or removal
-            if len(key_events) == 0:
-                self.set_last_action(self.caret_tracker.last_caret_movement)
         else:
             key_events = []
 

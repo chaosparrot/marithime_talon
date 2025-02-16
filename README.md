@@ -73,8 +73,14 @@ Right now, indexing a text field causes it to lose all meaning with regards to f
 [~] - Repeater noises - Looping through selections and corrections  
 Most of this architecture is already built, but since there has been a refactoring this functionality would probably loop between two values right now rather than go through the list like a 
 [x] - Looping through selections
-[~] - Looping through navigations
-[~] - Looping through corrections
+[x] - Looping through navigations
+[x] - Looping through deletions
+[x] - Affirmative skipped corrections
+[x] - Skip repetition corrections
+    [x] - Continue loop until first
+    [ ] - Continue loop over first
+    [ ] - Continue loop adjacent
+[ ] - Repeated fixes
 
 [~] - Repeater noises - Looping through homophones  
 We know the homophones, we just need to find a way to replace a selected word with a known homophone and have it work with a repeater noise. I dislike the `phones` menu as it forces you to pick one, but it's much faster to just mindlessly flick through them with a noise since the list often only has like 2 to 3 choices anyway.

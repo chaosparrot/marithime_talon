@@ -70,8 +70,11 @@ This feature has been implemented but it hasn't been tested very well. There's p
 [] - Incremental text field updates  
 Right now, indexing a text field causes it to lose all meaning with regards to formatters used. This causes problems with trying to re-use a formatter that was used.
 
-[x] - Repeater noises - Looping through selections and corrections  
+[~] - Repeater noises - Looping through selections and corrections  
 Most of this architecture is already built, but since there has been a refactoring this functionality would probably loop between two values right now rather than go through the list like a 
+[x] - Looping through selections
+[~] - Looping through navigations
+[~] - Looping through corrections
 
 [~] - Repeater noises - Looping through homophones  
 We know the homophones, we just need to find a way to replace a selected word with a known homophone and have it work with a repeater noise. I dislike the `phones` menu as it forces you to pick one, but it's much faster to just mindlessly flick through them with a noise since the list often only has like 2 to 3 choices anyway.

@@ -1201,9 +1201,7 @@ class VirtualBufferMatcher:
             if next_occurrence:
                 matched_token = None
                 for token in exact_matching_tokens:
-                    if token[0] < token_index[0]:
-                        matched_token = token[1]
-                    elif (virtual_buffer.last_action_type == "insert" or virtual_buffer.last_action_type == "remove") and token[0] == token_index[0]:
+                    if token[0] <= token_index[0]:
                         matched_token = token[1]
                 
                 if matched_token is None:

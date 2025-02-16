@@ -569,7 +569,10 @@ class VirtualBuffer:
     def go_phrase(self, phrase: str, position: str = 'end', keep_selection: bool = False, next_occurrence: bool = True) -> List[str]:
         token = self.find_token_by_phrase(phrase, -1 if position == 'end' else 0, next_occurrence)
         if token:
-            return self.navigate_to_token(token, -1 if position == 'end' else 0, keep_selection)
+            keys = self.navigate_to_token(token, -1 if position == 'end' else 0, keep_selection)
+            if not keep_selection:
+                self.set_last_action("navigation")
+            return keys
         else:
             return None
 

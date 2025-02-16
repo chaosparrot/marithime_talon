@@ -20,6 +20,7 @@ class InputContextManager:
     contexts: List[InputContext] = None
     last_clear_check = time.perf_counter()
     use_last_set_formatter = False
+    last_insert_phrases = None
     active_formatters: List[TextFormatter]
     formatter_names: List[str]
     state_callback: Callable[[str, int, int, bool], None] = None
@@ -46,6 +47,7 @@ class InputContextManager:
         self.contexts = []
         self.active_formatters = []
         self.formatter_names = []
+        self.last_insert_phrases = []
         self.switch_context(ui.active_window())
 
     def switch_context(self, window) -> bool:
@@ -202,7 +204,13 @@ class InputContextManager:
                 tokens.extend(text_to_virtual_buffer_tokens(text, None, "|".join(formatters)))
         else:
             tokens = text_to_virtual_buffer_tokens(insert, phrase, "|".join(formatters))
+
+        self.last_insert_phrases = vbm.determine_phonetic_fixes(tokens)
         vbm.insert_tokens(tokens)
+
+        # Remember corrections to make sure we can repeat them
+        # If we are cycling through homophones
+        vbm.set_last_action("phonetic_correction" if len(self.last_insert_phrases) > 0 else "insert", self.last_insert_phrases)
 
         if self.current_context:
             caret_index = vbm.caret_tracker.get_caret_index()

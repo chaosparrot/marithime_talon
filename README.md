@@ -70,19 +70,19 @@ This feature has been implemented but it hasn't been tested very well. There's p
 [] - Incremental text field updates  
 Right now, indexing a text field causes it to lose all meaning with regards to formatters used. This causes problems with trying to re-use a formatter that was used.
 
-[~] - Repeater noises - Looping through selections and corrections  
+[x] - Repeater noises - Looping through selections and corrections  
 Most of this architecture is already built, but since there has been a refactoring this functionality would probably loop between two values right now rather than go through the list like a 
 
-[] - Repeater noises - Looping through homophones  
+[~] - Repeater noises - Looping through homophones  
 We know the homophones, we just need to find a way to replace a selected word with a known homophone and have it work with a repeater noise. I dislike the `phones` menu as it forces you to pick one, but it's much faster to just mindlessly flick through them with a noise since the list often only has like 2 to 3 choices anyway.
 
-[] - Remove noise - Enable remove text contextually  
+[x] - Remove noise - Enable remove text contextually  
 This is mostly supported, but it needs to be tested in terminals as well. We could probably have a noise file to configure noises.
 
 [] - Remove noise - Remove character contextually  
 If you're spelling letters one by one, you probably do not want to remove an entire word like it usually does right now. In that case, we should remove only a single character per noise.
 
-[] - Continue noise  
+[x] - Continue noise  
 We could already create a noise that immediately skips to the end of the sentence. 
 
 [] - Previous / next paragraph / sentence  

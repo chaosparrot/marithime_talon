@@ -14,16 +14,7 @@ def get_filled_vb():
     vb.insert_tokens(text_to_virtual_buffer_tokens("a ", "a"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("new ", "new"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("sentence, ", "sentence"))
-    vb.insert_tokens(text_to_virtual_buffer_tokens("that ", "that"))
-    vb.insert_tokens(text_to_virtual_buffer_tokens("will ", "will"))
-    vb.insert_tokens(text_to_virtual_buffer_tokens("have ", "have"))
-    vb.insert_tokens(text_to_virtual_buffer_tokens("new ", "new"))
-    vb.insert_tokens(text_to_virtual_buffer_tokens("words ", "words"))
-    vb.insert_tokens(text_to_virtual_buffer_tokens("compared ", "compared"))
-    vb.insert_tokens(text_to_virtual_buffer_tokens("to ", "to"))
-    vb.insert_tokens(text_to_virtual_buffer_tokens("the ", "the"))
-    vb.insert_tokens(text_to_virtual_buffer_tokens("previous ", "previous"))
-    vb.insert_tokens(text_to_virtual_buffer_tokens("sentence.", "sentence"))
+    vb.insert_tokens(text_to_virtual_buffer_tokens("where ", "where"))
     return vb
 
 def test_looping_sentence(assertion):

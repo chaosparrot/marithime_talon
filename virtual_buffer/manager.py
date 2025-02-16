@@ -149,6 +149,15 @@ class VirtualBufferManager:
             for key in keys_to_remove_virtual_selection:
                 self.context.apply_key(key)
 
+        # Detect if we are doing a repeated phonetic correction
+        # In order to cycle through it
+        # We have repeated correct if part of the 
+        if vbm.last_action_type == "phonetic_correction" and "".join(self.context.last_insert_phrases) in insert:
+            enable_self_repair = not correction_insertion
+
+            # Replace the words with phonetic equivelants
+            insert = vbm.cycle_phonetic_correction(insert)
+
         if enable_self_repair:
             
             # Remove stutters / repeats in the same phrase

@@ -33,6 +33,7 @@ class VirtualBufferManager:
     fixer: InputFixer
     tracking = True
     tracking_lock: str = ""
+    repeater_type: str = "positive" # "positive", "skip", "positive_after_skip"
     use_last_set_formatter = False
 
     def __init__(self, settings: VirtualBufferSettings = None):
@@ -51,6 +52,11 @@ class VirtualBufferManager:
 
     def set_formatter(self, name: str):
         self.context.set_formatter(name)
+
+    def set_repeating_type(self, type: str):
+        if self.repeater_type == "skip" and type != "skip":
+            type = "positive_after_skip"
+        self.repeater_type = type
 
     def enable_tracking(self, lock: str = ""):
         if self.tracking_lock == "" or self.tracking_lock == lock:
@@ -459,15 +465,26 @@ class Actions:
     def marithime_correction(selection_and_correction: List[str]):
         """Select a fuzzy match of the words and apply the given words"""
         mutator = get_mutator()
-        keys = mutator.select_phrases(selection_and_correction, for_correction=True)
-        if len(keys) > 0 or mutator.is_virtual_selecting():
+
+        # We can repeat this command - But skip to the next selection if we are dealing with a "skip" repetition
+        # Positive - cycle through single corrections
+        # Skip - Select the next correctable phrase
+        # Positive_after_skip - Replace the selection with the insertion
+        if mutator.repeater_type != "positive_after_skip":
+            keys = mutator.select_phrases(selection_and_correction, for_correction=True)
+        else:
+            keys = []
+        if len(keys) > 0 or mutator.is_virtual_selecting() or mutator.repeater_type == "positive_after_skip":
             mutator.disable_tracking()
             if keys:
                 for key in keys:
                     actions.key(key)
             mutator.enable_tracking()
-            text = " ".join(selection_and_correction)
-            actions.user.marithime_insert(text)
+
+            # Do not insert text upon skipping a correction
+            if mutator.repeater_type != "skip":
+                text = " ".join(selection_and_correction)
+                actions.user.marithime_insert(text)
         else:
             raise RuntimeError("Input phrase '" + " ".join(selection_and_correction) + "' could not be corrected")
 
@@ -522,6 +539,12 @@ class Actions:
     def marithime_update_sensory_state(scanning: bool, level: str, caret_confidence: int, content_confidence: int):
         """Visually or audibly update the state for the user"""
         pass
+
+    def marithime_repeat(type: str):
+        """Repeat a command within Marithime context or fall back to regular repeater"""
+        mutator = get_mutator()
+        mutator.set_repeating_type(type)
+        actions.core.repeat_command()            
 
     def marithime_toggle_track_context():
         """Toggle between tracking and not tracking the marithime virtual buffer context"""

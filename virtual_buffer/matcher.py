@@ -1175,87 +1175,15 @@ class VirtualBufferMatcher:
             return (None, None)
     
     def find_single_match_by_phrase(self, virtual_buffer, phrase: str, char_position: int = -1, next_occurrence: bool = True, selecting: bool = False) -> VirtualBufferToken:
-        exact_matching_tokens: List[(int, VirtualBufferToken)] = []
-        fuzzy_matching_tokens: List[(int, VirtualBufferToken, float)] = []
-
-        for index, token in enumerate(virtual_buffer.tokens):
-            score = self.phonetic_search.phonetic_similarity_score(phrase, token.phrase)
-            if score >= HOMOPHONE_MATCH:
-                exact_matching_tokens.append((index, token))
-            elif score > SELECTION_THRESHOLD:
-                fuzzy_matching_tokens.append((index, token, score))
-
-        # If we have no valid matches or valid carets, we cannot find the phrase
-        caret_index = virtual_buffer.caret_tracker.get_caret_index()
-        if (len(exact_matching_tokens) + len(fuzzy_matching_tokens) == 0) or caret_index[0] < 0:
-            return None
-        
-        # Get the first exact match
-        if len(exact_matching_tokens) == 1:
-            return exact_matching_tokens[0][1]
-        
-        # Get a fuzzy match if it is the only match
-        elif len(exact_matching_tokens) == 0 and len(fuzzy_matching_tokens) == 1:
-            return fuzzy_matching_tokens[0][1]
-        else:
-            token_index = virtual_buffer.determine_token_index()
-            current_token = virtual_buffer.tokens[token_index[0]]
-            text_length = len(current_token.text.replace("\n", ""))
-            current_phrase_similar = self.phonetic_search.phonetic_similarity_score(phrase, current_token.phrase) >= 1
-
-            if token_index[1] == text_length and not current_phrase_similar:
-                # Move to the next token if that token matches our phrase
-                next_token_phrase = "" if token_index[0] + 1 >= len(virtual_buffer.tokens) else virtual_buffer.tokens[token_index[0] + 1].phrase 
-                if self.phonetic_search.phonetic_similarity_score(phrase, next_token_phrase) >= 1:
-                    current_token = virtual_buffer.tokens[token_index[0] + 1]
-                    token_index = (token_index[0] + 1, 0)
-                    current_phrase_similar = True
-
-            # If the current token is the token we are looking for, make sure to check if we should cycle through it
-            if current_phrase_similar:    
-                # If the caret is in the middle of the token we are trying to find, make sure we don't look further                
-                if token_index[1] > 0 and token_index[1] < text_length:
-                    return current_token
-                
-                # If the caret is on the opposite end of the token we are trying to find, make sure we don't look further
-                # Unless we are actively selecting new ocurrences
-                elif not (selecting and next_occurrence) and ( (token_index[1] == 0 and char_position == -1) or (token_index[1] == text_length and char_position >= 0) ):
-                    return current_token
-                
-            # Loop through the occurrences one by one, starting back at the end if we have reached the first token
-            if next_occurrence:
-                matched_token = None
-                for token in exact_matching_tokens:
-                    if token[0] <= token_index[0]:
-                        matched_token = token[1]
-                
-                if matched_token is None:
-                    matched_token = exact_matching_tokens[-1][1]
-
-            # Just get the nearest matching token to the caret as this is most likely the one we were after
-            # Not all cases have been properly tested for this
+        direction = 0
+        if next_occurrence:
+            if (char_position < 0):
+                direction = 1
             else:
-                distance_to_token = 1000000
-                current_token = virtual_buffer.tokens[token_index[0]]
+                direction = -1
 
-                matched_token = None
-                for token_index, token in exact_matching_tokens:
-                    line_distance = abs(token.line_index - current_token.line_index) * 10000
-                    distance_from_token_end = abs(token.index_from_line_end) + line_distance
-                    distance_from_token_start = abs(token.index_from_line_end + len(token.text.replace("\n", ""))) + line_distance
-                    
-                    if abs(distance_from_token_end - current_token.index_from_line_end) < distance_to_token:
-                        matched_token = token
-                        distance_to_token = abs(distance_from_token_end - current_token.index_from_line_end)
-                    
-                    elif abs(distance_from_token_start - current_token.index_from_line_end) < distance_to_token:
-                        matched_token = token
-                        distance_to_token = abs(distance_from_token_start - current_token.index_from_line_end)
-
-                if matched_token is None:
-                    matched_token = exact_matching_tokens[-1]
-
-            return matched_token
+        best_match_tokens, match = self.find_best_match_by_phrases(virtual_buffer, [phrase], SELECTION_THRESHOLD, next_occurrence, selecting, False, False, direction)
+        return best_match_tokens[0] if best_match_tokens else None
         
     def get_memoized_similarity_score(self, word_a: str, word_b: str) -> float:
         # Quick memoized look up

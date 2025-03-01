@@ -19,6 +19,10 @@ In a text area with the following text: `The quick brown fox jumped over the laz
 - At the end of the sentence, saying `over the hazy dog` will select `over the lazy dog` and replace it with `over the hazy dog`.
 - At the end of the sentence, saying `the lazy hog` will select `the lazy dog` and replace it with `the lazy hog`.
 
+### Parrot noise examples
+
+In `marithime_noise.talon` a bunch of noises have been commented out like cluck repeater noises and the pop noise to remove text contextually. You can enable them one by one by removing the `#` character in front of them.
+
 ### Turning off marithime dictation
 
 If you do not want marithime dictation, but instead only want to use the selection and correction features, remove the line in `settings.talon` that says `tag(): user.marithime_dictation` and save the file.
@@ -70,17 +74,11 @@ This feature has been implemented but it hasn't been tested very well. There's p
 [] - Incremental text field updates  
 Right now, indexing a text field causes it to lose all meaning with regards to formatters used. This causes problems with trying to re-use a formatter that was used.
 
-[~] - Repeater noises - Looping through selections and corrections  
+[x] - Repeater noises - Looping through selections and corrections  
 Most of this architecture is already built, but since there has been a refactoring this functionality would probably loop between two values right now rather than go through the list like a 
-[x] - Looping through selections
-[ ] - Looping through navigations
-[x] - Looping through deletions
-[x] - Affirmative skipped corrections
-[x] - Skip repetition corrections
-    [x] - Continue loop until first
-    [x] - Continue loop over first
-    [x] - Continue loop adjacent
+
 [ ] - Repeated fixes
+We can repeat selections and navigations, but we still need to be able to repeat inserts and corrections so that we can cycle through the more efficiently by repeating insertions to get a different phonetic or homophone match
 
 [~] - Repeater noises - Looping through homophones  
 We know the homophones, we just need to find a way to replace a selected word with a known homophone and have it work with a repeater noise. I dislike the `phones` menu as it forces you to pick one, but it's much faster to just mindlessly flick through them with a noise since the list often only has like 2 to 3 choices anyway.
@@ -117,7 +115,7 @@ While there's programs where it nails the accessibility API pretty well, others 
 [] - Text editor support  
 This means we should be able to support vim, nano and other keybindings. This runs into the same issues as using a terminal does however, namely poor accessibility support and hard to detect when something is inside of a text editor in the first place. Another is no line wrapping when reaching the start or end of the line and key-pressing beyond that boundary.
 
-[~] - Single line detection  
+[x] - Single line detection  
 Some fields, like name fields, do not have the possibility to add multiple lines. In that case, we probably want to either clear the buffer or simply not allow the enter to change the field. We should probably do a refresh if we are in an accessible field, and a clear in a terminal. 
 
 [] - Accessiblity input tags  

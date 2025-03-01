@@ -26,7 +26,7 @@ def get_uncached_virtual_buffer():
     vb.matcher.phonetic_search = PhoneticSearch()
     vb.matcher.phonetic_search.set_homophones("")
     vb.matcher.phonetic_search.set_phonetic_similiarities("")
-    vb.matcher.phonetic_search.set_semantic_similarities("")    
+    vb.matcher.phonetic_search.set_semantic_similarities("")
 
     return vb
 

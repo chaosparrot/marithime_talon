@@ -11,7 +11,7 @@ from functools import cmp_to_key
 combined_better_threshold = 0.075
 
 def normalize_text(text: str) -> str:
-    return re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").lower()
+    return re.sub(r"[^\w\s]", ' ', text).replace("\n", " ")
 
 # Class to find the best matches inside of virtual buffers
 class VirtualBufferMatcher:
@@ -32,7 +32,7 @@ class VirtualBufferMatcher:
     def is_phrase_selected(self, virtual_buffer, phrase: str) -> bool:
         if virtual_buffer.is_selecting():
             selection = virtual_buffer.caret_tracker.get_selection_text()
-            return self.phonetic_search.phonetic_similarity_score(normalize_text(selection).replace(" ", ''), phrase) >= PHONETIC_MATCH
+            return self.phonetic_search.phonetic_similarity_score(normalize_text(selection.lower()).replace(" ", ''), phrase) >= PHONETIC_MATCH
         return False
 
     def has_matching_phrase(self, virtual_buffer, phrase: str) -> bool:
@@ -173,7 +173,7 @@ class VirtualBufferMatcher:
         # If we are doing repeats and looping
         # We want to loop back around to the start of the field once we hit the end
         # So retry finding matches from either the end or the start, but only one time
-        if len(matches) == 0 and direction != 0:
+        if len(matches) == 0 and direction != 0 and overwrite_token_index == -1:
             max_window_size = max(25, len(match_calculation.words) * 5)
             retry_index = -1
             if direction == 1 and rightmost_token_index > ( ending_index - 1 - max_window_size):

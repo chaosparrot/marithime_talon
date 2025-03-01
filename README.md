@@ -73,13 +73,13 @@ Right now, indexing a text field causes it to lose all meaning with regards to f
 [~] - Repeater noises - Looping through selections and corrections  
 Most of this architecture is already built, but since there has been a refactoring this functionality would probably loop between two values right now rather than go through the list like a 
 [x] - Looping through selections
-[x] - Looping through navigations
+[ ] - Looping through navigations
 [x] - Looping through deletions
 [x] - Affirmative skipped corrections
 [x] - Skip repetition corrections
     [x] - Continue loop until first
-    [ ] - Continue loop over first
-    [ ] - Continue loop adjacent
+    [x] - Continue loop over first
+    [x] - Continue loop adjacent
 [ ] - Repeated fixes
 
 [~] - Repeater noises - Looping through homophones  

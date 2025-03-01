@@ -58,3 +58,4 @@ suite = create_test_suite("Using a filled virtual buffer which contains duplicat
 # TODO FIX LOOPING GO
 #suite.add_test(test_looping_correction_where)
 #suite.add_test(test_looping_self_repair_where)
+#suite.run()

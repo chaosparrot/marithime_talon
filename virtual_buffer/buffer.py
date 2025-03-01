@@ -604,6 +604,9 @@ class VirtualBuffer:
         if should_go_to_next_occurrence:
             for phrase in phrases:
                 should_go_to_next_occurrence = self.matcher.is_phrase_selected(self, phrase)
+                if verbose:
+                    print( "SELECTION TEXT: '" + self.caret_tracker.get_selection_text() + "' phrase: '" + phrase + "'")
+                    print("TESTING TOKEN", phrase, should_go_to_next_occurrence )
                 if not should_go_to_next_occurrence:
                     break
         
@@ -615,7 +618,9 @@ class VirtualBuffer:
             
             # Determine the last used direction
             # Give a direction if we are repeating a search so we can repeat a loop                
-            leftmost_token_index = self.determine_leftmost_token_index()[0]
+            leftmost_token_index, leftmost_character_index = self.determine_leftmost_token_index()
+            if verbose:
+                print("SHOULD GO TO NEXT OCCURRENCE?", should_go_to_next_occurrence)
             if not should_go_to_next_occurrence:
                 self.last_direction = 1 if match.buffer_indices[0][0] > leftmost_token_index else -1
             self.set_last_action("selection" if not for_correction else "correction", phrases)

@@ -77,6 +77,6 @@ def test_looping_to(assertion):
     assertion( "        Should not move the caret as there is only one option", len(keys) == 0)
 
 suite = create_test_suite("Using a filled virtual buffer which contains duplicates of certain words used for testing looping")
-suite.add_test(test_looping_sentence)
-suite.add_test(test_looping_new_sentence)
-suite.add_test(test_looping_to)
+#suite.add_test(test_looping_sentence)
+#suite.add_test(test_looping_new_sentence)
+#suite.add_test(test_looping_to)

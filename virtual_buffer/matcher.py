@@ -11,7 +11,7 @@ from functools import cmp_to_key
 combined_better_threshold = 0.075
 
 def normalize_text(text: str) -> str:
-    return re.sub(r"[^\w\s]", ' ', text).replace("\n", " ")
+    return re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").lower()
 
 # Class to find the best matches inside of virtual buffers
 class VirtualBufferMatcher:
@@ -56,22 +56,39 @@ class VirtualBufferMatcher:
         if not for_correction:
             match_threshold = self.get_threshold_for_selection(phrases, match_threshold)
 
+        # Make sure to split at the right left token index for the leftmost character
+        # To only exclude tokens that should be filtered out
         leftmost_token_index, leftmost_character_index = virtual_buffer.determine_leftmost_token_index()
-        rightmost_token_index, rightmost_character_index = virtual_buffer.determine_rightmost_token_index()
+        if leftmost_token_index != -1 and len(virtual_buffer.tokens[leftmost_token_index].text) == leftmost_character_index:
+            leftmost_token_index += 1
         leftmost_token_index = leftmost_token_index if overwrite_token_index == -1 else overwrite_token_index
+
+        # Make sure to split at the right token index for the rightmost character
+        # To only exclude tokens that should be filtered out
+        rightmost_token_index, rightmost_character_index = virtual_buffer.determine_rightmost_token_index()
+        if rightmost_token_index != -1 and rightmost_character_index == 0:
+            rightmost_token_index -= 1
         rightmost_token_index = rightmost_token_index if overwrite_token_index == -1 else overwrite_token_index
+        
         starting_index = 0
         ending_index = len(virtual_buffer.tokens)
         token_list = VirtualBufferTokenList(starting_index, virtual_buffer.tokens[starting_index:ending_index])
         match_calculation = self.generate_match_calculation(phrases, match_threshold, purpose=("correction" if for_correction else "selection"))
         match_calculation.cache.index_token_list(token_list)
+    
         windowed_sublists = token_list.get_windowed_sublists(leftmost_token_index, match_calculation)
+
+        # If we have reached the end after a loop - Make sure to not find any tokens in the current selection
+        if overwrite_token_index == -1:
+            if direction == -1 and leftmost_token_index <= 0:
+                windowed_sublists = []
+            elif direction == 1 and rightmost_token_index >= len(virtual_buffer.tokens) - 1:
+                windowed_sublists = []
 
         # Filter out all the sublists before or after the current selection if we are using a specific direction
         if verbose:
-            print(" - Repeating in direction: " + ("right" if direction == 1 else "left"))
-            print( "TOKEN INDICES ", rightmost_token_index, leftmost_token_index )
-            print( "Character indices", rightmost_character_index, leftmost_character_index )
+            if direction != -1:
+                print(" - Repeating in direction: " + ("right" if direction == 1 else "left" ))
         if direction == 1:
             windowed_sublists = list(map(lambda sublist: sublist.filter_after_index(rightmost_token_index), windowed_sublists))
         elif direction == -1:
@@ -157,13 +174,16 @@ class VirtualBufferMatcher:
         # We want to loop back around to the start of the field once we hit the end
         # So retry finding matches from either the end or the start, but only one time
         if len(matches) == 0 and direction != 0:
+            max_window_size = max(25, len(match_calculation.words) * 5)
             retry_index = -1
-            if direction == 1 and rightmost_token_index > ending_index - 1:
+            if direction == 1 and rightmost_token_index > ( ending_index - 1 - max_window_size):
                 retry_index = 0
-            elif direction == -1 and leftmost_token_index < 0:
+            elif direction == -1 and leftmost_token_index < max_window_size:
                 retry_index = ending_index
             
             if retry_index != -1:
+                if verbose:
+                    print("LOOPING AROUND!")
                 matches = self.find_top_three_matches_in_token_list(virtual_buffer, phrases, match_threshold, selecting, for_correction, verbose, direction, retry_index)
         return matches
 

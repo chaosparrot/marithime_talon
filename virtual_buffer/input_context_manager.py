@@ -169,9 +169,9 @@ class InputContextManager:
         # TODO IMPROVE FORMATTER SELECTION!!!
         return self.indexer.default_formatter
 
-    def apply_key(self, key: str):
+    def apply_key(self, key: str, remember_key_presses: bool = False):
         current_context = self.get_current_context()
-        current_context.apply_key(key)
+        current_context.apply_key(key, remember_key_presses)
 
         # Only poll the changes for specific key combinations that have known changes to the content
         if len(current_context.buffer.tokens) > 0:
@@ -210,7 +210,12 @@ class InputContextManager:
 
         # Remember corrections to make sure we can repeat them
         # If we are cycling through homophones
-        vbm.set_last_action("phonetic_correction" if len(self.last_insert_phrases) > 0 else "insert", self.last_insert_phrases)
+        last_action = "phonetic_correction" if len(self.last_insert_phrases) > 0 else "insert"
+
+        # For short characters without a space separator we naively expect it to have been spelled
+        if last_action == "insert" and len(insert) == 1:
+            last_action = "insert_character"
+        vbm.set_last_action(last_action, self.last_insert_phrases if last_action != "insert_character" else [insert])
 
         if self.current_context:
             caret_index = vbm.caret_tracker.get_caret_index()

@@ -4,7 +4,7 @@ from .matcher import VirtualBufferMatcher
 from typing import List
 from .caret_tracker import CaretTracker
 from ..phonetics.actions import phonetic_search
-from .indexer import text_to_phrase, normalize_text, reindex_tokens
+from .indexer import text_to_phrase, normalize_text, reindex_tokens, text_to_virtual_buffer_tokens
 import re
 from .settings import VirtualBufferSettings, virtual_buffer_settings
 mod = Module()
@@ -28,6 +28,7 @@ class VirtualBuffer:
     correction_cycle_count = 0
     last_direction = None
     settings: VirtualBufferSettings = None
+    single_character_presses = 0
 
     def __init__(self, settings: VirtualBufferSettings = None):
         global virtual_buffer_settings
@@ -37,6 +38,7 @@ class VirtualBuffer:
         self.last_phonetic_correction = []
         self.last_direction = 0
         self.correction_cycle_count = 0
+        self.single_character_presses = 0
         self.matcher = VirtualBufferMatcher(phonetic_search)
         self.set_tokens()
 
@@ -48,14 +50,32 @@ class VirtualBuffer:
 
     # Set the last action type - Used for remembering repeated items
     def set_last_action(self, last_action_type: str, phrases: List[str] = None):
-        self.last_action_type =  last_action_type
+        self.last_action_type = last_action_type
         self.last_search = phrases if last_action_type in ["selection", "correction"] else []
         self.last_direction = self.last_direction if last_action_type in ["selection", "correction"] else []
         self.last_phonetic_correction = phrases if last_action_type == "phonetic_correction" else []
         self.correction_cycle_count = self.correction_cycle_count if last_action_type != "phonetic_correction" else 0
+        
+        # Keep track of single character insertions for easier single removal
+        if last_action_type == "insert_character":
+            self.single_character_presses += len(phrases[-1])
+        else:
+            if last_action_type == "remove" and self.single_character_presses > 0:
+                self.single_character_presses -= 1
+                print( "REMOVE SINGLE CHARACTER PRESS", self.single_character_presses )
+            else:
+                self.single_character_presses = 0 if last_action_type != "insert_character" else self.single_character_presses
+        
+        print( last_action_type, self.single_character_presses )
 
     def clear_tokens(self):
         self.set_tokens()
+        self.last_search = []
+        self.last_phonetic_correction = []
+        self.last_direction = 0
+        self.correction_cycle_count = 0
+        self.single_character_presses = 0
+        print("CLEAR TOKENS!")
 
     def set_tokens(self, tokens: List[VirtualBufferToken] = None, move_cursor_to_end: bool = False):
         self.virtual_selection = []
@@ -540,11 +560,17 @@ class VirtualBuffer:
     def reformat_tokens(self):
         self.tokens = reindex_tokens(self.tokens)
 
-    def apply_key(self, keystring: str):
+    def apply_key(self, keystring: str, remember_key_presses: bool = False):
         keys = keystring.lower().split(" ")
+
+        insertion_keys = ""
         for key in keys:
             key_used = self.caret_tracker.apply_key(key)
-            if not key_used and "backspace" in key or "delete" in key:
+
+            # Make sure we can use backspace in between a set of key presses
+            if not key_used and len(insertion_keys) > 0 and key == "backspace":
+                insertion_keys = insertion_keys[:-1]
+            elif not key_used and "backspace" in key or "delete" in key:
                 key_modifier = key.split(":")
                 if len(key_modifier) > 1 and key_modifier[-1] == "up":
                     continue
@@ -559,6 +585,14 @@ class VirtualBuffer:
                         self.apply_delete(key_presses)
                     else:
                         self.apply_backspace(key_presses)
+            if not key_used and len(key) == 1:
+                insertion_keys += key
+        
+        # Insert tokens if we press keys one by one
+        if len(insertion_keys) > 0:
+            tokens = text_to_virtual_buffer_tokens(insertion_keys)
+            self.insert_tokens(tokens)
+            self.set_last_action("insert_character", [insertion_keys])
 
         if not self.caret_tracker.text_buffer:
             self.clear_tokens()
@@ -566,7 +600,7 @@ class VirtualBuffer:
     def has_matching_phrase(self, phrase: str) -> bool:
         return self.matcher.has_matching_phrase(self, phrase)
     
-    def go_phrase(self, phrase: str, position: str = 'end', keep_selection: bool = False, next_occurrence: bool = True) -> List[str]:
+    def go_phrase(self, phrase: str, position: str = 'end', keep_selection: bool = False, next_occurrence: bool = False) -> List[str]:
         token = self.find_token_by_phrase(phrase, -1 if position == 'end' else 0, next_occurrence)
         if token:
             keys = self.navigate_to_token(token, -1 if position == 'end' else 0, keep_selection)

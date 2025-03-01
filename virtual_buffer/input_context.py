@@ -46,8 +46,8 @@ class InputContext:
     def is_stale(self, inactive_threshold: int = 300):
         return time.perf_counter() - self.modified_at > inactive_threshold
     
-    def apply_key(self, key: str):
-        self.buffer.apply_key(key)
+    def apply_key(self, key: str, remember_key_presses: bool = False):
+        self.buffer.apply_key(key, remember_key_presses)
 
     def clear_context(self):
         self.update_modified_at()

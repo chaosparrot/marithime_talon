@@ -70,7 +70,7 @@ class VirtualBufferManager:
 
     def track_key(self, key_string: str):
         if self.tracking:
-            self.context.apply_key(key_string)
+            self.context.apply_key(key_string, True)
             self.index()
 
     def track_insert(self, insert: str, phrase: str = None):
@@ -285,6 +285,10 @@ class VirtualBufferManager:
             return [self.settings.get_remove_character_left_key()]
         elif self.is_virtual_selecting():
             return vbm.remove_virtual_selection()
+
+        # For single character insertions we want to remove characters one by one
+        elif vbm and vbm.single_character_presses > 0 and backwards:
+            return [self.settings.get_remove_character_left_key()]
         
         if context.current is not None:
             if context.character_index == 0 and backwards and context.previous is not None:
@@ -296,11 +300,12 @@ class VirtualBufferManager:
                 elif backwards:
                     return [self.settings.get_remove_character_left_key() + ":" + str(len(context.current.text))]
 
+            # Clear character-wise in the middle of a word
             if context.character_index > 0 and context.character_index < len(context.current.text) - 1:
                 if backwards:
-                    return [self.settings.get_remove_character_left_key() + ":" + str(context.character_index)]
+                    return [self.settings.get_remove_character_left_key()]
                 else:
-                    return [self.settings.get_remove_character_right_key() + ":" + str(len(context.current.text) - context.character_index)]
+                    return [self.settings.get_remove_character_right_key()]
 
         return [self.settings.get_remove_word_left_key() if backwards else self.settings.get_remove_word_right_key()]
 
@@ -435,7 +440,7 @@ class Actions:
         keys = mutator.clear_keys(backward)
         for key in keys:
             actions.key(key)
-        mutator.index_textarea()
+        #mutator.index_textarea()
 
     def marithime_move_caret(phrase: str, caret_position: int = -1):
         """Move the caret to the given phrase"""

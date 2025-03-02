@@ -54,6 +54,4 @@ def test_multiple_match_consistent(assertion):
     assertion( "        Should go right until the last occurrence of sentence", keys[0] == "right:9")
 
 suite = create_test_suite("Using a filled virtual buffer which contains duplicates of certain words which can be consistently navigated towards")
-# suite.add_test(test_multiple_match_consistent)
-#suite.run()
-# TODO FIX TEST
+suite.add_test(test_multiple_match_consistent)

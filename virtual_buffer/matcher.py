@@ -1174,7 +1174,7 @@ class VirtualBufferMatcher:
         else:
             return (None, None)
     
-    def find_single_match_by_phrase(self, virtual_buffer, phrase: str, char_position: int = -1, next_occurrence: bool = True, selecting: bool = False) -> VirtualBufferToken:
+    def find_single_match_by_phrase(self, virtual_buffer, phrase: str, char_position: int = -1, next_occurrence: bool = True, selecting: bool = False, verbose: bool = False) -> VirtualBufferToken:
         direction = 0
         if next_occurrence:
             if (char_position < 0):
@@ -1182,7 +1182,7 @@ class VirtualBufferMatcher:
             else:
                 direction = -1
 
-        best_match_tokens, match = self.find_best_match_by_phrases(virtual_buffer, [phrase], SELECTION_THRESHOLD, next_occurrence, selecting, False, False, direction)
+        best_match_tokens, match = self.find_best_match_by_phrases(virtual_buffer, [phrase], SELECTION_THRESHOLD, next_occurrence, selecting, True, verbose, direction)
         return best_match_tokens[0] if best_match_tokens else None
         
     def get_memoized_similarity_score(self, word_a: str, word_b: str) -> float:

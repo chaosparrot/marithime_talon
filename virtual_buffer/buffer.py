@@ -24,6 +24,7 @@ class VirtualBuffer:
     virtual_selection = None
     last_action_type = "insert"
     last_search = None
+    last_navigation = None
     last_phonetic_correction = None
     correction_cycle_count = 0
     last_direction = None
@@ -35,6 +36,7 @@ class VirtualBuffer:
         self.settings = settings if settings is not None else virtual_buffer_settings
         self.caret_tracker = CaretTracker(settings=self.settings)
         self.last_search = []
+        self.last_navigation = []
         self.last_phonetic_correction = []
         self.last_direction = 0
         self.correction_cycle_count = 0
@@ -52,6 +54,7 @@ class VirtualBuffer:
     def set_last_action(self, last_action_type: str, phrases: List[str] = None):
         self.last_action_type = last_action_type
         self.last_search = phrases if last_action_type in ["selection", "correction"] else []
+        self.last_navigation = phrases if last_action_type in ["navigation"] else []
         self.last_direction = self.last_direction if last_action_type in ["selection", "correction"] else []
         self.last_phonetic_correction = phrases if last_action_type == "phonetic_correction" else []
         self.correction_cycle_count = self.correction_cycle_count if last_action_type != "phonetic_correction" else 0
@@ -62,20 +65,17 @@ class VirtualBuffer:
         else:
             if last_action_type == "remove" and self.single_character_presses > 0:
                 self.single_character_presses -= 1
-                print( "REMOVE SINGLE CHARACTER PRESS", self.single_character_presses )
             else:
                 self.single_character_presses = 0 if last_action_type != "insert_character" else self.single_character_presses
-        
-        print( last_action_type, self.single_character_presses )
 
     def clear_tokens(self):
         self.set_tokens()
         self.last_search = []
+        self.last_navigation = []
         self.last_phonetic_correction = []
         self.last_direction = 0
         self.correction_cycle_count = 0
         self.single_character_presses = 0
-        print("CLEAR TOKENS!")
 
     def set_tokens(self, tokens: List[VirtualBufferToken] = None, move_cursor_to_end: bool = False):
         self.virtual_selection = []
@@ -599,13 +599,17 @@ class VirtualBuffer:
 
     def has_matching_phrase(self, phrase: str) -> bool:
         return self.matcher.has_matching_phrase(self, phrase)
-    
-    def go_phrase(self, phrase: str, position: str = 'end', keep_selection: bool = False, next_occurrence: bool = False) -> List[str]:
-        token = self.find_token_by_phrase(phrase, -1 if position == 'end' else 0, next_occurrence)
+
+    def go_phrase(self, phrase: str, position: str = 'end', keep_selection: bool = False, next_occurrence: bool = False, verbose: bool = False) -> List[str]:
+        # Loop when we are navigating twice with the same phrase
+        if self.last_navigation and "".join(self.last_navigation) == phrase:
+            next_occurrence = True
+
+        token = self.find_token_by_phrase(phrase, -1 if position == 'end' else 0, next_occurrence, verbose)
         if token:
             keys = self.navigate_to_token(token, -1 if position == 'end' else 0, keep_selection)
             if not keep_selection:
-                self.set_last_action("navigation")
+                self.set_last_action("navigation", [phrase])
             return keys
         else:
             return None
@@ -761,8 +765,8 @@ class VirtualBuffer:
         else: 
             return None
 
-    def find_token_by_phrase(self, phrase: str, char_position: int = -1, next_occurrence: bool = True, selecting: bool = False) -> VirtualBufferToken:
-        return self.matcher.find_single_match_by_phrase(self, phrase, char_position, next_occurrence, selecting)
+    def find_token_by_phrase(self, phrase: str, char_position: int = -1, next_occurrence: bool = True, selecting: bool = False, verbose: bool = False) -> VirtualBufferToken:
+        return self.matcher.find_single_match_by_phrase(self, phrase, char_position, next_occurrence, selecting, verbose)
 
     def navigate_to_token(self, token: VirtualBufferToken, char_position: int = -1, keep_selection: bool = False) -> List[str]:
         if token != None:

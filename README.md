@@ -92,9 +92,6 @@ If you're spelling letters one by one, you probably do not want to remove an ent
 [x] - Continue noise  
 We could already create a noise that immediately skips to the end of the sentence. 
 
-[] - Previous / next paragraph / sentence  
-We could make it easier to loop through sentences since we already have the buffer anyway, but I'm hesitant to just add new features that require more commands. Perhaps we could find a middle with with commented out commands for advanced usages.
-
 [] - Implement flow for digits  
 Right now, you still need to say `numb zero` every time between commands. We can detect if we should allow digits, periods and other kinds of formatters as single words if we can be very certain that the next character will be 
 

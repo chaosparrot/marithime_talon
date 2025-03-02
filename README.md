@@ -66,7 +66,7 @@ There's a ton of ways other packages can make use of our captures, settings and 
 #### Dictation
 
 [~] - Terminator words  
-Right now the word `quill` is used, instead of the word `over`, to terminate a command. We probably want to extend this a bit, though we need to take into account that they need to not only be used in commands, but filtered out in other ways.
+Right now the word `quill` is used, instead onf the word `over`, to terminate a command. We probably want to extend this a bit, though we need to take into account that they need to not only be used in commands, but filtered out in other ways.
 
 [] - Making automatic fixing work  
 This feature has been implemented but it hasn't been tested very well. There's probably a lot of research left to be done.
@@ -80,8 +80,14 @@ When a zero width space indexation is used, it is possible that a current select
 [x] - Repeater noises - Looping through selections and corrections  
 Most of this architecture is already built, but since there has been a refactoring this functionality would probably loop between two values right now rather than go through the list like a 
 
-[ ] - Repeater noises - Looping through homophones and other fixes  
+[~] - Repeater noises - Looping through homophones and other fixes  
 We know the homophones, we just need to find a way to replace a selected word with a known homophone and have it work with a repeater noise. I dislike the `phones` menu as it forces you to pick one, but it's much faster to just mindlessly flick through them with a noise since the list often only has like 2 to 3 choices anyway.
+
+Test cases to make for repeating corrections:
+- Looping through single phonetic fix at end of self repair
+- Looping through corrections one by one
+- Finding correction for multiple homophones
+- Looping through multiple corection for homophones
 
 [x] - Remove noise - Enable remove text contextually  
 This is mostly supported, but it needs to be tested in terminals as well. We could probably have a noise file to configure noises.

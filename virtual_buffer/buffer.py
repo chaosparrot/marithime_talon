@@ -123,40 +123,6 @@ class VirtualBuffer:
 
         else:
             return VirtualBufferTokenContext(0)
-    
-    # Detect if we are doing a phonetic correction
-    # A phonetic correction when repeated should clear the previous item and then
-    # Insert the changed item
-    def determine_phonetic_fixes(self, tokens: List[VirtualBufferToken]) -> List[str]:
-        fixed_phrases = []
-
-        # When selecting, we know if we have a phonetic fix if the selected text
-        # Contains all the items that need to be corrected ( 'where' has homophones to correct etc. )
-        if self.is_selecting() or len(self.virtual_selection) > 0:
-            phonetic_fix_count = 0
-            for token in tokens:
-                if self.is_phrase_selected(token.phrase):
-                    known_fixes_for_item = self.matcher.phonetic_search.get_known_fixes(token.phrase)
-                    phonetic_fix_count += 1 if len(known_fixes_for_item) > 0 else 0
-            if phonetic_fix_count == len(tokens):
-                fixed_phrases = [token.phrase for token in tokens]
-
-        # Only the last word is phonetically corrected
-        else:
-            known_fixes_for_last_item = self.matcher.phonetic_search.get_known_fixes(tokens[-1].phrase)
-            if len(known_fixes_for_last_item) > 0:
-                fixed_phrases = [tokens[-1].phrase]
-        return fixed_phrases
-
-    # TODO FIX FOR MULTIPLE WORDS?
-    # TODO - MOVE TO INPUT FIXER?
-    def cycle_phonetic_correction(self, insert: str) -> str:
-        fixes = self.matcher.phonetic_search.get_known_fixes(insert)
-        fixes.insert(0, insert)
-        self.correction_cycle_count += 1
-        if self.correction_cycle_count > len(fixes) - 1:
-            self.correction_cycle_count = 0
-        return fixes[self.correction_cycle_count]
 
     def insert_tokens(self, tokens: List[VirtualBufferToken]):
         token_index = self.determine_token_index()

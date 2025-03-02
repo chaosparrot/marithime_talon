@@ -205,7 +205,8 @@ class InputContextManager:
         else:
             tokens = text_to_virtual_buffer_tokens(insert, phrase, "|".join(formatters))
 
-        self.last_insert_phrases = vbm.determine_phonetic_fixes(tokens)
+        self.last_insert_phrases = self.input_fixer.determine_phonetic_fixes(vbm, tokens)
+
         vbm.insert_tokens(tokens)
 
         # Remember corrections to make sure we can repeat them

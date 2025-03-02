@@ -1,8 +1,9 @@
 from talon import actions, cron, settings
-from .typing import InputFix, InputMutation, CORRECTION_THRESHOLD, SELECTION_THRESHOLD
+from .typing import InputFix, InputMutation, VirtualBufferToken, CORRECTION_THRESHOLD, SELECTION_THRESHOLD
+from .buffer import VirtualBuffer
 import re
 import time
-from typing import List, Dict
+from typing import List, Dict, Tuple
 import os
 import csv
 from pathlib import Path
@@ -121,7 +122,40 @@ class InputFixer:
         # No known fixes - Keep the same
         else:
             return text
+
+    # Detect if we are doing a phonetic correction
+    # A phonetic correction when repeated should clear the previous item and then
+    # Insert the changed item
+    def determine_phonetic_fixes(self, virtual_buffer: VirtualBuffer, tokens: List[VirtualBufferToken]) -> List[str]:
+        fixed_phrases = []
+
+        # When selecting, we know if we have a phonetic fix if the selected text
+        # Contains all the items that need to be corrected ( 'where' has homophones to correct etc. )
+        if self.is_selecting() or len(self.virtual_selection) > 0:
+            phonetic_fix_count = 0
+            for token in tokens:
+                if self.is_phrase_selected(token.phrase):
+                    known_fixes_for_item = self.matcher.phonetic_search.get_known_fixes(token.phrase)
+                    phonetic_fix_count += 1 if len(known_fixes_for_item) > 0 else 0
+            if phonetic_fix_count == len(tokens):
+                fixed_phrases = [token.phrase for token in tokens]
+
+        # Only the last word is phonetically corrected
+        else:
+            known_fixes_for_last_item = self.matcher.phonetic_search.get_known_fixes(tokens[-1].phrase)
+            if len(known_fixes_for_last_item) > 0:
+                fixed_phrases = [tokens[-1].phrase]
+        return fixed_phrases
     
+    # Repeat the same input or correction to cycle through the possible changes
+    def cycle_through_fixes(self, text: str, cycle_amount: int = 0) -> Tuple[str, int]:
+        fixes = self.phonetic_search.get_known_fixes(text)
+        fixes.insert(0, text)
+        cycle_amount += 1
+        if cycle_amount > len(fixes) - 1: 
+            cycle_amount = 0
+        return (fixes[cycle_amount], cycle_amount)
+
     # Commit the buffer as proper changes
     def commit_buffer(self, cutoff_timestamp: float) -> List[InputFix]:
         new_fixes = []

@@ -162,7 +162,8 @@ class VirtualBufferManager:
             enable_self_repair = not correction_insertion
 
             # Replace the words with phonetic equivelants
-            insert = vbm.cycle_phonetic_correction(insert)
+            insert, cycle_count = self.fixer.cycle_through_fixes(insert, vbm.correction_cycle_count)
+            vbm.correction_cycle_count = cycle_count
 
         if enable_self_repair:
             

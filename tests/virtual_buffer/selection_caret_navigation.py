@@ -34,4 +34,3 @@ def test_track_selection_caret(assertion):
 
 suite = create_test_suite("Selection tracking caret navigation")
 suite.add_test(test_track_selection_caret)
-suite.run()

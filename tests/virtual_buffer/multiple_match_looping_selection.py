@@ -48,7 +48,7 @@ def test_looping_new_from_end(assertion):
     assertion( "        Should move to the right until we have reached the first occurrence", keys[1] == "right:39")
     assertion( "        Should move to the right until we have reached the end of the word 'new'", keys[2] == "shift-right:4")
     assertion( "    Repeating the search for 'new' again...")
-    keys = vb.select_phrases(["new"]) 
+    keys = vb.select_phrases(["new"])
     assertion( "        Should move to the left until we have reached the second occurrence once more", keys[1] == "left:14")
     assertion( "        Should move to the right until we have reached the end of the word 'new'", keys[2] == "shift-right:4") 
 

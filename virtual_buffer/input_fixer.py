@@ -131,30 +131,68 @@ class InputFixer:
 
         # When selecting, we know if we have a phonetic fix if the selected text
         # Contains all the items that need to be corrected ( 'where' has homophones to correct etc. )
-        if self.is_selecting() or len(self.virtual_selection) > 0:
+        if virtual_buffer.is_selecting() or len(virtual_buffer.virtual_selection) > 0:
             phonetic_fix_count = 0
+            selected_token_count = 0
             for token in tokens:
-                if self.is_phrase_selected(token.phrase):
-                    known_fixes_for_item = self.matcher.phonetic_search.get_known_fixes(token.phrase)
-                    phonetic_fix_count += 1 if len(known_fixes_for_item) > 0 else 0
-            if phonetic_fix_count == len(tokens):
+                if virtual_buffer.is_phrase_selected(token.phrase):
+                    known_fixes_for_item = virtual_buffer.matcher.phonetic_search.get_known_fixes(token.phrase)
+                    phonetic_fix_count += len(known_fixes_for_item)
+                    selected_token_count += 1
+            if phonetic_fix_count > 0 and selected_token_count == len(tokens):
                 fixed_phrases = [token.phrase for token in tokens]
 
-        # Only the last word is phonetically corrected
+        # We can cycle through the inserted words
         else:
-            known_fixes_for_last_item = self.matcher.phonetic_search.get_known_fixes(tokens[-1].phrase)
-            if len(known_fixes_for_last_item) > 0:
-                fixed_phrases = [tokens[-1].phrase]
+            phonetic_fix_count = 0
+            for token in tokens:
+                known_fixes_for_item = virtual_buffer.matcher.phonetic_search.get_known_fixes(token.phrase)
+                phonetic_fix_count += len(known_fixes_for_item)
+            if phonetic_fix_count > 0:
+                fixed_phrases = [token.phrase for token in tokens]
         return fixed_phrases
-    
+
+    # Get a count of all the fix cycles that we can get from the text
+    def determine_cycles_for_words(self, words: List[str]) -> List[Tuple[List[str], int]]:
+        word_cycles = []
+        for word in words:
+            fixes = self.phonetic_search.get_known_fixes(word)
+            fixes.insert(0, word)
+            word_cycles.append((fixes, len(fixes) - 1))
+        return word_cycles
+
     # Repeat the same input or correction to cycle through the possible changes
     def cycle_through_fixes(self, text: str, cycle_amount: int = 0) -> Tuple[str, int]:
-        fixes = self.phonetic_search.get_known_fixes(text)
-        fixes.insert(0, text)
+        words = text.split(" ")        
+        word_cycles = self.determine_cycles_for_words(words)
+        total_cycle_amount = sum([word_cycle[1] for word_cycle in word_cycles])
         cycle_amount += 1
-        if cycle_amount > len(fixes) - 1: 
+
+        # Loop back to the first item if we are beyond the total count
+        if cycle_amount > total_cycle_amount:
             cycle_amount = 0
-        return (fixes[cycle_amount], cycle_amount)
+            fixed_text = text
+
+        # Determine what word to replace in the sequence
+        # By walking backwards through the list of words and replacing them
+        # One by one imagining only a single fix being possible
+        #
+        # We prioritize later words because they have a bigger possibility 
+        # that a user notices a mistake in a dictation sequence
+        else:
+            replaced_words = []
+            replace_count = 0
+            for word_cycle in list(reversed(word_cycles)):
+                if word_cycle[1] > 0 and cycle_amount > replace_count and \
+                    cycle_amount <= replace_count + word_cycle[1]:
+                    replaced_words.insert(0, word_cycle[0][cycle_amount - replace_count])
+                else:
+                    replaced_words.insert(0, word_cycle[0][0])
+                replace_count += word_cycle[1]
+
+            fixed_text = " ".join(replaced_words)
+
+        return (fixed_text, cycle_amount)
 
     # Commit the buffer as proper changes
     def commit_buffer(self, cutoff_timestamp: float) -> List[InputFix]:

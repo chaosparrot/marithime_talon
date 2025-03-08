@@ -83,12 +83,6 @@ Most of this architecture is already built, but since there has been a refactori
 [~] - Repeater noises - Looping through homophones and other fixes  
 We know the homophones, we just need to find a way to replace a selected word with a known homophone and have it work with a repeater noise. I dislike the `phones` menu as it forces you to pick one, but it's much faster to just mindlessly flick through them with a noise since the list often only has like 2 to 3 choices anyway.
 
-Test cases to make for repeating corrections:
-- Looping through single phonetic fix at end of self repair
-- Looping through corrections one by one
-- Finding correction for multiple homophones
-- Looping through multiple corection for homophones
-
 [x] - Remove noise - Enable remove text contextually  
 This is mostly supported, but it needs to be tested in terminals as well. We could probably have a noise file to configure noises.
 

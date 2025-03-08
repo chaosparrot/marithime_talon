@@ -11,10 +11,6 @@ def get_virtual_buffer() -> VirtualBuffer:
 
 def get_filled_vb():
     vb = get_virtual_buffer()
-    homophone_contents = "to,two,too"
-    phonetic_contents = ""
-    semantic_contents = ""
-    vb = get_virtual_buffer()
 
     # Reset the phonetic search to make sure there is no influence from user settings    
     vb.matcher.phonetic_search = PhoneticSearch()

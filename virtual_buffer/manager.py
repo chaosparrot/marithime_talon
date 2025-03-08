@@ -38,8 +38,8 @@ class VirtualBufferManager:
 
     def __init__(self, settings: VirtualBufferSettings = None):
         global virtual_buffer_settings
-        self.context = InputContextManager(actions.user.marithime_update_sensory_state)
         self.fixer = InputFixer()
+        self.context = InputContextManager(actions.user.marithime_update_sensory_state, self.fixer)
         self.settings = settings if settings is not None else virtual_buffer_settings
         # self.fixer.verbose = True
         # TODO - Improve logging for fixes when the fixer is improved
@@ -157,8 +157,7 @@ class VirtualBufferManager:
 
         # Detect if we are doing a repeated phonetic correction
         # In order to cycle through it
-        # We have repeated correct if part of the 
-        if vbm.last_action_type == "phonetic_correction" and "".join(self.context.last_insert_phrases) in insert:
+        if vbm.last_action_type == "phonetic_correction" and " ".join(self.context.last_insert_phrases) in insert:
             enable_self_repair = not correction_insertion
 
             # Replace the words with phonetic equivelants

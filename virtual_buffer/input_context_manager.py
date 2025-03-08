@@ -5,6 +5,7 @@ from typing import List, Callable, Tuple
 from ..formatters.text_formatter import TextFormatter
 from ..formatters.formatters import FORMATTERS_LIST
 from .indexer import VirtualBufferIndexer, text_to_virtual_buffer_tokens
+from .input_fixer import InputFixer
 from .caret_tracker import _CARET_MARKER, _COARSE_MARKER
 from ..utils.levenshtein import levenshtein
 import os
@@ -15,6 +16,7 @@ class InputContextManager:
 
     visual_state = None
 
+    input_fixer: InputFixer = None
     indexer: VirtualBufferIndexer = None
     current_context: InputContext = None
     contexts: List[InputContext] = None
@@ -31,7 +33,7 @@ class InputContextManager:
     last_pid: int = -1
     system = ""
 
-    def __init__(self, state_callback: Callable[[str, int, int, bool], None] = None):
+    def __init__(self, state_callback: Callable[[str, int, int, bool], None] = None, input_fixer: InputFixer = None):
         self.visual_state = {
             'scanning': True, # Whether we are scanning or not
             'level': '', # Disabled - Typed - Accessibility
@@ -42,6 +44,7 @@ class InputContextManager:
         self.state_callback = state_callback
         self.update_visual_state(scanning=False)
 
+        self.input_fixer = input_fixer
         self.indexer = VirtualBufferIndexer(FORMATTERS_LIST.values())
         self.system = platform.system()
         self.contexts = []
@@ -204,7 +207,7 @@ class InputContextManager:
                 tokens.extend(text_to_virtual_buffer_tokens(text, None, "|".join(formatters)))
         else:
             tokens = text_to_virtual_buffer_tokens(insert, phrase, "|".join(formatters))
-
+ 
         self.last_insert_phrases = self.input_fixer.determine_phonetic_fixes(vbm, tokens)
 
         vbm.insert_tokens(tokens)

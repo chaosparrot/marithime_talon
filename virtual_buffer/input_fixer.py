@@ -163,7 +163,7 @@ class InputFixer:
 
     # Repeat the same input or correction to cycle through the possible changes
     def cycle_through_fixes(self, text: str, cycle_amount: int = 0) -> Tuple[str, int]:
-        words = text.split(" ")        
+        words = text.split(" ")
         word_cycles = self.determine_cycles_for_words(words)
         total_cycle_amount = sum([word_cycle[1] for word_cycle in word_cycles])
         cycle_amount += 1

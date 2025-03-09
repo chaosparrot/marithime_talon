@@ -3,7 +3,7 @@ from .input_context_manager import InputContextManager
 from .input_fixer import InputFixer
 from .typing import CORRECTION_THRESHOLD, SELECTION_THRESHOLD
 from .settings import VirtualBufferSettings, virtual_buffer_settings
-from ..phonetics.detection import EXACT_MATCH
+from ..phonetics.detection import EXACT_MATCH, normalize_text
 from typing import List, Union
 import json
 import re
@@ -157,12 +157,24 @@ class VirtualBufferManager:
 
         # Detect if we are doing a repeated phonetic correction
         # In order to cycle through it
-        if vbm.last_action_type == "phonetic_correction" and " ".join(self.context.last_insert_phrases) in insert:
-            enable_self_repair = not correction_insertion
+        if vbm.last_action_type == "phonetic_correction": 
+            normalized_input = normalize_text(insert).lower()
+            normalized_last_insert = normalize_text(" ".join(self.context.last_insert_phrases)).lower()
+            if normalized_last_insert.endswith(normalized_input):
+                enable_self_repair = enable_self_repair and not correction_insertion
 
-            # Replace the words with phonetic equivelants
-            insert, cycle_count = self.fixer.cycle_through_fixes(insert, vbm.correction_cycle_count)
-            vbm.correction_cycle_count = cycle_count
+                # Replace the words with phonetic equivelants
+                insert, cycle_count = self.fixer.cycle_through_fixes(" ".join(self.context.last_insert_phrases), vbm.correction_cycle_count)
+                vbm.correction_cycle_count = cycle_count
+
+                # Make sure we do not save the transformed text as an individual insert
+                # As it would update the state as if it wasn't a repeated item
+                vbm.skip_last_action_insert = True
+
+            # If the words don't match, just clear the correction
+            else:
+                vbm.correction_cycle_count = 0
+                vbm.skip_last_action_insert = False                
 
         if enable_self_repair:
             
@@ -177,8 +189,8 @@ class VirtualBufferManager:
             insert = " ".join(words_to_insert)
 
             self_repair_match = vbm.find_self_repair(insert.split())
-            if self_repair_match is not None:
 
+            if self_repair_match is not None:
                 # If we are dealing with a continuation, change the insert to remove the first few words
                 if self_repair_match.score_potential == EXACT_MATCH:
                     words = insert.split()
@@ -193,8 +205,8 @@ class VirtualBufferManager:
                 else:
                     first_index = self_repair_match.buffer_indices[0][0]
                     allow_initial_replacement = False
-                    if first_index - 1 >= 0:
-                        allow_initial_replacement = any(punc in vbm.tokens[first_index - 1].text for punc in (".", "?", "!"))
+                    if first_index - 1 > 0:
+                        allow_initial_replacement = not any(punc in vbm.tokens[first_index - 1].text for punc in (".", "?", "!"))
                     else:
                         allow_initial_replacement = True
                     replacement_index = 0 if allow_initial_replacement else 1
@@ -549,7 +561,7 @@ class Actions:
         """Repeat a command within Marithime context or fall back to regular repeater"""
         mutator = get_mutator()
         mutator.set_repeating_type(type)
-        actions.core.repeat_command()            
+        actions.core.repeat_command()
 
     def marithime_toggle_track_context():
         """Toggle between tracking and not tracking the marithime virtual buffer context"""

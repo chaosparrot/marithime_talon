@@ -26,6 +26,7 @@ class VirtualBuffer:
     last_search = None
     last_navigation = None
     last_phonetic_correction = None
+    skip_last_action_insert = False
     correction_cycle_count = 0
     last_direction = None
     settings: VirtualBufferSettings = None
@@ -39,6 +40,7 @@ class VirtualBuffer:
         self.last_navigation = []
         self.last_phonetic_correction = []
         self.last_direction = 0
+        self.skip_last_action_insert = False
         self.correction_cycle_count = 0
         self.single_character_presses = 0
         self.matcher = VirtualBufferMatcher(phonetic_search)
@@ -52,12 +54,22 @@ class VirtualBuffer:
 
     # Set the last action type - Used for remembering repeated items
     def set_last_action(self, last_action_type: str, phrases: List[str] = None):
+
+        # Skip saving the new state when doing repeated self repair inserts
+        # Which always follow remove -> insert
+        if self.skip_last_action_insert:
+            if last_action_type == "remove":
+                return
+            elif last_action_type == "insert":
+                self.skip_last_action_insert = False
+                return
+
         self.last_action_type = last_action_type
         self.last_search = phrases if last_action_type in ["selection", "correction"] else []
         self.last_navigation = phrases if last_action_type in ["navigation"] else []
         self.last_direction = self.last_direction if last_action_type in ["selection", "correction"] else []
         self.last_phonetic_correction = phrases if last_action_type == "phonetic_correction" else []
-        self.correction_cycle_count = self.correction_cycle_count if last_action_type != "phonetic_correction" else 0
+        self.correction_cycle_count = self.correction_cycle_count if last_action_type == "phonetic_correction" else 0
         
         # Keep track of single character insertions for easier single removal
         if last_action_type == "insert_character":
@@ -72,9 +84,7 @@ class VirtualBuffer:
         self.set_tokens()
         self.last_search = []
         self.last_navigation = []
-        self.last_phonetic_correction = []
         self.last_direction = 0
-        self.correction_cycle_count = 0
         self.single_character_presses = 0
 
     def set_tokens(self, tokens: List[VirtualBufferToken] = None, move_cursor_to_end: bool = False):
@@ -137,7 +147,7 @@ class VirtualBuffer:
                 self.remove_selection()
             elif len(self.virtual_selection) > 0:
                 self.remove_virtual_selection()
-
+        
         # Edge case - If we clear the input on Enter press,
         # We also need to clear if a newline is added through insertion
         if self.settings.get_clear_key().lower() == "enter" and token_to_insert.text.endswith("\n"):
@@ -608,23 +618,15 @@ class VirtualBuffer:
         if should_go_to_next_occurrence:
             for phrase in phrases:
                 should_go_to_next_occurrence = self.matcher.is_phrase_selected(self, phrase)
-                if verbose:
-                    print( "SELECTION TEXT: '" + self.caret_tracker.get_selection_text() + "' phrase: '" + phrase + "'")
-                    print("TESTING TOKEN", phrase, should_go_to_next_occurrence )
                 if not should_go_to_next_occurrence:
                     break
         
         self.last_direction = self.last_direction if should_go_to_next_occurrence and " ".join(self.last_search) == " ".join(phrases) else 0
         best_match_tokens, match = self.matcher.find_best_match_by_phrases(self, phrases, match_threshold, should_go_to_next_occurrence, selecting=True, for_correction=for_correction, verbose=verbose, direction=self.last_direction)
-        if best_match_tokens is not None and len(best_match_tokens) > 0:
-            if verbose:
-                print("!!! SELECTING !!!", best_match_tokens)
-            
+        if best_match_tokens is not None and len(best_match_tokens) > 0:            
             # Determine the last used direction
             # Give a direction if we are repeating a search so we can repeat a loop                
-            leftmost_token_index, leftmost_character_index = self.determine_leftmost_token_index()
-            if verbose:
-                print("SHOULD GO TO NEXT OCCURRENCE?", should_go_to_next_occurrence)
+            leftmost_token_index, _ = self.determine_leftmost_token_index()
             if not should_go_to_next_occurrence:
                 self.last_direction = 1 if match.buffer_indices[0][0] > leftmost_token_index else -1
             self.set_last_action("selection" if not for_correction else "correction", phrases)

@@ -1,7 +1,7 @@
 from talon import ui, actions, clip, settings, cron
 from .input_context import InputContext
 import time
-from typing import List, Callable, Tuple
+from typing import List, Callable
 from ..formatters.text_formatter import TextFormatter
 from ..formatters.formatters import FORMATTERS_LIST
 from .indexer import VirtualBufferIndexer, text_to_virtual_buffer_tokens
@@ -198,7 +198,7 @@ class InputContextManager:
             formatters = self.formatter_names
 
         # Automatic insert splitting if no explicit phrase is given
-        if phrase == "" and " " in insert:
+        if phrase == "":
             inserts = insert.split(" ")
             for index, text in enumerate(inserts):
                 if index < len(inserts) - 1:
@@ -208,7 +208,8 @@ class InputContextManager:
         else:
             tokens = text_to_virtual_buffer_tokens(insert, phrase, "|".join(formatters))
  
-        self.last_insert_phrases = self.input_fixer.determine_phonetic_fixes(vbm, tokens)
+        self.last_insert_phrases = self.input_fixer.determine_phonetic_fixes(vbm, tokens) \
+            if vbm.skip_last_action_insert == False else self.last_insert_phrases
 
         vbm.insert_tokens(tokens)
 
@@ -219,6 +220,7 @@ class InputContextManager:
         # For short characters without a space separator we naively expect it to have been spelled
         if last_action == "insert" and len(insert) == 1:
             last_action = "insert_character"
+
         vbm.set_last_action(last_action, self.last_insert_phrases if last_action != "insert_character" else [insert])
 
         if self.current_context:

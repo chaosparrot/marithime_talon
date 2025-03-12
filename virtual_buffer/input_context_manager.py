@@ -208,8 +208,12 @@ class InputContextManager:
         else:
             tokens = text_to_virtual_buffer_tokens(insert, phrase, "|".join(formatters))
  
-        self.last_insert_phrases = self.input_fixer.determine_phonetic_fixes(vbm, tokens) \
-            if vbm.skip_last_action_insert == False else self.last_insert_phrases
+        # Clear the last insert phrases if we are doing a regular correction
+        if vbm.last_action_type != "correction":
+            self.last_insert_phrases = self.input_fixer.determine_phonetic_fixes(vbm, tokens) \
+                if vbm.skip_last_action_insert == False else self.last_insert_phrases
+        else:
+            self.last_insert_phrases = []
 
         vbm.insert_tokens(tokens)
 

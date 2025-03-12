@@ -83,7 +83,9 @@ Most of this architecture is already built, but since there has been a refactori
 [~] - Repeater noises - Looping through homophones and other fixes  
 We know the homophones, we just need to find a way to replace a selected word with a known homophone and have it work with a repeater noise. I dislike the `phones` menu as it forces you to pick one, but it's much faster to just mindlessly flick through them with a noise since the list often only has like 2 to 3 choices anyway.
   [x] - Self repair cycling
-  [~] - Correction cycling
+  [x] - Correction cycling
+  [~] - Correction add starting condition so fixing incorrect corrections is easy
+  [ ] - Correction starting condition but no duplicates
 
 [x] - Remove noise - Enable remove text contextually  
 This is mostly supported, but it needs to be tested in terminals as well. We could probably have a noise file to configure noises.
@@ -102,6 +104,9 @@ We need to find a way to deal with word wrap, meaning things being on a single l
 
 [] - Add clipboard pasting insert support  
 Right now it isn't possible to use clipboard pasting as a way to insert things rather than typing out the characters one by one. This makes the insertion slower than it could be. This can be done with 'Ctrl+C' and 'Ctrl+V', or 'Ctrl+Shift+C' and 'Ctrl+Shift+V' in terminals. Though we probably want to use `action.edit.paste()` to make it compatible with other packages. We do need to be aware that in terminals there is a possibility that `Remove trailing white-space when pasting` is turned on, which might cause desyncs.
+
+[ ] - Refactor last action type into state machine
+Technically the repetition flow is an implicit state machine that doesn't quite belong in either the InputFixer or the VirtualBuffer. Ideally this gets moved to its own class so it can be unit tested like the rest. Now it will just have to be manually tested like some other context related stuff.
 
 #### Programs
 

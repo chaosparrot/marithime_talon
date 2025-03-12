@@ -162,11 +162,16 @@ class InputFixer:
         return word_cycles
 
     # Repeat the same input or correction to cycle through the possible changes
-    def cycle_through_fixes(self, text: str, cycle_amount: int = 0) -> Tuple[str, int]:
+    def cycle_through_fixes(self, text: str, cycle_amount: int = 0, initial_state: str = None) -> Tuple[str, int]:
         words = text.split(" ")
         word_cycles = self.determine_cycles_for_words(words)
         total_cycle_amount = sum([word_cycle[1] for word_cycle in word_cycles])
+        
+        # Add the initial text state as the second correction
+        if initial_state is not None:
+            total_cycle_amount += 1
         cycle_amount += 1
+        cycle_offset = 0
 
         # Loop back to the first item if we are beyond the total count
         if cycle_amount > total_cycle_amount:
@@ -180,6 +185,17 @@ class InputFixer:
         # We prioritize later words because they have a bigger possibility 
         # that a user notices a mistake in a dictation sequence
         else:
+            # On the second iteration, return the initial state
+            if cycle_amount == 2 and initial_state is not None:
+                fixed_text = initial_state
+                return (fixed_text, cycle_amount)
+
+            # Because the second iteration might be used for initial correction
+            # Every step after the second iteration needs to be corrected by 1
+            # Without affecting the total cycle count
+            cycle_offset = 1 if cycle_amount >= 2 and initial_state is not None else 0
+            cycle_amount -= cycle_offset
+
             replaced_words = []
             replace_count = 0
             for word_cycle in list(reversed(word_cycles)):
@@ -192,7 +208,7 @@ class InputFixer:
 
             fixed_text = " ".join(replaced_words)
 
-        return (fixed_text, cycle_amount)
+        return (fixed_text, cycle_amount + cycle_offset)
 
     # Commit the buffer as proper changes
     def commit_buffer(self, cutoff_timestamp: float) -> List[InputFix]:

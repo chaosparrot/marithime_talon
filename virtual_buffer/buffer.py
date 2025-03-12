@@ -26,6 +26,7 @@ class VirtualBuffer:
     last_search = None
     last_navigation = None
     last_phonetic_correction = None
+    correction_start_phrases = None
     skip_last_action_insert = False
     correction_cycle_count = 0
     last_direction = None
@@ -39,6 +40,7 @@ class VirtualBuffer:
         self.last_search = []
         self.last_navigation = []
         self.last_phonetic_correction = []
+        self.correction_start_phrases = None
         self.last_direction = 0
         self.skip_last_action_insert = False
         self.correction_cycle_count = 0
@@ -64,13 +66,15 @@ class VirtualBuffer:
                 self.skip_last_action_insert = False
                 return
 
+        changed_type = self.last_action_type != last_action_type
         self.last_action_type = last_action_type
         self.last_search = phrases if last_action_type in ["selection", "correction"] else []
         self.last_navigation = phrases if last_action_type in ["navigation"] else []
         self.last_direction = self.last_direction if last_action_type in ["selection", "correction"] else []
         self.last_phonetic_correction = phrases if last_action_type == "phonetic_correction" else []
-        self.correction_cycle_count = self.correction_cycle_count if last_action_type == "phonetic_correction" else 0
-        
+        self.correction_start_phrases = self.correction_start_phrases if last_action_type == "correction" else None
+        self.correction_cycle_count = self.correction_cycle_count if not changed_type and last_action_type in ["phonetic_correction", "correction"] else 0
+
         # Keep track of single character insertions for easier single removal
         if last_action_type == "insert_character":
             self.single_character_presses += len(phrases[-1])
@@ -629,6 +633,11 @@ class VirtualBuffer:
             leftmost_token_index, _ = self.determine_leftmost_token_index()
             if not should_go_to_next_occurrence:
                 self.last_direction = 1 if match.buffer_indices[0][0] > leftmost_token_index else -1
+
+            # Remember the first set of tokens as a thing to cycle through
+            if for_correction and (self.correction_start_phrases is None or should_go_to_next_occurrence):
+                self.correction_start_phrases = "".join([token.text for token in best_match_tokens])
+
             self.set_last_action("selection" if not for_correction else "correction", phrases)
             
             return self.select_token_range(best_match_tokens[0], best_match_tokens[-1], extend_selection=extend_selection)

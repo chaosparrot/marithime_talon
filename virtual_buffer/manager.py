@@ -157,7 +157,7 @@ class VirtualBufferManager:
 
         # Detect if we are doing a repeated phonetic correction
         # In order to cycle through it
-        if vbm.last_action_type == "phonetic_correction": 
+        if vbm.last_action_type == "phonetic_correction":
             normalized_input = normalize_text(insert).lower()
             normalized_last_insert = normalize_text(" ".join(self.context.last_insert_phrases)).lower()
             if normalized_last_insert.endswith(normalized_input):
@@ -174,7 +174,23 @@ class VirtualBufferManager:
             # If the words don't match, just clear the correction
             else:
                 vbm.correction_cycle_count = 0
-                vbm.skip_last_action_insert = False                
+                vbm.skip_last_action_insert = False
+
+        # On repeated corrections, cycle through the corrections
+        if vbm.last_action_type == "correction":
+            normalized_input = normalize_text(insert).lower()
+            normalized_last_search = normalize_text(" ".join(vbm.last_search)).lower()
+            if normalized_last_search.endswith(normalized_input):
+                # Replace the words with phonetic equivelants
+                insert, cycle_count = self.fixer.cycle_through_fixes(" ".join(vbm.last_search), vbm.correction_cycle_count, vbm.correction_start_phrases)
+                vbm.correction_cycle_count = cycle_count
+
+                # Make sure we do not save the transformed text as an individual insert
+                # As it would update the state as if it wasn't a repeated item
+                vbm.skip_last_action_insert = True
+            else:
+                vbm.correction_cycle_count = 0
+                vbm.skip_last_action_insert = False
 
         if enable_self_repair:
             
@@ -491,6 +507,7 @@ class Actions:
             keys = []
         else:
             keys = mutator.select_phrases(selection_and_correction, for_correction=True)
+
         if len(keys) > 0 or mutator.is_virtual_selecting() or mutator.repeater_type == "positive_after_skip":
             mutator.disable_tracking()
             if keys:

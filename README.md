@@ -84,8 +84,15 @@ Most of this architecture is already built, but since there has been a refactori
 We know the homophones, we just need to find a way to replace a selected word with a known homophone and have it work with a repeater noise. I dislike the `phones` menu as it forces you to pick one, but it's much faster to just mindlessly flick through them with a noise since the list often only has like 2 to 3 choices anyway.
   [x] - Self repair cycling
   [x] - Correction cycling
-  [~] - Correction add starting condition so fixing incorrect corrections is easy
-  [ ] - Correction starting condition but no duplicates
+  [x] - Correction starting condition but no duplicates
+  [x] - Correction add starting condition so fixing incorrect corrections is easy
+  [ ] - Implement new fixes list by duplicating the whole list multiple times 
+        and just inserting that rather than doing complicated cycling
+  [ ] - Fix starting state so that we have the right fix available after selecting
+  [ ] - Rigorous testing with corrections to make sure it works fully as intended
+
+[ ] - Cycle through corrections with phonetic combinations  
+There are some words, like 'a fix' and 'affix' that could be cycled through, but currently it only cycles through words that are single matches instead. It should cycle through these fixes as well, but for that we need to cycle through combinations properly.
 
 [x] - Remove noise - Enable remove text contextually  
 This is mostly supported, but it needs to be tested in terminals as well. We could probably have a noise file to configure noises.

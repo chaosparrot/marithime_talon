@@ -153,25 +153,31 @@ class InputFixer:
         return fixed_phrases
 
     # Get a count of all the fix cycles that we can get from the text
-    def determine_cycles_for_words(self, words: List[str]) -> List[Tuple[List[str], int]]:
+    def determine_cycles_for_words(self, words: List[str], starting_words: List[str] = None) -> List[Tuple[List[str], int]]:
         word_cycles = []
-        for word in words:
+        for word_index, word in enumerate(words):
             fixes = self.phonetic_search.get_known_fixes(word)
             fixes.insert(0, word)
+
+            # Add the starting word as the second option if available
+            # TODO this does not fix phonetic combination duplications
+            # - affix -> a fix, a fix -> affix
+            if starting_words is not None and word_index < len(starting_words):
+                starting_word = starting_words[word_index].lower()
+                if starting_word not in fixes:
+                    fixes.insert(1, starting_word)
             word_cycles.append((fixes, len(fixes) - 1))
+
         return word_cycles
 
     # Repeat the same input or correction to cycle through the possible changes
     def cycle_through_fixes(self, text: str, cycle_amount: int = 0, initial_state: str = None) -> Tuple[str, int]:
         words = text.split(" ")
-        word_cycles = self.determine_cycles_for_words(words)
+        starting_words = initial_state.split(" ") if initial_state is not None else []
+        word_cycles = self.determine_cycles_for_words(words, starting_words)
         total_cycle_amount = sum([word_cycle[1] for word_cycle in word_cycles])
-        
-        # Add the initial text state as the second correction
-        if initial_state is not None:
-            total_cycle_amount += 1
+
         cycle_amount += 1
-        cycle_offset = 0
 
         # Loop back to the first item if we are beyond the total count
         if cycle_amount > total_cycle_amount:
@@ -185,17 +191,6 @@ class InputFixer:
         # We prioritize later words because they have a bigger possibility 
         # that a user notices a mistake in a dictation sequence
         else:
-            # On the second iteration, return the initial state
-            if cycle_amount == 2 and initial_state is not None:
-                fixed_text = initial_state
-                return (fixed_text, cycle_amount)
-
-            # Because the second iteration might be used for initial correction
-            # Every step after the second iteration needs to be corrected by 1
-            # Without affecting the total cycle count
-            cycle_offset = 1 if cycle_amount >= 2 and initial_state is not None else 0
-            cycle_amount -= cycle_offset
-
             replaced_words = []
             replace_count = 0
             for word_cycle in list(reversed(word_cycles)):
@@ -208,7 +203,7 @@ class InputFixer:
 
             fixed_text = " ".join(replaced_words)
 
-        return (fixed_text, cycle_amount + cycle_offset)
+        return (fixed_text, cycle_amount)
 
     # Commit the buffer as proper changes
     def commit_buffer(self, cutoff_timestamp: float) -> List[InputFix]:

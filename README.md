@@ -86,7 +86,7 @@ We know the homophones, we just need to find a way to replace a selected word wi
   [x] - Correction cycling
   [x] - Correction starting condition but no duplicates
   [x] - Correction add starting condition so fixing incorrect corrections is easy
-  [ ] - Implement new fixes list by duplicating the whole list multiple times 
+  [x] - Implement new fixes list by duplicating the whole list multiple times 
         and just inserting that rather than doing complicated cycling
   [ ] - Fix starting state so that we have the right fix available after selecting
   [ ] - Rigorous testing with corrections to make sure it works fully as intended

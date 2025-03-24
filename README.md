@@ -88,8 +88,13 @@ We know the homophones, we just need to find a way to replace a selected word wi
   [x] - Correction add starting condition so fixing incorrect corrections is easy
   [x] - Implement new fixes list by duplicating the whole list multiple times 
         and just inserting that rather than doing complicated cycling
-  [ ] - Fix starting state so that we have the right fix available after selecting
+  [~] - Fix starting state so that we have the right fix available after selecting
   [ ] - Rigorous testing with corrections to make sure it works fully as intended
+    - Known bugs
+      Cycling back to the end does not work correctly with repeated selections / corrections with multiple words!
+      Selections do not work when repeating the same correction, but having another correction be a closer match - Expected is it selecting the first correction instead
+      Corrections are sometimes done with the same word ( duplicates )
+      Formatting isn't taken into account properly
 
 [ ] - Cycle through corrections with phonetic combinations  
 There are some words, like 'a fix' and 'affix' that could be cycled through, but currently it only cycles through words that are single matches instead. It should cycle through these fixes as well, but for that we need to cycle through combinations properly.

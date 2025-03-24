@@ -224,7 +224,7 @@ class InputFixer:
 
             # TODO PROPER FORMATTING
             fixed_text = " ".join(replaced_words)
-
+        
         return (fixed_text, cycle_amount)
 
     # Commit the buffer as proper changes

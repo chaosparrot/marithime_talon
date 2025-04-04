@@ -567,6 +567,14 @@ class VirtualBufferMatcher:
             if sum(combined_match_tree.scores) - combined_better_threshold == sum(match_tree.scores) or \
                 sum(combined_match_tree.scores) - combined_better_threshold < sum(comparison_match_tree.scores):
                 return combined_match_trees
+            
+            # Check if the score of the new combined match tree is better
+            # Than the match tree with the first query item skipped
+            combined_query_skip_indices = combined_query_indices = [next_query_skip_index]
+            skip_combined_next_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, sublist, combined_query_skip_indices, [next_buffer_index], direction)            
+            if sum(combined_match_tree.scores) - combined_better_threshold < sum(skip_combined_next_tree.scores):
+                return combined_match_trees
+
             combined_match_trees.append(combined_match_tree)
 
             # Combine three if possible

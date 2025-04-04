@@ -176,10 +176,16 @@ class VirtualBufferManager:
                 vbm.correction_cycle_count = 0
                 vbm.skip_last_action_insert = False
 
+        normalized_input = insert.lower()
+        normalized_last_select = "" if vbm.correction_start_phrases is None else vbm.correction_start_phrases.lower()
+
         # On repeated corrections, cycle through the corrections
-        if vbm.last_action_type == "correction":
-            normalized_input = normalize_text(insert).lower()
+        # Only do an initial repeat if we have an exact match!
+        if vbm.last_action_type == "correction" or \
+            ( vbm.last_action_type == "first-correction" and normalized_last_select.endswith(normalized_input) ):
+            normalized_input = normalize_text(normalized_input)
             normalized_last_search = normalize_text(" ".join(vbm.last_search)).lower()
+            
             if normalized_last_search.endswith(normalized_input):
                 # Replace the words with phonetic equivelants
                 insert, cycle_count = self.fixer.cycle_through_fixes(" ".join(vbm.last_search), vbm.correction_cycle_count, vbm.correction_start_phrases)
@@ -191,6 +197,11 @@ class VirtualBufferManager:
             else:
                 vbm.correction_cycle_count = 0
                 vbm.skip_last_action_insert = False
+
+        # Make sure we do not save the transformed text as an individual insert
+        # As it would update the state as if it wasn't a repeated item
+        if vbm.last_action_type == "first-correction":
+            vbm.skip_last_action_insert = True
 
         if enable_self_repair:
             
@@ -204,7 +215,7 @@ class VirtualBufferManager:
                 preceding_word = word
             insert = " ".join(words_to_insert)
 
-            self_repair_match = vbm.find_self_repair(insert.split())
+            self_repair_match = vbm.find_self_repair(insert.split(), verbose=True)
 
             if self_repair_match is not None:
                 # If we are dealing with a continuation, change the insert to remove the first few words

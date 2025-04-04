@@ -134,8 +134,8 @@ class InputFixer:
         if virtual_buffer.is_selecting() or len(virtual_buffer.virtual_selection) > 0:
             phonetic_fix_count = 0
             selected_token_count = 0
-            for token in tokens:
-                if virtual_buffer.is_phrase_selected(token.phrase):
+            if virtual_buffer.is_phrase_selected("".join([token.phrase for token in tokens])):
+                for token in tokens:
                     known_fixes_for_item = virtual_buffer.matcher.phonetic_search.get_known_fixes(token.phrase)
                     phonetic_fix_count += len(known_fixes_for_item)
                     selected_token_count += 1
@@ -202,7 +202,7 @@ class InputFixer:
     # Repeat the same input or correction to cycle through the possible changes
     def cycle_through_fixes(self, text: str, cycle_amount: int = 0, initial_state: str = None) -> Tuple[str, int]:
         words = text.split(" ")
-        starting_words = initial_state.split(" ") if initial_state is not None else []
+        starting_words = [word for word in initial_state.split(" ") if word != ""] if initial_state is not None else []
         flattened_word_cycles = self.determine_cycles_for_words(words, starting_words)
         total_cycle_amount = len(flattened_word_cycles)
 

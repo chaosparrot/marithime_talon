@@ -620,10 +620,8 @@ class VirtualBuffer:
         # Determine if we need to cycle between selections
         should_go_to_next_occurrence = not extend_selection
         if should_go_to_next_occurrence:
-            for phrase in phrases:
-                should_go_to_next_occurrence = self.matcher.is_phrase_selected(self, phrase)
-                if not should_go_to_next_occurrence:
-                    break
+            total_phrase = "".join(phrases)
+            should_go_to_next_occurrence = self.matcher.is_phrase_selected(self, total_phrase)
         
         self.last_direction = self.last_direction if should_go_to_next_occurrence and " ".join(self.last_search) == " ".join(phrases) else 0
         best_match_tokens, match = self.matcher.find_best_match_by_phrases(self, phrases, match_threshold, should_go_to_next_occurrence, selecting=True, for_correction=for_correction, verbose=verbose, direction=self.last_direction)

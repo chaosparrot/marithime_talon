@@ -21,7 +21,7 @@ In a text area with the following text: `The quick brown fox jumped over the laz
 
 ### Parrot noise examples
 
-In `marithime_noise.talon` a bunch of noises have been commented out like cluck repeater noises and the pop noise to remove text contextually. You can enable them one by one by removing the `#` character in front of them.
+In `marithime_noise.talon` a bunch of noises have been commented out like cluck repeater noises and the pop noise to remove text contextually. You can enable them one by one by removing the `#` character in front of them, and of course match them with your own parrot noises to make them work.
 
 ### Turning off marithime dictation
 
@@ -89,14 +89,11 @@ We know the homophones, we just need to find a way to replace a selected word wi
   [x] - Implement new fixes list by duplicating the whole list multiple times 
         and just inserting that rather than doing complicated cycling
   [x] - Fix starting state so that we have the right fix available after selecting
-  [~] - Rigorous testing with corrections to make sure it works fully as intended
+  [x] - Rigorous testing with corrections to make sure it works fully as intended
     - Known bugs
       [x] Corrections are sometimes done with the same word ( duplicates )    
       [x] Cycling back to the end does not work correctly with repeated selections / corrections with multiple words!
       [x] Single correction skips over the actual correction by doing a repeat already!
-      [ ] Repeating a self repair should fix like a correction should - With the text first
-      [ ] Skipping a self repair cycle should append the value instead
-      [ ] Selections do not work when repeating the same correction, but having another correction be a closer match - Expected is it selecting the first correction instead TOKEN-WISE
 
 [ ] - Cycle through corrections with phonetic combinations  
 There are some words, like 'a fix' and 'affix' that could be cycled through, but currently it only cycles through words that are single matches instead. It should cycle through these fixes as well, but for that we need to cycle through combinations properly.
@@ -121,9 +118,12 @@ Right now it isn't possible to use clipboard pasting as a way to insert things r
 
 [ ] - Refactor last action type into state machine
 Technically the repetition flow is an implicit state machine that doesn't quite belong in either the InputFixer or the VirtualBuffer. Ideally this gets moved to its own class so it can be unit tested like the rest. Now it will just have to be manually tested like some other context related stuff. With it, tackle the following known bugs:
-- Formatting isn't taken into account properly
+- Formatting isn't taken into account properly - should use the same formatting if it is mixed
 - Skipping a correction does not move to the next best match but instead to the current match, this is hard to fix because we don't want to skip over elements twice
 - Skipping to a next correction starts with the initial correction if it was a direct match
+- Repeating a self repair should fix like a correction should - With the text first
+- Skipping a self repair cycle should append the value instead
+- Selections do not work when repeating the same correction, but having another correction be a closer match - Expected is it selecting the first correction instead TOKEN-WISE
 
 #### Programs
 

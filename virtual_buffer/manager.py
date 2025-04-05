@@ -159,12 +159,12 @@ class VirtualBufferManager:
         # In order to cycle through it
         if vbm.last_action_type == "phonetic_correction":
             normalized_input = normalize_text(insert).lower()
-            normalized_last_insert = normalize_text(" ".join(self.context.last_insert_phrases)).lower()
+            normalized_last_insert = normalize_text("".join([token.text for token in self.context.last_insert_phrases])).lower()
             if normalized_last_insert.endswith(normalized_input):
                 enable_self_repair = enable_self_repair and not correction_insertion
 
                 # Replace the words with phonetic equivelants
-                insert, cycle_count = self.fixer.cycle_through_fixes(" ".join(self.context.last_insert_phrases), vbm.correction_cycle_count)
+                insert, cycle_count = self.fixer.cycle_through_fixes(" ".join([token.phrase for token in self.context.last_insert_phrases]), vbm.correction_cycle_count)
                 vbm.correction_cycle_count = cycle_count
 
                 # Make sure we do not save the transformed text as an individual insert
@@ -177,7 +177,7 @@ class VirtualBufferManager:
                 vbm.skip_last_action_insert = False
 
         normalized_input = insert.lower()
-        normalized_last_select = "" if vbm.correction_start_phrases is None else vbm.correction_start_phrases.lower()
+        normalized_last_select = "" if vbm.correction_start_phrases is None else "".join([token.text.lower() for token in vbm.correction_start_phrases])
 
         # On repeated corrections, cycle through the corrections
         # Only do an initial repeat if we have an exact match!
@@ -188,7 +188,9 @@ class VirtualBufferManager:
             
             if normalized_last_search.endswith(normalized_input):
                 # Replace the words with phonetic equivelants
-                insert, cycle_count = self.fixer.cycle_through_fixes(" ".join(vbm.last_search), vbm.correction_cycle_count, vbm.correction_start_phrases)
+                starting_phrases = " ".join([token.text for token in vbm.correction_start_phrases]) if vbm.correction_start_phrases is not None else ""
+                insert, cycle_count = self.fixer.cycle_through_fixes(" ".join(vbm.last_search).lower(), \
+                    vbm.correction_cycle_count, starting_phrases)
                 vbm.correction_cycle_count = cycle_count
 
                 # Make sure we do not save the transformed text as an individual insert
@@ -215,7 +217,7 @@ class VirtualBufferManager:
                 preceding_word = word
             insert = " ".join(words_to_insert)
 
-            self_repair_match = vbm.find_self_repair(insert.split(), verbose=True)
+            self_repair_match = vbm.find_self_repair(insert.split())
 
             if self_repair_match is not None:
                 # If we are dealing with a continuation, change the insert to remove the first few words

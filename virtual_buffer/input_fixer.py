@@ -140,7 +140,7 @@ class InputFixer:
                     phonetic_fix_count += len(known_fixes_for_item)
                     selected_token_count += 1
             if phonetic_fix_count > 0 and selected_token_count == len(tokens):
-                fixed_phrases = [token.phrase for token in tokens]
+                fixed_phrases = tokens
 
         # We can cycle through the inserted words
         else:
@@ -149,7 +149,7 @@ class InputFixer:
                 known_fixes_for_item = virtual_buffer.matcher.phonetic_search.get_known_fixes(token.phrase)
                 phonetic_fix_count += len(known_fixes_for_item)
             if phonetic_fix_count > 0:
-                fixed_phrases = [token.phrase for token in tokens]
+                fixed_phrases = tokens
         return fixed_phrases
 
     # Get a count of all the fix cycles that we can get from the text

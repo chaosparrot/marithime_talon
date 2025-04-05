@@ -23,10 +23,10 @@ class VirtualBuffer:
     caret_tracker: CaretTracker = None
     virtual_selection = None
     last_action_type = "insert"
-    last_search = None
-    last_navigation = None
-    last_phonetic_correction = None
-    correction_start_phrases = None
+    last_search: List[str] = None
+    last_navigation: List[VirtualBufferToken] = None
+    last_phonetic_correction: List[VirtualBufferToken] = None
+    correction_start_phrases: List[VirtualBufferToken] = None
     skip_last_action_insert = False
     correction_cycle_count = 0
     last_direction = None
@@ -55,7 +55,7 @@ class VirtualBuffer:
         return self.matcher.is_phrase_selected(self, phrase)
 
     # Set the last action type - Used for remembering repeated items
-    def set_last_action(self, last_action_type: str, phrases: List[str] = None):
+    def set_last_action(self, last_action_type: str, tokens = None): # Tokens is either a list of strings or virtual buffer tokens
 
         # Skip saving the new state when doing repeated self repair inserts
         # Which always follow remove -> insert
@@ -75,17 +75,20 @@ class VirtualBuffer:
         else:
             self.last_action_type = last_action_type
 
-        self.last_search = phrases if last_action_type in ["selection", "correction"] else []
-        self.last_navigation = phrases if last_action_type in ["navigation"] else []
+        # The last search NEEDS to be a list of phrases as we want it to be
+        # The search, rather than the match
+        self.last_search = tokens if last_action_type in ["selection", "correction"] else []
+
+        self.last_navigation = tokens if last_action_type in ["navigation"] else []
         self.last_direction = self.last_direction if last_action_type in ["selection", "correction"] else []
-        self.last_phonetic_correction = phrases if last_action_type == "phonetic_correction" else []
-        self.correction_start_phrases = self.correction_start_phrases if last_action_type == "correction" else None
-        print( "LAST ACTION - CORRECTION START PHRASES?", last_action_type, self.correction_start_phrases, self.correction_cycle_count )
+        self.last_phonetic_correction = tokens if last_action_type == "phonetic_correction" else []
+        self.correction_start_phrases = self.correction_start_phrases if last_action_type in ["first-correction", "correction"] else None
         self.correction_cycle_count = self.correction_cycle_count if not changed_type and last_action_type in ["phonetic_correction", "correction", "first-correction"] else 0
+
 
         # Keep track of single character insertions for easier single removal
         if last_action_type == "insert_character":
-            self.single_character_presses += len(phrases[-1])
+            self.single_character_presses += len(tokens[-1])
         else:
             if last_action_type == "remove" and self.single_character_presses > 0:
                 self.single_character_presses -= 1
@@ -580,7 +583,7 @@ class VirtualBuffer:
         if len(insertion_keys) > 0:
             tokens = text_to_virtual_buffer_tokens(insertion_keys)
             self.insert_tokens(tokens)
-            self.set_last_action("insert_character", [insertion_keys])
+            self.set_last_action("insert_character", tokens)
 
         if not self.caret_tracker.text_buffer:
             self.clear_tokens()
@@ -590,14 +593,14 @@ class VirtualBuffer:
 
     def go_phrase(self, phrase: str, position: str = 'end', keep_selection: bool = False, next_occurrence: bool = False, verbose: bool = False) -> List[str]:
         # Loop when we are navigating twice with the same phrase
-        if self.last_navigation and "".join(self.last_navigation) == phrase:
+        if self.last_navigation and "".join([token.phrase for token in self.last_navigation]) == phrase:
             next_occurrence = True
 
         token = self.find_token_by_phrase(phrase, -1 if position == 'end' else 0, next_occurrence, verbose)
         if token:
             keys = self.navigate_to_token(token, -1 if position == 'end' else 0, keep_selection)
             if not keep_selection:
-                self.set_last_action("navigation", [phrase])
+                self.set_last_action("navigation", [token])
             return keys
         else:
             return None
@@ -631,7 +634,8 @@ class VirtualBuffer:
             total_phrase = "".join(phrases)
             should_go_to_next_occurrence = self.matcher.is_phrase_selected(self, total_phrase)
         
-        self.last_direction = self.last_direction if should_go_to_next_occurrence and " ".join(self.last_search) == " ".join(phrases) else 0
+        self.last_direction = self.last_direction \
+            if should_go_to_next_occurrence and " ".join(self.last_search) == " ".join(phrases) else 0
 
         best_match_tokens, match = self.matcher.find_best_match_by_phrases(self, phrases, match_threshold, should_go_to_next_occurrence, selecting=True, for_correction=for_correction, verbose=verbose, direction=self.last_direction)
         if best_match_tokens is not None and len(best_match_tokens) > 0:            
@@ -643,13 +647,12 @@ class VirtualBuffer:
 
             # Remember the first set of tokens as a thing to cycle through
             if for_correction and (self.correction_start_phrases is None or should_go_to_next_occurrence):
-                self.correction_start_phrases = "".join([token.text for token in best_match_tokens])
+                self.correction_start_phrases = best_match_tokens
 
                 # Clear the correction count so it cycles properly
                 # Make sure it is at -1 because the next correction will be at 0
                 if should_go_to_next_occurrence:
                     self.correction_cycle_count = -1
-                print( "SET CORRECTION START PHRASES", self.correction_start_phrases)
 
             self.set_last_action("selection" if not for_correction else "correction", phrases)
             

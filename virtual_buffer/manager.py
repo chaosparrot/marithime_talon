@@ -3,7 +3,7 @@ from .input_context_manager import InputContextManager
 from .input_fixer import InputFixer
 from .typing import CORRECTION_THRESHOLD, SELECTION_THRESHOLD
 from .settings import VirtualBufferSettings, virtual_buffer_settings
-from ..phonetics.detection import EXACT_MATCH
+from ..phonetics.detection import EXACT_MATCH, normalize_text
 from typing import List, Union
 import json
 import re
@@ -33,12 +33,13 @@ class VirtualBufferManager:
     fixer: InputFixer
     tracking = True
     tracking_lock: str = ""
+    repeater_type: str = "positive" # "positive", "skip", "positive_after_skip"
     use_last_set_formatter = False
 
     def __init__(self, settings: VirtualBufferSettings = None):
         global virtual_buffer_settings
-        self.context = InputContextManager(actions.user.marithime_update_sensory_state)
         self.fixer = InputFixer()
+        self.context = InputContextManager(actions.user.marithime_update_sensory_state, self.fixer)
         self.settings = settings if settings is not None else virtual_buffer_settings
         # self.fixer.verbose = True
         # TODO - Improve logging for fixes when the fixer is improved
@@ -52,6 +53,11 @@ class VirtualBufferManager:
     def set_formatter(self, name: str):
         self.context.set_formatter(name)
 
+    def set_repeating_type(self, type: str):
+        if self.repeater_type == "skip" and type != "skip":
+            type = "positive_after_skip"
+        self.repeater_type = type
+
     def enable_tracking(self, lock: str = ""):
         if self.tracking_lock == "" or self.tracking_lock == lock:
             self.tracking = True
@@ -64,7 +70,7 @@ class VirtualBufferManager:
 
     def track_key(self, key_string: str):
         if self.tracking:
-            self.context.apply_key(key_string)
+            self.context.apply_key(key_string, True)
             self.index()
 
     def track_insert(self, insert: str, phrase: str = None):
@@ -149,6 +155,56 @@ class VirtualBufferManager:
             for key in keys_to_remove_virtual_selection:
                 self.context.apply_key(key)
 
+        # Detect if we are doing a repeated phonetic correction
+        # In order to cycle through it
+        if vbm.last_action_type == "phonetic_correction":
+            normalized_input = normalize_text(insert).lower()
+            normalized_last_insert = normalize_text("".join([token.text for token in self.context.last_insert_phrases])).lower()
+            if normalized_last_insert.endswith(normalized_input):
+                enable_self_repair = enable_self_repair and not correction_insertion
+
+                # Replace the words with phonetic equivelants
+                insert, cycle_count = self.fixer.cycle_through_fixes(" ".join([token.phrase for token in self.context.last_insert_phrases]), vbm.correction_cycle_count)
+                vbm.correction_cycle_count = cycle_count
+
+                # Make sure we do not save the transformed text as an individual insert
+                # As it would update the state as if it wasn't a repeated item
+                vbm.skip_last_action_insert = True
+
+            # If the words don't match, just clear the correction
+            else:
+                vbm.correction_cycle_count = 0
+                vbm.skip_last_action_insert = False
+
+        normalized_input = insert.lower()
+        normalized_last_select = "" if vbm.correction_start_phrases is None else "".join([token.text.lower() for token in vbm.correction_start_phrases])
+
+        # On repeated corrections, cycle through the corrections
+        # Only do an initial repeat if we have an exact match!
+        if vbm.last_action_type == "correction" or \
+            ( vbm.last_action_type == "first-correction" and normalized_last_select.endswith(normalized_input) ):
+            normalized_input = normalize_text(normalized_input)
+            normalized_last_search = normalize_text(" ".join(vbm.last_search)).lower()
+            
+            if normalized_last_search.endswith(normalized_input):
+                # Replace the words with phonetic equivelants
+                starting_phrases = " ".join([token.text for token in vbm.correction_start_phrases]) if vbm.correction_start_phrases is not None else ""
+                insert, cycle_count = self.fixer.cycle_through_fixes(" ".join(vbm.last_search).lower(), \
+                    vbm.correction_cycle_count, starting_phrases)
+                vbm.correction_cycle_count = cycle_count
+
+                # Make sure we do not save the transformed text as an individual insert
+                # As it would update the state as if it wasn't a repeated item
+                vbm.skip_last_action_insert = True
+            else:
+                vbm.correction_cycle_count = 0
+                vbm.skip_last_action_insert = False
+
+        # Make sure we do not save the transformed text as an individual insert
+        # As it would update the state as if it wasn't a repeated item
+        if vbm.last_action_type == "first-correction":
+            vbm.skip_last_action_insert = True
+
         if enable_self_repair:
             
             # Remove stutters / repeats in the same phrase
@@ -162,8 +218,8 @@ class VirtualBufferManager:
             insert = " ".join(words_to_insert)
 
             self_repair_match = vbm.find_self_repair(insert.split())
-            if self_repair_match is not None:
 
+            if self_repair_match is not None:
                 # If we are dealing with a continuation, change the insert to remove the first few words
                 if self_repair_match.score_potential == EXACT_MATCH:
                     words = insert.split()
@@ -178,8 +234,8 @@ class VirtualBufferManager:
                 else:
                     first_index = self_repair_match.buffer_indices[0][0]
                     allow_initial_replacement = False
-                    if first_index - 1 >= 0:
-                        allow_initial_replacement = any(punc in vbm.tokens[first_index - 1].text for punc in (".", "?", "!"))
+                    if first_index - 1 > 0:
+                        allow_initial_replacement = not any(punc in vbm.tokens[first_index - 1].text for punc in (".", "?", "!"))
                     else:
                         allow_initial_replacement = True
                     replacement_index = 0 if allow_initial_replacement else 1
@@ -270,6 +326,10 @@ class VirtualBufferManager:
             return [self.settings.get_remove_character_left_key()]
         elif self.is_virtual_selecting():
             return vbm.remove_virtual_selection()
+
+        # For single character insertions we want to remove characters one by one
+        elif vbm and vbm.single_character_presses > 0 and backwards:
+            return [self.settings.get_remove_character_left_key()]
         
         if context.current is not None:
             if context.character_index == 0 and backwards and context.previous is not None:
@@ -281,11 +341,12 @@ class VirtualBufferManager:
                 elif backwards:
                     return [self.settings.get_remove_character_left_key() + ":" + str(len(context.current.text))]
 
+            # Clear character-wise in the middle of a word
             if context.character_index > 0 and context.character_index < len(context.current.text) - 1:
                 if backwards:
-                    return [self.settings.get_remove_character_left_key() + ":" + str(context.character_index)]
+                    return [self.settings.get_remove_character_left_key()]
                 else:
-                    return [self.settings.get_remove_character_right_key() + ":" + str(len(context.current.text) - context.character_index)]
+                    return [self.settings.get_remove_character_right_key()]
 
         return [self.settings.get_remove_word_left_key() if backwards else self.settings.get_remove_word_right_key()]
 
@@ -420,7 +481,7 @@ class Actions:
         keys = mutator.clear_keys(backward)
         for key in keys:
             actions.key(key)
-        mutator.index_textarea()
+        #mutator.index_textarea()
 
     def marithime_move_caret(phrase: str, caret_position: int = -1):
         """Move the caret to the given phrase"""
@@ -450,15 +511,27 @@ class Actions:
     def marithime_correction(selection_and_correction: List[str]):
         """Select a fuzzy match of the words and apply the given words"""
         mutator = get_mutator()
-        keys = mutator.select_phrases(selection_and_correction, for_correction=True)
-        if len(keys) > 0 or mutator.is_virtual_selecting():
+
+        # We can repeat this command - But skip to the next selection if we are dealing with a "skip" repetition
+        # Positive - cycle through single corrections
+        # Skip - Select the next correctable phrase
+        # Positive_after_skip - Replace the selection with the insertion
+        if mutator.repeater_type == "positive_after_skip":
+            keys = []
+        else:
+            keys = mutator.select_phrases(selection_and_correction, for_correction=True)
+
+        if len(keys) > 0 or mutator.is_virtual_selecting() or mutator.repeater_type == "positive_after_skip":
             mutator.disable_tracking()
             if keys:
                 for key in keys:
                     actions.key(key)
             mutator.enable_tracking()
-            text = " ".join(selection_and_correction)
-            actions.user.marithime_insert(text)
+
+            # Do not insert text upon skipping a correction
+            if mutator.repeater_type != "skip":
+                text = " ".join(selection_and_correction)
+                actions.user.marithime_insert(text)
         else:
             raise RuntimeError("Input phrase '" + " ".join(selection_and_correction) + "' could not be corrected")
 
@@ -513,6 +586,12 @@ class Actions:
     def marithime_update_sensory_state(scanning: bool, level: str, caret_confidence: int, content_confidence: int):
         """Visually or audibly update the state for the user"""
         pass
+
+    def marithime_repeat(type: str):
+        """Repeat a command within Marithime context or fall back to regular repeater"""
+        mutator = get_mutator()
+        mutator.set_repeating_type(type)
+        actions.core.repeat_command()
 
     def marithime_toggle_track_context():
         """Toggle between tracking and not tracking the marithime virtual buffer context"""

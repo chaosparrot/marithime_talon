@@ -19,6 +19,10 @@ In a text area with the following text: `The quick brown fox jumped over the laz
 - At the end of the sentence, saying `over the hazy dog` will select `over the lazy dog` and replace it with `over the hazy dog`.
 - At the end of the sentence, saying `the lazy hog` will select `the lazy dog` and replace it with `the lazy hog`.
 
+### Parrot noise examples
+
+In `marithime_noise.talon` a bunch of noises have been commented out like cluck repeater noises and the pop noise to remove text contextually. You can enable them one by one by removing the `#` character in front of them, and of course match them with your own parrot noises to make them work.
+
 ### Turning off marithime dictation
 
 If you do not want marithime dictation, but instead only want to use the selection and correction features, remove the line in `settings.talon` that says `tag(): user.marithime_dictation` and save the file.
@@ -62,7 +66,7 @@ There's a ton of ways other packages can make use of our captures, settings and 
 #### Dictation
 
 [~] - Terminator words  
-Right now the word `quill` is used, instead of the word `over`, to terminate a command. We probably want to extend this a bit, though we need to take into account that they need to not only be used in commands, but filtered out in other ways.
+Right now the word `quill` is used, instead onf the word `over`, to terminate a command. We probably want to extend this a bit, though we need to take into account that they need to not only be used in commands, but filtered out in other ways.
 
 [] - Making automatic fixing work  
 This feature has been implemented but it hasn't been tested very well. There's probably a lot of research left to be done.
@@ -70,23 +74,38 @@ This feature has been implemented but it hasn't been tested very well. There's p
 [] - Incremental text field updates  
 Right now, indexing a text field causes it to lose all meaning with regards to formatters used. This causes problems with trying to re-use a formatter that was used.
 
-[] - Repeater noises - Looping through selections and corrections  
+[] - Zero width space indexation selection fix  
+When a zero width space indexation is used, it is possible that a current selection is removed. We can fix that selection afterwards so we don't have issues where content is removed unnecessarily
+
+[x] - Repeater noises - Looping through selections and corrections  
 Most of this architecture is already built, but since there has been a refactoring this functionality would probably loop between two values right now rather than go through the list like a 
 
-[] - Repeater noises - Looping through homophones  
+[~] - Repeater noises - Looping through homophones and other fixes  
 We know the homophones, we just need to find a way to replace a selected word with a known homophone and have it work with a repeater noise. I dislike the `phones` menu as it forces you to pick one, but it's much faster to just mindlessly flick through them with a noise since the list often only has like 2 to 3 choices anyway.
+  [x] - Self repair cycling
+  [x] - Correction cycling
+  [x] - Correction starting condition but no duplicates
+  [x] - Correction add starting condition so fixing incorrect corrections is easy
+  [x] - Implement new fixes list by duplicating the whole list multiple times 
+        and just inserting that rather than doing complicated cycling
+  [x] - Fix starting state so that we have the right fix available after selecting
+  [x] - Rigorous testing with corrections to make sure it works fully as intended
+    - Known bugs
+      [x] Corrections are sometimes done with the same word ( duplicates )    
+      [x] Cycling back to the end does not work correctly with repeated selections / corrections with multiple words!
+      [x] Single correction skips over the actual correction by doing a repeat already!
 
-[] - Remove noise - Enable remove text contextually  
+[ ] - Cycle through corrections with phonetic combinations  
+There are some words, like 'a fix' and 'affix' that could be cycled through, but currently it only cycles through words that are single matches instead. It should cycle through these fixes as well, but for that we need to cycle through combinations properly.
+
+[x] - Remove noise - Enable remove text contextually  
 This is mostly supported, but it needs to be tested in terminals as well. We could probably have a noise file to configure noises.
 
-[] - Remove noise - Remove character contextually  
+[x] - Remove noise - Remove character contextually  
 If you're spelling letters one by one, you probably do not want to remove an entire word like it usually does right now. In that case, we should remove only a single character per noise.
 
-[] - Continue noise  
+[x] - Continue noise  
 We could already create a noise that immediately skips to the end of the sentence. 
-
-[] - Previous / next paragraph / sentence  
-We could make it easier to loop through sentences since we already have the buffer anyway, but I'm hesitant to just add new features that require more commands. Perhaps we could find a middle with with commented out commands for advanced usages.
 
 [] - Implement flow for digits  
 Right now, you still need to say `numb zero` every time between commands. We can detect if we should allow digits, periods and other kinds of formatters as single words if we can be very certain that the next character will be 
@@ -94,11 +113,17 @@ Right now, you still need to say `numb zero` every time between commands. We can
 [] - Word wrap detection  
 We need to find a way to deal with word wrap, meaning things being on a single line, but visually ( and most importantly, keyboard relatively ) they are on multiple lines. Our current Up and Down arrow key pressing does not deal with that.
 
-[] - Zero width space indexation selection fix  
-When a zero width space indexation is used, it is possible that a current selection is removed. We can fix that selection afterwards so we don't have issues where content is removed unnecessarily
-
 [] - Add clipboard pasting insert support  
 Right now it isn't possible to use clipboard pasting as a way to insert things rather than typing out the characters one by one. This makes the insertion slower than it could be. This can be done with 'Ctrl+C' and 'Ctrl+V', or 'Ctrl+Shift+C' and 'Ctrl+Shift+V' in terminals. Though we probably want to use `action.edit.paste()` to make it compatible with other packages. We do need to be aware that in terminals there is a possibility that `Remove trailing white-space when pasting` is turned on, which might cause desyncs.
+
+[ ] - Refactor last action type into state machine
+Technically the repetition flow is an implicit state machine that doesn't quite belong in either the InputFixer or the VirtualBuffer. Ideally this gets moved to its own class so it can be unit tested like the rest. Now it will just have to be manually tested like some other context related stuff. With it, tackle the following known bugs:
+- Formatting isn't taken into account properly - should use the same formatting if it is mixed
+- Skipping a correction does not move to the next best match but instead to the current match, this is hard to fix because we don't want to skip over elements twice
+- Skipping to a next correction starts with the initial correction if it was a direct match
+- Repeating a self repair should fix like a correction should - With the text first
+- Skipping a self repair cycle should append the value instead
+- Selections do not work when repeating the same correction, but having another correction be a closer match - Expected is it selecting the first correction instead TOKEN-WISE
 
 #### Programs
 
@@ -108,7 +133,7 @@ While there's programs where it nails the accessibility API pretty well, others 
 [] - Text editor support  
 This means we should be able to support vim, nano and other keybindings. This runs into the same issues as using a terminal does however, namely poor accessibility support and hard to detect when something is inside of a text editor in the first place. Another is no line wrapping when reaching the start or end of the line and key-pressing beyond that boundary.
 
-[~] - Single line detection  
+[x] - Single line detection  
 Some fields, like name fields, do not have the possibility to add multiple lines. In that case, we probably want to either clear the buffer or simply not allow the enter to change the field. We should probably do a refresh if we are in an accessible field, and a clear in a terminal. 
 
 [] - Accessiblity input tags  

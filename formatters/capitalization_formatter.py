@@ -70,7 +70,7 @@ class CapitalizationFormatter(SeparatorFormatter):
             current_word = ""
             for index, char in enumerate(word):
                 if char.isalpha():
-                    alpha_current_word = re.sub('\d', '', re.sub('[^\w]', '', current_word))
+                    alpha_current_word = re.sub(r'\d', '', re.sub(r'[^\w]', '', current_word))
                     previous_char = "" if alpha_current_word == "" else alpha_current_word[-1]
                     changing_casing = char.islower() != previous_char.islower() and previous_char != ""
 

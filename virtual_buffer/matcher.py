@@ -32,7 +32,7 @@ class VirtualBufferMatcher:
     def is_phrase_selected(self, virtual_buffer, phrase: str) -> bool:
         if virtual_buffer.is_selecting():
             selection = virtual_buffer.caret_tracker.get_selection_text()
-            return self.phonetic_search.phonetic_similarity_score(normalize_text(selection).replace(" ", ''), phrase) >= PHONETIC_MATCH
+            return self.phonetic_search.phonetic_similarity_score(normalize_text(selection.lower()).replace(" ", ''), phrase) >= PHONETIC_MATCH
         return False
 
     def has_matching_phrase(self, virtual_buffer, phrase: str) -> bool:
@@ -51,28 +51,60 @@ class VirtualBufferMatcher:
         match_threshold += 0.1 * max(0, (3 - len(phrases)))
         return min(0.83, match_threshold)
 
-    def find_top_three_matches_in_token_list(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, selecting: bool = False, for_correction: bool = False, verbose: bool = False):
+    def find_top_three_matches_in_token_list(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, selecting: bool = False, for_correction: bool = False, verbose: bool = False, direction: int = 0, overwrite_token_index: int = -1):
         # Don't change the match threshold for corrections
         if not for_correction:
             match_threshold = self.get_threshold_for_selection(phrases, match_threshold)
 
-        leftmost_token_index = virtual_buffer.determine_leftmost_token_index()[0]
-        rightmost_token_index = virtual_buffer.determine_rightmost_token_index()[0]
+        # Make sure to split at the right left token index for the leftmost character
+        # To only exclude tokens that should be filtered out
+        leftmost_token_index, leftmost_character_index = virtual_buffer.determine_leftmost_token_index()
+        if leftmost_token_index != -1 and len(virtual_buffer.tokens[leftmost_token_index].text) == leftmost_character_index:
+            leftmost_token_index += 1
+        leftmost_token_index = leftmost_token_index if overwrite_token_index == -1 else overwrite_token_index
+
+        # Make sure to split at the right token index for the rightmost character
+        # To only exclude tokens that should be filtered out
+        rightmost_token_index, rightmost_character_index = virtual_buffer.determine_rightmost_token_index()
+        if rightmost_token_index != -1 and rightmost_character_index == 0:
+            rightmost_token_index -= 1
+        rightmost_token_index = rightmost_token_index if overwrite_token_index == -1 else overwrite_token_index
+        
         starting_index = 0
         ending_index = len(virtual_buffer.tokens)
         token_list = VirtualBufferTokenList(starting_index, virtual_buffer.tokens[starting_index:ending_index])
         match_calculation = self.generate_match_calculation(phrases, match_threshold, purpose=("correction" if for_correction else "selection"))
         match_calculation.cache.index_token_list(token_list)
+    
         windowed_sublists = token_list.get_windowed_sublists(leftmost_token_index, match_calculation)
+
+        # If we have reached the end after a loop - Make sure to not find any tokens in the current selection
+        if overwrite_token_index == -1:
+            if direction == -1 and leftmost_token_index <= 0:
+                windowed_sublists = []
+            elif direction == 1 and rightmost_token_index >= len(virtual_buffer.tokens) - 1:
+                windowed_sublists = []
+
+        # Filter out all the sublists before or after the current selection if we are using a specific direction
+        if verbose:
+            if direction != -1:
+                print(" - Repeating in direction: " + ("right" if direction == 1 else "left" ))
+        if direction == 1:
+            windowed_sublists = list(map(lambda sublist: sublist.filter_after_index(rightmost_token_index), windowed_sublists))
+        elif direction == -1:
+            windowed_sublists = list(map(lambda sublist: sublist.filter_before_index(leftmost_token_index), windowed_sublists))
+        windowed_sublists = list(filter(lambda mapped: mapped.length > 0, windowed_sublists))
 
         if verbose:
             print( "- Using match threshold: " + str(match_calculation.match_threshold))
             print( "- Splitting into " + str(len(windowed_sublists)) + " windowed sublists for rapid searching")
+            print( windowed_sublists )
 
+        matches = []
         highest_score_achieved = False
         for windowed_sublist in windowed_sublists:
             sublists, match_calculation = self.find_potential_sublists(match_calculation, windowed_sublist, verbose=verbose)
-            split_sublists = self.split_sublists_by_cursor_position(sublists, leftmost_token_index, rightmost_token_index)
+            split_sublists = self.split_sublists_by_cursor_position(sublists, leftmost_token_index, rightmost_token_index, direction)
             matches = []
 
             highest_found_match = match_threshold
@@ -137,7 +169,22 @@ class VirtualBufferMatcher:
                         print("DO NOT SKIP WORD", score_for_index, non_match_threshold, windowed_index)
                 elif verbose:
                     print("SKIP INDEX", windowed_index)
-        
+
+        # If we are doing repeats and looping
+        # We want to loop back around to the start of the field once we hit the end
+        # So retry finding matches from either the end or the start, but only one time
+        if len(matches) == 0 and direction != 0 and overwrite_token_index == -1:
+            max_window_size = max(25, len(match_calculation.words) * 5)
+            retry_index = -1
+            if direction == 1 and rightmost_token_index > ( ending_index - 1 - max_window_size):
+                retry_index = 0
+            elif direction == -1 and leftmost_token_index < max_window_size:
+                retry_index = ending_index
+            
+            if retry_index != -1:
+                if verbose:
+                    print("LOOPING AROUND!")
+                matches = self.find_top_three_matches_in_token_list(virtual_buffer, phrases, match_threshold, selecting, for_correction, verbose, direction, retry_index)
         return matches
 
     # Generate a match calculation based on the words to search for weighted by syllable count
@@ -182,7 +229,8 @@ class VirtualBufferMatcher:
 
     # Split the sublists up into three zones that are important for selection
     # The zone before, on and after the caret
-    def split_sublists_by_cursor_position(self, sublists: List[VirtualBufferTokenList], left_index: int, right_index: int) -> List[List[VirtualBufferTokenList]]:
+    # If a predefined direction is given, only use that
+    def split_sublists_by_cursor_position(self, sublists: List[VirtualBufferTokenList], left_index: int, right_index: int, direction: int = 0) -> List[List[VirtualBufferTokenList]]:
         before = []
         current = []
         after = []
@@ -199,7 +247,13 @@ class VirtualBufferMatcher:
         # the assumption being that the closest match to the cursor matters most
         before.reverse()
 
-        return [before, current, after]
+        split_sublists = [before, current, after]
+        if direction == 1:
+            split_sublists = [after]
+        elif direction == -1:
+            split_sublists = [before]
+
+        return split_sublists
     
     def find_matches_in_token_list(self, match_calculation: VirtualBufferMatchCalculation, sublist: VirtualBufferTokenList, highest_match: float = 0, early_stopping: bool = True, verbose: bool = False) -> Tuple[List[VirtualBufferMatch], VirtualBufferMatchCalculation]:
         branches = match_calculation.get_starting_branches(sublist)
@@ -513,6 +567,14 @@ class VirtualBufferMatcher:
             if sum(combined_match_tree.scores) - combined_better_threshold == sum(match_tree.scores) or \
                 sum(combined_match_tree.scores) - combined_better_threshold < sum(comparison_match_tree.scores):
                 return combined_match_trees
+            
+            # Check if the score of the new combined match tree is better
+            # Than the match tree with the first query item skipped
+            combined_query_skip_indices = combined_query_indices = [next_query_skip_index]
+            skip_combined_next_tree = self.add_tokens_to_match_tree(match_tree, match_calculation, sublist, combined_query_skip_indices, [next_buffer_index], direction)            
+            if sum(combined_match_tree.scores) - combined_better_threshold < sum(skip_combined_next_tree.scores):
+                return combined_match_trees
+
             combined_match_trees.append(combined_match_tree)
 
             # Combine three if possible
@@ -1089,14 +1151,16 @@ class VirtualBufferMatcher:
 
         return match_calculation
 
-    def find_best_match_by_phrases(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, verbose: bool = False) -> (List[VirtualBufferToken], VirtualBufferMatch):
-        matches = self.find_top_three_matches_in_token_list(virtual_buffer, phrases, match_threshold, selecting, for_correction, verbose)
+    def find_best_match_by_phrases(self, virtual_buffer, phrases: List[str], match_threshold: float = SELECTION_THRESHOLD, next_occurrence: bool = True, selecting: bool = False, for_correction: bool = False, verbose: bool = False, direction: int = 0) -> (List[VirtualBufferToken], VirtualBufferMatch):
+        matches = self.find_top_three_matches_in_token_list(virtual_buffer, phrases, match_threshold, selecting, for_correction, verbose, direction)
 
         if verbose:
             print( "All available matches:", matches, next_occurrence )
 
         if len(matches) > 0:
             best_match_tokens = []
+
+            # Use the closest one in the center
             best_match = matches[0]
 
             if len(matches) > 1:
@@ -1105,16 +1169,6 @@ class VirtualBufferMatcher:
                     matches.sort(key = cmp_to_key(self.compare_match_trees_for_selection), reverse=True)
                 if for_correction:
                     matches.sort(key = cmp_to_key(self.compare_match_trees_for_correction), reverse=True)
-
-                # TODO SELECT NEXT IN DIRECTION IN CASE OF REPETITION
-                # For now it will just skip between two nearest elements
-                if verbose:
-                    print( "After sorting", matches)
-                if next_occurrence and len(matches) > 1:
-                    if verbose:
-                        print( "Discarding first item due to it being selected", matches )
-                    matches.pop(0)
-
                 best_match = matches[0]
 
             for index_list in best_match.buffer_indices:
@@ -1128,90 +1182,16 @@ class VirtualBufferMatcher:
         else:
             return (None, None)
     
-    def find_single_match_by_phrase(self, virtual_buffer, phrase: str, char_position: int = -1, next_occurrence: bool = True, selecting: bool = False) -> VirtualBufferToken:
-        exact_matching_tokens: List[(int, VirtualBufferToken)] = []
-        fuzzy_matching_tokens: List[(int, VirtualBufferToken, float)] = []
-
-        for index, token in enumerate(virtual_buffer.tokens):
-            score = self.phonetic_search.phonetic_similarity_score(phrase, token.phrase)
-            if score >= HOMOPHONE_MATCH:
-                exact_matching_tokens.append((index, token))
-            elif score > SELECTION_THRESHOLD:
-                fuzzy_matching_tokens.append((index, token, score))
-
-        # If we have no valid matches or valid carets, we cannot find the phrase
-        caret_index = virtual_buffer.caret_tracker.get_caret_index()
-        if (len(exact_matching_tokens) + len(fuzzy_matching_tokens) == 0) or caret_index[0] < 0:
-            return None
-        
-        # Get the first exact match
-        if len(exact_matching_tokens) == 1:
-            return exact_matching_tokens[0][1]
-        
-        # Get a fuzzy match if it is the only match
-        elif len(exact_matching_tokens) == 0 and len(fuzzy_matching_tokens) == 1:
-            return fuzzy_matching_tokens[0][1]
-        else:
-            token_index = virtual_buffer.determine_token_index()
-            current_token = virtual_buffer.tokens[token_index[0]]
-            text_length = len(current_token.text.replace("\n", ""))
-            current_phrase_similar = self.phonetic_search.phonetic_similarity_score(phrase, current_token.phrase) >= 1
-
-            if token_index[1] == text_length and not current_phrase_similar:
-                # Move to the next token if that token matches our phrase
-                next_token_phrase = "" if token_index[0] + 1 >= len(virtual_buffer.tokens) else virtual_buffer.tokens[token_index[0] + 1].phrase 
-                if self.phonetic_search.phonetic_similarity_score(phrase, next_token_phrase) >= 1:
-                    current_token = virtual_buffer.tokens[token_index[0] + 1]
-                    token_index = (token_index[0] + 1, 0)
-                    current_phrase_similar = True
-
-            # If the current token is the token we are looking for, make sure to check if we should cycle through it
-            if current_phrase_similar:    
-                # If the caret is in the middle of the token we are trying to find, make sure we don't look further                
-                if token_index[1] > 0 and token_index[1] < text_length:
-                    return current_token
-                
-                # If the caret is on the opposite end of the token we are trying to find, make sure we don't look further
-                # Unless we are actively selecting new ocurrences
-                elif not (selecting and next_occurrence) and ( (token_index[1] == 0 and char_position == -1) or (token_index[1] == text_length and char_position >= 0) ):
-                    return current_token
-                
-            # Loop through the occurrences one by one, starting back at the end if we have reached the first token
-            if next_occurrence:
-                matched_token = None
-                for token in exact_matching_tokens:
-                    if token[0] < token_index[0]:
-                        matched_token = token[1]
-                    elif (virtual_buffer.last_action_type == "insert" or virtual_buffer.last_action_type == "remove") and token[0] == token_index[0]:
-                        matched_token = token[1]
-                
-                if matched_token is None:
-                    matched_token = exact_matching_tokens[-1][1]
-
-            # Just get the nearest matching token to the caret as this is most likely the one we were after
-            # Not all cases have been properly tested for this
+    def find_single_match_by_phrase(self, virtual_buffer, phrase: str, char_position: int = -1, next_occurrence: bool = True, selecting: bool = False, verbose: bool = False) -> VirtualBufferToken:
+        direction = 0
+        if next_occurrence:
+            if (char_position < 0):
+                direction = 1
             else:
-                distance_to_token = 1000000
-                current_token = virtual_buffer.tokens[token_index[0]]
+                direction = -1
 
-                matched_token = None
-                for token_index, token in exact_matching_tokens:
-                    line_distance = abs(token.line_index - current_token.line_index) * 10000
-                    distance_from_token_end = abs(token.index_from_line_end) + line_distance
-                    distance_from_token_start = abs(token.index_from_line_end + len(token.text.replace("\n", ""))) + line_distance
-                    
-                    if abs(distance_from_token_end - current_token.index_from_line_end) < distance_to_token:
-                        matched_token = token
-                        distance_to_token = abs(distance_from_token_end - current_token.index_from_line_end)
-                    
-                    elif abs(distance_from_token_start - current_token.index_from_line_end) < distance_to_token:
-                        matched_token = token
-                        distance_to_token = abs(distance_from_token_start - current_token.index_from_line_end)
-
-                if matched_token is None:
-                    matched_token = exact_matching_tokens[-1]
-
-            return matched_token
+        best_match_tokens, match = self.find_best_match_by_phrases(virtual_buffer, [phrase], SELECTION_THRESHOLD, next_occurrence, selecting, True, verbose, direction)
+        return best_match_tokens[0] if best_match_tokens else None
         
     def get_memoized_similarity_score(self, word_a: str, word_b: str) -> float:
         # Quick memoized look up

@@ -80,21 +80,6 @@ When a zero width space indexation is used, it is possible that a current select
 [x] - Repeater noises - Looping through selections and corrections  
 Most of this architecture is already built, but since there has been a refactoring this functionality would probably loop between two values right now rather than go through the list like a 
 
-[~] - Repeater noises - Looping through homophones and other fixes  
-We know the homophones, we just need to find a way to replace a selected word with a known homophone and have it work with a repeater noise. I dislike the `phones` menu as it forces you to pick one, but it's much faster to just mindlessly flick through them with a noise since the list often only has like 2 to 3 choices anyway.
-  [x] - Self repair cycling
-  [x] - Correction cycling
-  [x] - Correction starting condition but no duplicates
-  [x] - Correction add starting condition so fixing incorrect corrections is easy
-  [x] - Implement new fixes list by duplicating the whole list multiple times 
-        and just inserting that rather than doing complicated cycling
-  [x] - Fix starting state so that we have the right fix available after selecting
-  [x] - Rigorous testing with corrections to make sure it works fully as intended
-    - Known bugs
-      [x] Corrections are sometimes done with the same word ( duplicates )    
-      [x] Cycling back to the end does not work correctly with repeated selections / corrections with multiple words!
-      [x] Single correction skips over the actual correction by doing a repeat already!
-
 [ ] - Cycle through corrections with phonetic combinations  
 There are some words, like 'a fix' and 'affix' that could be cycled through, but currently it only cycles through words that are single matches instead. It should cycle through these fixes as well, but for that we need to cycle through combinations properly.
 
@@ -116,7 +101,7 @@ We need to find a way to deal with word wrap, meaning things being on a single l
 [] - Add clipboard pasting insert support  
 Right now it isn't possible to use clipboard pasting as a way to insert things rather than typing out the characters one by one. This makes the insertion slower than it could be. This can be done with 'Ctrl+C' and 'Ctrl+V', or 'Ctrl+Shift+C' and 'Ctrl+Shift+V' in terminals. Though we probably want to use `action.edit.paste()` to make it compatible with other packages. We do need to be aware that in terminals there is a possibility that `Remove trailing white-space when pasting` is turned on, which might cause desyncs.
 
-[ ] - Refactor last action type into state machine
+[~] - Refactor last action type into state machine
 Technically the repetition flow is an implicit state machine that doesn't quite belong in either the InputFixer or the VirtualBuffer. Ideally this gets moved to its own class so it can be unit tested like the rest. Now it will just have to be manually tested like some other context related stuff. With it, tackle the following known bugs:
 - Formatting isn't taken into account properly - should use the same formatting if it is mixed
 - Skipping a correction does not move to the next best match but instead to the current match, this is hard to fix because we don't want to skip over elements twice

@@ -44,6 +44,7 @@ class InputHistory:
 
         if self.should_transition(event):
             self.history.append(event)
+            self.history = self.history[-60:] # Do not make the history balloon too much
 
     # Whether the new input event is part of the current input event
     # A correction contains a navigation, selection and an insert in rapid succession for instance

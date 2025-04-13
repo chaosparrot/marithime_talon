@@ -42,7 +42,11 @@ class InputHistory:
             timestamp_ms = round(time.time() * 1000)
         event = InputEvent(timestamp_ms, type, phrases)
 
-        if self.should_transition(event):
+        if self.should_update_event(event):
+            self.history[-1].timestamp_ms = event.timestamp_ms
+            self.history[-1].type = event.type
+
+        elif self.should_transition(event):
             self.history.append(event)
             self.history = self.history[-60:] # Do not make the history balloon too much
 
@@ -51,8 +55,9 @@ class InputHistory:
     def should_transition(self, event: InputEvent):
         transitioning = True
         if len(self.history) > 0:
-            last_event_ts = self.get_last_event().timestamp_ms
-            last_event_type = self.get_last_event().type
+            last_event = self.get_last_event()
+            last_event_ts = last_event.timestamp_ms
+            last_event_type = last_event.type
             if event.timestamp_ms - last_event_ts > 500:
                 transitioning = True
 
@@ -64,13 +69,37 @@ class InputHistory:
                     InputEventType.SELF_REPAIR,
                     InputEventType.CORRECTION
                 ]:
-                last_event_insert = self.get_last_event().insert
+                last_event_insert = last_event.insert
 
                 if last_event_insert is not None and \
                     "".join(event.phrases) == "".join([token.text for token in last_event_insert]):
                     transitioning = False
 
         return transitioning
+
+    # Whether the new input event should replace the previous input event type
+    # As the first event indicates a new event at a later time
+    def should_update_event(self, event: InputEvent):
+        updating = False
+        if len(self.history) > 0:
+            last_event = self.get_last_event()
+            last_event_ts = last_event.timestamp_ms
+            last_event_type = last_event.type
+            if event.timestamp_ms - last_event_ts > 500:
+                updating = False
+
+            # When dealing with a marithime insert,
+            # It can transition into a different history event based on the event happening right after
+            elif event.type in [
+                    InputEventType.PARTIAL_SELF_REPAIR,
+                    InputEventType.SKIP_SELF_REPAIR,
+                    InputEventType.SELF_REPAIR
+                ] and last_event.type == InputEventType.MARITHIME_INSERT and \
+                    "".join(last_event.phrases) == "".join(event.phrases):
+                updating = True
+
+        return updating
+
 
     def flush_history(self):
         self.history = []

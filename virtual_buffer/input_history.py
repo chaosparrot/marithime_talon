@@ -49,10 +49,35 @@ class InputHistory:
     # Whether the new input event is part of the current input event
     # A correction contains a navigation, selection and an insert in rapid succession for instance
     def should_transition(self, event: InputEvent):
-        return True
+        transitioning = True
+        if len(self.history) > 0:
+            last_event_ts = self.get_last_event().timestamp_ms
+            last_event_type = self.get_last_event().type
+            if event.timestamp_ms - last_event_ts > 500:
+                transitioning = True
+
+            # When dealing with an insert, it can be a part of a bigger combined action being executed
+            elif event.type == InputEventType.INSERT and last_event_type in [
+                    InputEventType.MARITHIME_INSERT,
+                    InputEventType.PARTIAL_SELF_REPAIR,
+                    InputEventType.SKIP_SELF_REPAIR,
+                    InputEventType.SELF_REPAIR,
+                    InputEventType.CORRECTION
+                ]:
+                last_event_insert = self.get_last_event().insert
+
+                if last_event_insert is not None and \
+                    "".join(event.phrases) == "".join([token.text for token in last_event_insert]):
+                    transitioning = False
+
+        return transitioning
 
     def flush_history(self):
         self.history = []
+
+    def append_phrases_to_last_event(self, phrases: List[str]):
+        if len(self.history) > 0:
+            self.history[-1].phrases = phrases
     
     def append_target_to_last_event(self, target: List[VirtualBufferToken]):
         if len(self.history) > 0:

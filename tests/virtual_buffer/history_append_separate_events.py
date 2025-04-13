@@ -188,5 +188,5 @@ def test_append_non_related_events(assertion):
         assertion( "    Should give the history two events", len(input_history.history) == 2)
         assertion( "    Should not detect a repetition", input_history.is_repetition() == False)
 
-suite = create_test_suite("Appending non-related events")
+suite = create_test_suite("Appending non-related events to the history")
 suite.add_test(test_append_non_related_events)

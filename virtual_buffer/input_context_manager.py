@@ -6,6 +6,7 @@ from ..formatters.text_formatter import TextFormatter
 from ..formatters.formatters import FORMATTERS_LIST
 from .indexer import VirtualBufferIndexer, text_to_virtual_buffer_tokens
 from .input_fixer import InputFixer
+from .input_history import InputEventType
 from .caret_tracker import _CARET_MARKER, _COARSE_MARKER
 from ..utils.levenshtein import levenshtein
 import os
@@ -216,6 +217,7 @@ class InputContextManager:
             self.last_insert_phrases = []
 
         vbm.insert_tokens(tokens)
+        vbm.input_history.add_event(InputEventType.INSERT, [token.text for token in tokens])
 
         # Remember corrections to make sure we can repeat them
         # If we are cycling through homophones

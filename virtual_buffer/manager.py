@@ -58,6 +58,8 @@ class VirtualBufferManager:
             type = "positive_after_skip"
         self.repeater_type = type
 
+        self.context.get_current_context().buffer.input_history.mark_next_as_skip(type == "skip")
+
     def enable_tracking(self, lock: str = ""):
         if self.tracking_lock == "" or self.tracking_lock == lock:
             self.tracking = True
@@ -93,6 +95,7 @@ class VirtualBufferManager:
         self.enable_tracking()
         
         vbm = self.context.get_current_context().buffer
+        self.context.get_current_context().buffer.input_history.add_event(InputEventType.EXIT, [])
 
         if len(vbm.tokens) > 0:
             last_token = vbm.tokens[-1]
@@ -108,6 +111,8 @@ class VirtualBufferManager:
         self.disable_tracking()
         self.context.ensure_viable_context()
         self.enable_tracking()
+
+        self.context.get_current_context().buffer.input_history.add_event(InputEventType.CORRECTION if for_correction else InputEventType.SELECT, phrases)
 
         vb = self.context.get_current_context().buffer
         self.context.should_use_last_formatter(False)
@@ -128,12 +133,15 @@ class VirtualBufferManager:
         vbm = self.context.get_current_context().buffer
         return vbm.go_phrase(phrase, "end" if character_index == -1 else "start", keep_selection, next_occurrence )
 
-    def transform_insert(self, insert: str, enable_self_repair: bool = False) -> (str, List[str]):
+    def transform_insert(self, insert: str, enable_self_repair: bool = False, add_input_history_event: bool = True) -> (str, List[str]):
         # Make sure we have the right caret position for insertion
         self.disable_tracking()
         self.context.ensure_viable_context()
         self.enable_tracking()
         vbm = self.context.get_current_context().buffer
+
+        if add_input_history_event:
+            vbm.input_history.add_event(InputEventType.MARITHIME_INSERT, insert.split(" "))
 
         repair_keys = []
 
@@ -240,6 +248,13 @@ class VirtualBufferManager:
                         allow_initial_replacement = True
                     replacement_index = 0 if allow_initial_replacement else 1
 
+                    input_event_type = InputEventType.PARTIAL_SELF_REPAIR if insert.split() > [
+                            query_index_index
+                            for query_index in self_repair_match.query_indices
+                            for query_index_index in query_index
+                        ] else InputEventType.SELF_REPAIR
+                    vbm.input_history.add_event(input_event_type, insert.split())
+
                     # Make sure that we only replace words from the first matching word instead of allowing a full replacement
                     if not allow_initial_replacement:
                         for index, score in enumerate(self_repair_match.scores):
@@ -254,6 +269,8 @@ class VirtualBufferManager:
 
                         tokens = vbm.tokens
                         if start_index < len(tokens) and end_index < len(tokens):
+                            vbm.input_history.append_target_to_last_event(tokens[start_index:end_index + 1])
+
                             repair_keys.extend( vbm.select_token_range(tokens[start_index], tokens[end_index]) )
                             previous_selection = vbm.caret_tracker.get_selection_text()
                             current_insertion = " ".join(insert.split()[:end_index - start_index])
@@ -435,9 +452,9 @@ class Actions:
         mutator.set_formatter(formatter)
 
     def marithime_transform_insert(insert: str) -> str:
-        """Transform an insert automatically depending on previous context"""
+        """Transform an insert automatically depending on previous context - But do not apply it"""
         mutator = get_mutator()
-        return mutator.transform_insert(insert)[0]
+        return mutator.transform_insert(insert, False, False)[0]
 
     def marithime_self_repair_insert(prose: str):
         """Input words based on context surrounding the words to input, allowing for self repair within speech as well"""

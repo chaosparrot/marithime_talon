@@ -5,6 +5,7 @@ from typing import List
 from .caret_tracker import CaretTracker
 from ..phonetics.actions import phonetic_search
 from .indexer import text_to_phrase, normalize_text, reindex_tokens, text_to_virtual_buffer_tokens
+from .input_history import InputHistory, InputEventType
 import re
 from .settings import VirtualBufferSettings, virtual_buffer_settings
 mod = Module()
@@ -21,6 +22,7 @@ MERGE_STRATEGY_SPLIT = 4
 class VirtualBuffer:
     tokens: List[VirtualBufferToken] = None
     caret_tracker: CaretTracker = None
+    input_history: InputHistory = None
     virtual_selection = None
     last_action_type = "insert"
     last_search: List[str] = None
@@ -37,6 +39,7 @@ class VirtualBuffer:
         global virtual_buffer_settings
         self.settings = settings if settings is not None else virtual_buffer_settings
         self.caret_tracker = CaretTracker(settings=self.settings)
+        self.input_history = InputHistory()
         self.last_search = []
         self.last_navigation = []
         self.last_phonetic_correction = []
@@ -154,7 +157,7 @@ class VirtualBuffer:
         reformat_after_each_token = token_index[0] < len(self.tokens) - 1
 
         for index, token in enumerate(tokens):
-            self.insert_token(token, reformat_after_each_token or index == len(tokens) - 1)
+            self.insert_token(token, reformat_after_each_token or index == len(tokens) - 1)        
 
     def insert_token(self, token_to_insert: VirtualBufferToken, reformat = True):
         if token_to_insert != "":
@@ -583,6 +586,7 @@ class VirtualBuffer:
         if len(insertion_keys) > 0:
             tokens = text_to_virtual_buffer_tokens(insertion_keys)
             self.insert_tokens(tokens)
+            self.input_history.add_event(InputEventType.INSERT_CHARACTER, [insertion_keys])
             self.set_last_action("insert_character", tokens)
 
         if not self.caret_tracker.text_buffer:
@@ -600,6 +604,8 @@ class VirtualBuffer:
         if token:
             keys = self.navigate_to_token(token, -1 if position == 'end' else 0, keep_selection)
             if not keep_selection:
+                self.input_history.add_event(InputEventType.NAVIGATION, ["phrase"])
+                self.input_history.append_target_to_last_event([token])
                 self.set_last_action("navigation", [token])
             return keys
         else:
@@ -654,6 +660,7 @@ class VirtualBuffer:
                 if should_go_to_next_occurrence:
                     self.correction_cycle_count = -1
 
+            self.input_history.append_target_to_last_event(best_match_tokens)
             self.set_last_action("selection" if not for_correction else "correction", phrases)
             
             return self.select_token_range(best_match_tokens[0], best_match_tokens[-1], extend_selection=extend_selection)

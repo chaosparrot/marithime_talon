@@ -7,18 +7,18 @@ import time
 # All kinds of events that can be applied to the input history
 # To detect a transition or an input fix
 class InputEventType(Enum):
-    MARITHIME_INSERT = "marithime_insert"
-    INSERT = "insert"
-    INSERT_CHARACTER = "insert_character"
+    MARITHIME_INSERT = "marithime_insert" # DONE
+    INSERT = "insert" # DONE
+    INSERT_CHARACTER = "insert_character" # DONE
     REMOVE = "remove"
-    SELECT = "select"
-    CORRECTION = "correction"
-    SKIP_CORRECTION = "skip_correction"
-    PARTIAL_SELF_REPAIR = "partial_self_repair"
-    SKIP_SELF_REPAIR = "skip_self_repair"
-    SELF_REPAIR = "self_repair"
-    NAVIGATION = "navigation"
-    EXIT = "exit"
+    SELECT = "select" # DONE
+    CORRECTION = "correction" # DONE
+    SKIP_CORRECTION = "skip_correction" # DONE
+    PARTIAL_SELF_REPAIR = "partial_self_repair" # DONE
+    SKIP_SELF_REPAIR = "skip_self_repair" # DONE
+    SELF_REPAIR = "self_repair" # DONE
+    NAVIGATION = "navigation" # DONE
+    EXIT = "exit" # DONE
 
 @dataclass
 class InputEvent:

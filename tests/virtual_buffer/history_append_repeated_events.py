@@ -64,6 +64,6 @@ def test_append_dissimilar_repeating_events(assertion):
         assertion( "    Should give the history two events", len(input_history.history) == 2)
         assertion( "    Should detect a repetition", input_history.is_repetition() == False)
 
-suite = create_test_suite("Appending same events")
+suite = create_test_suite("Appending same events to the history")
 suite.add_test(test_append_exact_repeating_events)
 suite.add_test(test_append_dissimilar_repeating_events)

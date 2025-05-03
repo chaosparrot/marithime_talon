@@ -33,13 +33,28 @@ class InputEvent:
 # The 
 class InputHistory:    
     history: List[InputEvent] = None
+    mark_as_skip: bool = False
 
     def __init__(self):
         self.history = []
+        self.mark_as_skip = False
 
     def add_event(self, type: InputEventType, phrases: List[str] = None, timestamp_ms: int = -1):
         if timestamp_ms == -1:
             timestamp_ms = round(time.time() * 1000)
+
+        # Transform to skip event
+        if self.mark_as_skip:
+
+            # Do not clear marithime inserts as they can result in self repairs
+            if type != InputEventType.MARITHIME_INSERT:
+                self.mark_next_as_skip(False)
+
+            if type == InputEventType.CORRECTION:
+                type = InputEventType.SKIP_CORRECTION
+            elif type == InputEventType.SELF_REPAIR:
+                type = InputEventType.SKIP_SELF_REPAIR
+
         event = InputEvent(timestamp_ms, type, phrases)
 
         if self.should_update_event(event):
@@ -64,16 +79,22 @@ class InputHistory:
             # When dealing with an insert, it can be a part of a bigger combined action being executed
             elif event.type == InputEventType.INSERT and last_event_type in [
                     InputEventType.MARITHIME_INSERT,
-                    InputEventType.PARTIAL_SELF_REPAIR,
-                    InputEventType.SKIP_SELF_REPAIR,
                     InputEventType.SELF_REPAIR,
+                    InputEventType.SKIP_SELF_REPAIR,
+                    InputEventType.PARTIAL_SELF_REPAIR,
                     InputEventType.CORRECTION
                 ]:
                 last_event_insert = last_event.insert
 
-                if last_event_insert is not None and \
-                    "".join(event.phrases) == "".join([token.text for token in last_event_insert]):
-                    transitioning = False
+                if last_event_insert is not None:
+                    # When dealing with an insert following after a skip self repair we should check the end
+                    if last_event_type == InputEventType.SKIP_SELF_REPAIR and \
+                        "".join(event.phrases).endswith("".join([token.text for token in last_event_insert])):
+                        transitioning = False
+
+                    # For all other cases we should check the full match
+                    elif "".join(event.phrases) == "".join([token.text for token in last_event_insert]):
+                        transitioning = False
 
         return transitioning
 
@@ -90,12 +111,14 @@ class InputHistory:
 
             # When dealing with a marithime insert,
             # It can transition into a different history event based on the event happening right after
+            elif event.type == InputEventType.SELF_REPAIR and last_event.type == InputEventType.MARITHIME_INSERT and \
+                    "".join(last_event.phrases) == "".join(event.phrases):
+                updating = True
             elif event.type in [
                     InputEventType.PARTIAL_SELF_REPAIR,
-                    InputEventType.SKIP_SELF_REPAIR,
-                    InputEventType.SELF_REPAIR
+                    InputEventType.SKIP_SELF_REPAIR
                 ] and last_event.type == InputEventType.MARITHIME_INSERT and \
-                    "".join(last_event.phrases) == "".join(event.phrases):
+                    "".join(event.phrases).endswith("".join(last_event.phrases)):
                 updating = True
 
         return updating
@@ -103,6 +126,12 @@ class InputHistory:
 
     def flush_history(self):
         self.history = []
+
+    def mark_next_as_skip(self, mark_next: bool = True):
+        self.mark_as_skip = mark_next
+
+    def is_skip_event(self) -> bool:
+        return self.mark_as_skip
 
     def append_phrases_to_last_event(self, phrases: List[str]):
         if len(self.history) > 0:

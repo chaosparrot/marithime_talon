@@ -109,6 +109,11 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
 - Repeating a self repair should fix like a correction should - With the text first
 - Skipping a self repair cycle should append the value instead
 - Selections do not work when repeating the same correction, but having another correction be a closer match - Expected is it selecting the first correction instead TOKEN-WISE
+- TODO:
+  - Integrate input history event registering on the right places in the actions
+  - Integrate the skip checking
+  - Integrate retrieving the states for correction looping
+  - Integrate phonetic repetition checking
 
 #### Programs
 

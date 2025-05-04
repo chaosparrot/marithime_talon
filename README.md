@@ -68,13 +68,13 @@ There's a ton of ways other packages can make use of our captures, settings and 
 [~] - Terminator words  
 Right now the word `quill` is used, instead onf the word `over`, to terminate a command. We probably want to extend this a bit, though we need to take into account that they need to not only be used in commands, but filtered out in other ways.
 
-[] - Making automatic fixing work  
+[ ] - Making automatic fixing work  
 This feature has been implemented but it hasn't been tested very well. There's probably a lot of research left to be done.
 
-[] - Incremental text field updates  
+[ ] - Incremental text field updates  
 Right now, indexing a text field causes it to lose all meaning with regards to formatters used. This causes problems with trying to re-use a formatter that was used.
 
-[] - Zero width space indexation selection fix  
+[ ] - Zero width space indexation selection fix  
 When a zero width space indexation is used, it is possible that a current selection is removed. We can fix that selection afterwards so we don't have issues where content is removed unnecessarily
 
 [x] - Repeater noises - Looping through selections and corrections  
@@ -92,13 +92,13 @@ If you're spelling letters one by one, you probably do not want to remove an ent
 [x] - Continue noise  
 We could already create a noise that immediately skips to the end of the sentence. 
 
-[] - Implement flow for digits  
+[ ] - Implement flow for digits  
 Right now, you still need to say `numb zero` every time between commands. We can detect if we should allow digits, periods and other kinds of formatters as single words if we can be very certain that the next character will be 
 
-[] - Word wrap detection  
+[ ] - Word wrap detection  
 We need to find a way to deal with word wrap, meaning things being on a single line, but visually ( and most importantly, keyboard relatively ) they are on multiple lines. Our current Up and Down arrow key pressing does not deal with that.
 
-[] - Add clipboard pasting insert support  
+[ ] - Add clipboard pasting insert support  
 Right now it isn't possible to use clipboard pasting as a way to insert things rather than typing out the characters one by one. This makes the insertion slower than it could be. This can be done with 'Ctrl+C' and 'Ctrl+V', or 'Ctrl+Shift+C' and 'Ctrl+Shift+V' in terminals. Though we probably want to use `action.edit.paste()` to make it compatible with other packages. We do need to be aware that in terminals there is a possibility that `Remove trailing white-space when pasting` is turned on, which might cause desyncs.
 
 [~] - Refactor last action type into state machine
@@ -112,53 +112,53 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
 - TODO:
   X Integrate input history event registering on the right places in the actions
   X Integrate proper self repair with EXACT matches ( because insert with exact matches do not result in key presses / inserts )
-  ~ Integrate remove event registering
-    X Fix insert merging ( by flipping the order )
-    X Fix remove merging with other events
-    ~ Fix remove merging with itself
-    - Fix remove target selection
-  - TODO Outside select event types? ( I.E. Pressing shift and moving left ourselves - Or should this be an EXIT clause? )
-  - TODO Extend select types?
+  X Integrate remove event registering
+  X Fix character removal tracking
+  X Fix select remove character tracking
   X Integrate the skip checking 
   - Integrate retrieving the states for fix looping
   - Integrate using the previous correction target for correction looping
   - Integrate phonetic repetition checking
+  - Remove last event method
+
+[ ] - Improve outside events and extend events with selection  
+While making the state machine, I found out that while a lot of fix events ARE covered by the flows, doing manual selections with 'press shift left ten times' is not, neither is extending the select, because it doesn't follow the select flow. While I think this workflow won't be done often, for completeness sake it should be added to ensure the InputFixer can properly track what changes were made for automatic fixes later.
 
 #### Programs
 
-[] - Improved MacOS support  
+[ ] - Improved MacOS support  
 While there's programs where it nails the accessibility API pretty well, others just don't connect properly with finding the right focused element. We'll need to address these one by one unfortunately, because accessibility APIs are all over the place from program to program.
 
-[] - Text editor support  
+[ ] - Text editor support  
 This means we should be able to support vim, nano and other keybindings. This runs into the same issues as using a terminal does however, namely poor accessibility support and hard to detect when something is inside of a text editor in the first place. Another is no line wrapping when reaching the start or end of the line and key-pressing beyond that boundary.
 
 [x] - Single line detection  
 Some fields, like name fields, do not have the possibility to add multiple lines. In that case, we probably want to either clear the buffer or simply not allow the enter to change the field. We should probably do a refresh if we are in an accessible field, and a clear in a terminal. 
 
-[] - Accessiblity input tags  
+[ ] - Accessiblity input tags  
 We can detect a field type, like email, phone number etc from the accessibility APIs. That means we could expose that information for other packages to use as well, so you can say `Homer` to input `homer@odyssey.com` for example.
 
-[] - Combobox support  
+[ ] - Combobox support  
 This one is going to be a pretty complex one without a lot of pay off, because it requires looking through the accessibility tree, and comboboxes tend to be implemented in all kinds of gnarly ways across programs and the web.
 
-[] - Virtual machine support  
+[ ] - Virtual machine support  
 I haven't tested this on usages where you have a virtual machine with a different operating system inside of that VM. I'm not sure if the accessibility APIs work as well, as well as the clip board or the other detections in there. Because of the complexity if this doesn't properly work, I'm unlikely to take a lot of time into it.
 
 #### Code creation
 
-[] - Automatic formatter detection / selection  
+[ ] - Automatic formatter detection / selection  
 This feature has been implemented but still has plenty of room for improvement
 
-[] - Formatter commands  
+[ ] - Formatter commands  
 Because the formatters haven't been implemented as well, the commands to select them haven't been created.
 
-[] - Formatter prediction  
+[ ] - Formatter prediction  
 Essentially, allowing a specific formatter to be used if it detects that we are about to create a variable, parameter or function name. Every language has their own rules about snake case, camel case and pascal case that we could automatically use.
 
-[] - Operator formatter  
+[ ] - Operator formatter  
 There are a lot of things we can do to make creating operators simpler. For example, if we say `plus` we most likely want ` + ` to appear, but if we follow it up with `equals`, we want it to change to ` += ` instead.
 
-[] - Codebase indexation  
+[ ] - Codebase indexation  
 This is partially implemented for the current text area, but we could do it for more of a code base somehow. This will most likely bring memory challenges with it, so I'm not sure how this doable this is in an efficient way, perhaps it needs to be IDE depedant. But I really don't feel like putting a lot of time into this right now due to its complexity.
 
 ### Acknowledgements

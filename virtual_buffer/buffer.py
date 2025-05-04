@@ -559,7 +559,7 @@ class VirtualBuffer:
                         self.reformat_tokens()
 
             self.input_history.add_event(InputEventType.REMOVE, [])
-            self.input_history.append_target_to_last_event(deleted_tokens)
+            self.input_history.append_target_to_last_event(deleted_tokens, before=True)
             self.caret_tracker.remove_before_caret(backspace_count)
         self.set_last_action("remove")
 

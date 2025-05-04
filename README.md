@@ -115,9 +115,13 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
   ~ Integrate remove event registering
     X Fix insert merging ( by flipping the order )
     X Fix remove merging with other events
-    - Fix remove merging with itself
+    ~ Fix remove merging with itself
+    - Fix remove target selection
+  - TODO Outside select event types? ( I.E. Pressing shift and moving left ourselves - Or should this be an EXIT clause? )
+  - TODO Extend select types?
   X Integrate the skip checking 
-  - Integrate retrieving the states for correction looping
+  - Integrate retrieving the states for fix looping
+  - Integrate using the previous correction target for correction looping
   - Integrate phonetic repetition checking
 
 #### Programs

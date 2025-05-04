@@ -97,6 +97,19 @@ class InputHistory:
                 ] and last_event.insert is None:
                 transitioning = False
 
+            # If we have a remove event added as a part of a marithime insert event
+            # We should check if we have a selection beforehand, as that removes the target
+            elif event.type == InputEventType.REMOVE and last_event_type == InputEventType.MARITHIME_INSERT:
+                if len(self.history) > 1 and self.history[-2].type == InputEventType.SELECT:
+                    transitioning = False
+
+            # If we have a remove event added that removes a selection as well as more text
+            # We should combine them together
+            elif event.type == InputEventType.REMOVE and last_event_type == InputEventType.REMOVE and \
+                last_event.target is not None and event.timestamp_ms - last_event_ts < 100:
+                if len(self.history) > 1 and self.history[-2].type == InputEventType.SELECT:
+                    transitioning = False
+
         return transitioning
 
     # Whether the new input event should replace the previous input event type
@@ -138,9 +151,18 @@ class InputHistory:
         if len(self.history) > 0:
             self.history[-1].phrases = phrases
     
-    def append_target_to_last_event(self, target: List[VirtualBufferToken]):
+    def append_target_to_last_event(self, target: List[VirtualBufferToken], before: bool = False):
         if len(self.history) > 0:
-            self.history[-1].target = target
+            if self.history[-1].target is None:
+                self.history[-1].target = target
+
+            # Append to the left or to the right of the existing targe
+            else:
+                if before:
+                    target.extend(self.history[-1].target)
+                    self.history[-1].target = target
+                elif before == False:
+                    self.history[-1].target.extend(target)
     
     def append_insert_to_last_event(self, insert: List[VirtualBufferToken]):
         if len(self.history) > 0:

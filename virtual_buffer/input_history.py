@@ -77,24 +77,25 @@ class InputHistory:
                 transitioning = True
 
             # When dealing with an insert, it can be a part of a bigger combined action being executed
+            # If the insert of the previous insert is empty
             elif event.type == InputEventType.INSERT and last_event_type in [
                     InputEventType.MARITHIME_INSERT,
                     InputEventType.SELF_REPAIR,
                     InputEventType.SKIP_SELF_REPAIR,
                     InputEventType.PARTIAL_SELF_REPAIR,
                     InputEventType.CORRECTION
-                ]:
-                last_event_insert = last_event.insert
+                ] and last_event.insert is None:
+                transitioning = False
 
-                if last_event_insert is not None:
-                    # When dealing with an insert following after a skip self repair we should check the end
-                    if last_event_type == InputEventType.SKIP_SELF_REPAIR and \
-                        "".join(event.phrases).endswith("".join([token.text for token in last_event_insert])):
-                        transitioning = False
-
-                    # For all other cases we should check the full match
-                    elif "".join(event.phrases) == "".join([token.text for token in last_event_insert]):
-                        transitioning = False
+            # When dealing with a remove, it can be a part of a bigger combined action being executed
+            # If the insert of the previous insert is empty
+            elif event.type == InputEventType.REMOVE and last_event_type in [
+                    InputEventType.SELF_REPAIR,
+                    InputEventType.SKIP_SELF_REPAIR,
+                    InputEventType.PARTIAL_SELF_REPAIR,
+                    InputEventType.CORRECTION
+                ] and last_event.insert is None:
+                transitioning = False
 
         return transitioning
 

@@ -157,7 +157,8 @@ class VirtualBuffer:
         reformat_after_each_token = token_index[0] < len(self.tokens) - 1
 
         for index, token in enumerate(tokens):
-            self.insert_token(token, reformat_after_each_token or index == len(tokens) - 1)        
+            self.insert_token(token, reformat_after_each_token or index == len(tokens) - 1)
+        self.input_history.append_insert_to_last_event(tokens)
 
     def insert_token(self, token_to_insert: VirtualBufferToken, reformat = True):
         if token_to_insert != "":
@@ -420,6 +421,9 @@ class VirtualBuffer:
                         if text != "":
                             tokens.append(VirtualBufferToken(text, text_to_phrase(text), "", token.line_index))
             
+            self.input_history.add_event(InputEventType.REMOVE, []) # TODO ADD TARGET
+            self.input_history.append_target_to_last_event([])
+
             # If we are left with a merge token, add it anyway
             if merge_token is not None:
                 tokens.append(merge_token)
@@ -432,6 +436,8 @@ class VirtualBuffer:
             return False
     
     def apply_delete(self, delete_count = 0):
+        deleted_tokens = []
+
         if self.is_selecting() and delete_count > 0:
             if self.remove_selection():
                 delete_count -= 1
@@ -487,10 +493,14 @@ class VirtualBuffer:
                         del self.tokens[next_token_index]
                         self.reformat_tokens()            
 
+            self.input_history.add_event(InputEventType.REMOVE, [])
+            self.input_history.append_target_to_last_event(deleted_tokens)
             self.caret_tracker.remove_after_caret(delete_count)
         self.set_last_action("remove")
         
     def apply_backspace(self, backspace_count = 0):
+        deleted_tokens = []
+
         if self.is_selecting() and backspace_count > 0:
             if self.remove_selection():
                 backspace_count -= 1
@@ -548,6 +558,8 @@ class VirtualBuffer:
 
                         self.reformat_tokens()
 
+            self.input_history.add_event(InputEventType.REMOVE, [])
+            self.input_history.append_target_to_last_event(deleted_tokens)
             self.caret_tracker.remove_before_caret(backspace_count)
         self.set_last_action("remove")
 
@@ -585,8 +597,8 @@ class VirtualBuffer:
         # Insert tokens if we press keys one by one
         if len(insertion_keys) > 0:
             tokens = text_to_virtual_buffer_tokens(insertion_keys)
-            self.insert_tokens(tokens)
             self.input_history.add_event(InputEventType.INSERT_CHARACTER, [insertion_keys])
+            self.insert_tokens(tokens)
             self.set_last_action("insert_character", tokens)
 
         if not self.caret_tracker.text_buffer:
@@ -828,6 +840,7 @@ class VirtualBuffer:
 
     def remove_virtual_selection(self) -> List[str]:
         keys = []
+        deleted_tokens = []
         if len(self.virtual_selection) > 0:
             total_amount = 0
             if self.virtual_selection[0].line_index == self.virtual_selection[-1].line_index:
@@ -844,6 +857,9 @@ class VirtualBuffer:
 
             if total_amount:
                 keys = [self.settings.get_remove_character_left_key() + ":" + str(total_amount)]
+
+            self.input_history.add_event(InputEventType.REMOVE, [])
+            self.input_history.append_target_to_last_event(deleted_tokens)
             self.virtual_selection = []
 
         return keys

@@ -43,14 +43,16 @@ def test_skip_correction_flow(assertion):
     events.extend( text_to_virtual_buffer_tokens("Bird", "bird"))
     input_history.append_target_to_last_event(events)
 
-    # Third - The insert gets transformed to camel case by the formatter
+    # Third - A remove event is added
+    input_history.add_event(InputEventType.REMOVE, [], 1900)
+    input_history.append_target_to_last_event(events)
+
+    # Fourth - The insert event is added and gets transformed to camel case by the formatter
+    input_history.add_event(InputEventType.INSERT, ["ThisBigWord"], 1900)
     events = text_to_virtual_buffer_tokens("This", "this")
     events.extend( text_to_virtual_buffer_tokens("Big", "big"))
     events.extend( text_to_virtual_buffer_tokens("Word", "word"))
     input_history.append_insert_to_last_event(events)
-
-    # Fourth - Add the insert event
-    input_history.add_event(InputEventType.INSERT, "ThisBigWord", 1900)
 
     # Fifth - Mark the next event as a skip event
     input_history.mark_next_as_skip()
@@ -75,43 +77,42 @@ def test_skip_partial_self_repair_flow(assertion):
     # First - Add the marithime insert event
     input_history.add_event(InputEventType.MARITHIME_INSERT, ["this", "big", "word"], 1500)
 
-    # Second - The insert gets transformed to camel case
+    # Second - The insert event is added and gets transformed to camel case
+    input_history.add_event(InputEventType.INSERT, ["thisBigWord"], 1500)    
     events = text_to_virtual_buffer_tokens("this", "this")
     events.extend( text_to_virtual_buffer_tokens("Big", "big"))
     events.extend( text_to_virtual_buffer_tokens("Word", "word"))
     input_history.append_insert_to_last_event(events)
     
-    # Third - Add the insert event
-    input_history.add_event(InputEventType.INSERT, ["thisBigWord"], 1500)
-
-    # Fourth - Add another marithime insert event
+    # Third - Add another marithime insert event
     input_history.add_event(InputEventType.MARITHIME_INSERT, ["big", "werd", "that"], 2500)
 
-    # Fifth - A partial self repair is detected
+    # Fourth - A partial self repair is detected
     input_history.add_event(InputEventType.PARTIAL_SELF_REPAIR, ["big", "werd", "that"], 2600)
     events = text_to_virtual_buffer_tokens("Big", "big")
     events.extend( text_to_virtual_buffer_tokens("Werd", "werd"))
     input_history.append_target_to_last_event(events)
 
-    # Sixth - The insert gets transformed to camel case by the formatter
+    # Fifth - A remove event is added
+    input_history.add_event(InputEventType.REMOVE, [], 2650)
+    input_history.append_target_to_last_event(events)
+
+    # Sixth - The insert event is added and gets transformed to camel case by the formatter
+    input_history.add_event(InputEventType.INSERT, ["BigWerdThat"], 2700)
     events = text_to_virtual_buffer_tokens("Big", "big")
     events.extend( text_to_virtual_buffer_tokens("Werd", "werd"))
     events.extend( text_to_virtual_buffer_tokens("That", "that"))
     input_history.append_insert_to_last_event(events)
-
-    # Seventh - An insert event is added
-    input_history.add_event(InputEventType.INSERT, ["BigWerdThat"], 2700)
     assertion( "    Should only have two events appended", len(input_history.history) == 2)
-    assertion( input_history.history )
 
-    # Eight - Mark the next event as a skip event
+    # Seventh - Mark the next event as a skip event
     input_history.mark_next_as_skip()
 
-    # Ninth - Add another marithime insert event
+    # Eight - Add another marithime insert event
     input_history.add_event(InputEventType.MARITHIME_INSERT, ["big", "werd", "that"], 4000)
     assertion( "    Should not clear the next skip state after the marithime insert was given", input_history.is_skip_event() == True)
 
-    # Tenth - A full skip self repair is detected
+    # Ninth - A full skip self repair is detected
     input_history.add_event(InputEventType.SELF_REPAIR, ["big", "werd", "that"], 4100)
     events = text_to_virtual_buffer_tokens("Big", "big")
     events.extend( text_to_virtual_buffer_tokens("Werd", "werd"))
@@ -119,14 +120,20 @@ def test_skip_partial_self_repair_flow(assertion):
     input_history.append_target_to_last_event(events)
     assertion( "    Should clear the next skip state after the self repair was given", input_history.is_skip_event() == False)
 
-    # Eleventh - The insert gets transformed to camel case by the formatter
+    # Tenth - A remove event is added
+    input_history.add_event(InputEventType.REMOVE, [], 4200)
+    input_history.append_target_to_last_event(events)
+
+    # Eleventh - The insert event gets added and transformed to camel case by the formatter
+    # With the text ( Old text followed by new text )
+    input_history.add_event(InputEventType.INSERT, ["BigWordBigWerdThat"], 4300)
     events = text_to_virtual_buffer_tokens("Big", "big")
+    events.extend( text_to_virtual_buffer_tokens("Word", "word"))
+    events.extend( text_to_virtual_buffer_tokens("Big", "big"))
     events.extend( text_to_virtual_buffer_tokens("Werd", "werd"))
     events.extend( text_to_virtual_buffer_tokens("That", "that"))
     input_history.append_insert_to_last_event(events)
 
-    # Twelfth - Add the changed insert event ( Old text followed by new text )
-    input_history.add_event(InputEventType.INSERT, "BigWordBigWerdThat", 4200)
     assertion( "    Should give the history three events", len(input_history.history) == 3)
     assertion( "    should not detect a repetition", input_history.is_repetition() == False)
     assertion( "    should transform the second self repair as a skip self repair", input_history.history[-1].type == InputEventType.SKIP_SELF_REPAIR)
@@ -138,61 +145,65 @@ def test_skip_full_self_repair_flow(assertion):
     # First - Add the marithime insert event
     input_history.add_event(InputEventType.MARITHIME_INSERT, ["this", "big", "word"], 1500)
 
-    # Second - The insert gets transformed to camel case
+    # Second - The insert event is added and gets transformed to camel case
+    input_history.add_event(InputEventType.INSERT, ["thisBigWord"], 1500)
     events = text_to_virtual_buffer_tokens("this", "this")
     events.extend( text_to_virtual_buffer_tokens("Big", "big"))
     events.extend( text_to_virtual_buffer_tokens("Word", "word"))
     input_history.append_insert_to_last_event(events)
     
-    # Third - Add the insert event
-    input_history.add_event(InputEventType.INSERT, ["thisBigWord"], 1500)
-
-    # Fourth - Add another marithime insert event
+    # Third - Add another marithime insert event
     input_history.add_event(InputEventType.MARITHIME_INSERT, ["big", "werd"], 2500)
 
-    # Fifth - A partial self repair is detected
+    # Fourth - A partial self repair is detected
     input_history.add_event(InputEventType.SELF_REPAIR, ["big", "werd"], 2600)
     events = text_to_virtual_buffer_tokens("Big", "big")
     events.extend( text_to_virtual_buffer_tokens("Werd", "werd"))
     input_history.append_target_to_last_event(events)
 
-    # Sixth - The insert gets transformed to camel case by the formatter
+    # Fifth - A remove event is added
+    input_history.add_event(InputEventType.REMOVE, [], 2600)
+    input_history.append_target_to_last_event(events)
+
+    # Sixth - The insert event is added and transformed to camel case by the formatter
+    input_history.add_event(InputEventType.INSERT, ["BigWerd"], 2700)
     events = text_to_virtual_buffer_tokens("Big", "big")
     events.extend( text_to_virtual_buffer_tokens("Werd", "werd"))
     input_history.append_insert_to_last_event(events)
-
-    # Seventh - An insert event is added
-    input_history.add_event(InputEventType.INSERT, ["BigWerd"], 2700)
     assertion( "    Should only have two events appended", len(input_history.history) == 2)
-    assertion( input_history.history )
 
-    # Eight - Mark the next event as a skip event
+    # Seventh - Mark the next event as a skip event
     input_history.mark_next_as_skip()
 
-    # Ninth - Add another marithime insert event
+    # Eight - Add another marithime insert event
     input_history.add_event(InputEventType.MARITHIME_INSERT, ["big", "werd"], 4000)
     assertion( "    Should not clear the next skip state after the marithime insert was given", input_history.is_skip_event() == True)
 
-    # Tenth - A full skip self repair is detected
+    # Ninth - A full skip self repair is detected
     input_history.add_event(InputEventType.SELF_REPAIR, ["big", "werd"], 4100)
     events = text_to_virtual_buffer_tokens("Big", "big")
     events.extend( text_to_virtual_buffer_tokens("Werd", "werd"))
     input_history.append_target_to_last_event(events)
     assertion( "    Should clear the next skip state after the self repair was given", input_history.is_skip_event() == False)
 
-    # Eleventh - The insert gets transformed to camel case by the formatter
+    # Tenth - A remove event is added
+    input_history.add_event(InputEventType.REMOVE, [], 2600)
+    input_history.append_target_to_last_event(events)
+
+    # Eleventh - The insert event is added and gets transformed to camel case by the formatter
+    # With the changed text ( Old text followed by new text )
+    input_history.add_event(InputEventType.INSERT, "BigWordBigWerd", 4200)
     events = text_to_virtual_buffer_tokens("Big", "big")
+    events.extend( text_to_virtual_buffer_tokens("Word", "word"))
+    events.extend( text_to_virtual_buffer_tokens("Big", "big"))
     events.extend( text_to_virtual_buffer_tokens("Werd", "werd"))
     input_history.append_insert_to_last_event(events)
-
-    # Twelfth - Add the changed insert event ( Old text followed by new text )
-    input_history.add_event(InputEventType.INSERT, "BigWordBigWerd", 4200)
     assertion( "    Should give the history three events", len(input_history.history) == 3)
     assertion( "    should not detect a repetition", input_history.is_repetition() == False)
     assertion( "    should transform the second self repair as a skip self repair", input_history.history[-1].type == InputEventType.SKIP_SELF_REPAIR)
 
 suite = create_test_suite("Appending skip events to the history that shouldn't result in more than one issue")
 suite.add_test(test_skip_non_skippable_events_flow)
-suite.add_test(test_skip_correction_flow) 
+suite.add_test(test_skip_correction_flow)
 suite.add_test(test_skip_partial_self_repair_flow)
-suite.add_test(test_skip_full_self_repair_flow) 
+suite.add_test(test_skip_full_self_repair_flow)

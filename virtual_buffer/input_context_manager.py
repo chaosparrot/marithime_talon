@@ -216,8 +216,8 @@ class InputContextManager:
         else:
             self.last_insert_phrases = []
 
-        vbm.insert_tokens(tokens)
         vbm.input_history.add_event(InputEventType.INSERT, [token.text for token in tokens])
+        vbm.insert_tokens(tokens)
 
         # Remember corrections to make sure we can repeat them
         # If we are cycling through homophones

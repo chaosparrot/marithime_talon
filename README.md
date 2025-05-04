@@ -111,8 +111,11 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
 - Selections do not work when repeating the same correction, but having another correction be a closer match - Expected is it selecting the first correction instead TOKEN-WISE
 - TODO:
   X Integrate input history event registering on the right places in the actions
-  - Integrate proper self repair with EXACT matches ( because insert with exact matches do not result in key presses / inserts )
-  - Integrate remove event registering
+  X Integrate proper self repair with EXACT matches ( because insert with exact matches do not result in key presses / inserts )
+  ~ Integrate remove event registering
+    X Fix insert merging ( by flipping the order )
+    X Fix remove merging with other events
+    - Fix remove merging with itself
   X Integrate the skip checking 
   - Integrate retrieving the states for correction looping
   - Integrate phonetic repetition checking

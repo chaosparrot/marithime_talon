@@ -13,14 +13,15 @@ def test_marithime_insert_flow(assertion):
     # First - Add the insert event
     input_history.add_event(InputEventType.MARITHIME_INSERT, ["this", "big", "word"], 1500)
 
-    # Second - The insert gets transformed to camel case
+    # Second - Add the insert event wit hthe transformed text
+    input_history.add_event(InputEventType.INSERT, ["thisBigWord"], 1900)
+
+    # Third - Add the inserts to the last event
     events = text_to_virtual_buffer_tokens("this", "this")
     events.extend( text_to_virtual_buffer_tokens("Big", "big"))
     events.extend( text_to_virtual_buffer_tokens("Word", "word"))
     input_history.append_insert_to_last_event(events)
 
-    # Third - Add the insert event
-    input_history.add_event(InputEventType.INSERT, ["thisBigWord"], 1900)
     assertion( "    should only have one event appended", len(input_history.history) == 1)
     assertion( "    should not have the insert appended", input_history.get_last_event().type != InputEventType.INSERT )
 
@@ -29,23 +30,25 @@ def test_full_self_repair_flow(assertion):
     input_history = get_input_history()
 
     # First - Add the insert event
-    input_history.add_event(InputEventType.MARITHIME_INSERT, ["this", "big", "word"], 1500)
+    input_history.add_event(InputEventType.MARITHIME_INSERT, ["this", "big", "bird"], 1500)
 
     # Second - A full self repair is detected
-    input_history.add_event(InputEventType.SELF_REPAIR, ["this", "big", "word"], 1700)
+    input_history.add_event(InputEventType.SELF_REPAIR, ["this", "big", "bird"], 1700)
     events = text_to_virtual_buffer_tokens("This", "this")
     events.extend( text_to_virtual_buffer_tokens("Big", "big"))
     events.extend( text_to_virtual_buffer_tokens("Word", "word"))
     input_history.append_target_to_last_event(events)
 
-    # Third - The insert gets transformed to camel case by the formatter
-    events = text_to_virtual_buffer_tokens("This", "this")
-    events.extend( text_to_virtual_buffer_tokens("Big", "big"))
-    events.extend( text_to_virtual_buffer_tokens("Word", "word"))
-    input_history.append_insert_to_last_event(events)
+    # Third - A remove event is added after the text is selected
+    input_history.add_event(InputEventType.REMOVE, [], 1900)
+    events = text_to_virtual_buffer_tokens("Word", "word")
+    input_history.append_target_to_last_event(events)
 
-    # Third - Add the insert event
-    input_history.add_event(InputEventType.INSERT, ["ThisBigWord"], 1900)
+    # Fourth - The insert events gets added and transformed to camel case by the formatter
+    # Which chopped off the first part of the insert as that was already available
+    input_history.add_event(InputEventType.INSERT, ["Bird"], 1900)
+    events = text_to_virtual_buffer_tokens("Bird", "bird")
+    input_history.append_insert_to_last_event(events)
     assertion( "    should only have one event appended", len(input_history.history) == 1)
     assertion( "    should only have the self repair added", input_history.get_last_event().type == InputEventType.SELF_REPAIR )
 
@@ -54,22 +57,25 @@ def test_partial_self_repair_flow(assertion):
     input_history = get_input_history()
 
     # First - Add the insert event
-    input_history.add_event(InputEventType.MARITHIME_INSERT, ["this", "big", "word"], 1500)
+    input_history.add_event(InputEventType.MARITHIME_INSERT, ["this", "gig", "word"], 1500)
 
     # Second - A partial self repair is detected
-    input_history.add_event(InputEventType.PARTIAL_SELF_REPAIR, ["this", "big", "word"], 1700)
+    input_history.add_event(InputEventType.PARTIAL_SELF_REPAIR, ["this", "gig", "word"], 1700)
     events = text_to_virtual_buffer_tokens("This", "this")
     events.extend( text_to_virtual_buffer_tokens("Big", "big"))
     input_history.append_target_to_last_event(events)
 
-    # Third - The insert gets transformed to camel case by the formatter
-    events = text_to_virtual_buffer_tokens("This", "this")
-    events.extend( text_to_virtual_buffer_tokens("Big", "big"))
+    # Third - A remove event is added after the text is selected
+    input_history.add_event(InputEventType.REMOVE, [], 1900)
+    events = text_to_virtual_buffer_tokens("Big", "big")
+    input_history.append_target_to_last_event(events)
+
+    # Fourth - The insert event is added and gets transformed to camel case by the formatter
+    # Which chopped off the first part of the insert as that was already available
+    input_history.add_event(InputEventType.INSERT, ["GigWord"], 2100)
+    events = text_to_virtual_buffer_tokens("Gig", "gig")
     events.extend( text_to_virtual_buffer_tokens("Word", "word"))
     input_history.append_insert_to_last_event(events)
-
-    # Fourth - Add the insert event
-    input_history.add_event(InputEventType.INSERT, "ThisBigWord", 1900)
     assertion( "    should only have one event appended", len(input_history.history) == 1)
     assertion( "    should only have the partial self repair added", input_history.get_last_event().type == InputEventType.PARTIAL_SELF_REPAIR )
 
@@ -77,23 +83,25 @@ def test_correction_flow(assertion):
     assertion( "Appending the events used for partial self repairs" )
     input_history = get_input_history()
 
-    # First - Add the insert event
+    # First - Add the correction event
     input_history.add_event(InputEventType.CORRECTION, ["this", "big", "word"], 1500)
 
     # Second - A target is found
     events = text_to_virtual_buffer_tokens("This", "this")
     events.extend( text_to_virtual_buffer_tokens("Big", "big"))
-    events.extend( text_to_virtual_buffer_tokens("Bird", "bird"))    
+    events.extend( text_to_virtual_buffer_tokens("Bird", "bird"))
     input_history.append_target_to_last_event(events)
 
-    # Third - The insert gets transformed to camel case by the formatter
+    # Third - A remove event is added after the text is selected
+    input_history.add_event(InputEventType.REMOVE, [], 1900)
+    input_history.append_target_to_last_event(events)
+
+    # Fourth - The insert event is added and gets transformed to camel case by the formatter
+    input_history.add_event(InputEventType.INSERT, "ThisBigWord", 1900)    
     events = text_to_virtual_buffer_tokens("This", "this")
     events.extend( text_to_virtual_buffer_tokens("Big", "big"))
     events.extend( text_to_virtual_buffer_tokens("Word", "word"))
     input_history.append_insert_to_last_event(events)
-
-    # Fourth - Add the insert event
-    input_history.add_event(InputEventType.INSERT, "ThisBigWord", 1900)
     assertion( "    should only have one event appended", len(input_history.history) == 1)
     assertion( "    should only have the correction added", input_history.get_last_event().type == InputEventType.CORRECTION )
 

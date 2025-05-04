@@ -139,6 +139,7 @@ class VirtualBufferManager:
         self.context.ensure_viable_context()
         self.enable_tracking()
         vbm = self.context.get_current_context().buffer
+        original_insert = insert
 
         if add_input_history_event:
             vbm.input_history.add_event(InputEventType.MARITHIME_INSERT, insert.split(" "))
@@ -235,6 +236,9 @@ class VirtualBufferManager:
                         insert = " ".join(words[len(self_repair_match.scores):])
                     # Complete repetition - Do not insert anything
                     else:
+                        # Make sure to add an empty insert so that
+                        # Follow up inserts will not be merged into this one
+                        vbm.input_history.append_insert_to_last_event([])
                         return ("", [])
                 # Do a complete replacement from the first high matching score
                 # We do not support replacing initial words, only inserting, as replacing initial words requires more context about meaning
@@ -253,7 +257,7 @@ class VirtualBufferManager:
                             for query_index in self_repair_match.query_indices
                             for query_index_index in query_index
                         ] else InputEventType.SELF_REPAIR
-                    vbm.input_history.add_event(input_event_type, insert.split())
+                    vbm.input_history.add_event(input_event_type, original_insert.split(" "))
 
                     # Make sure that we only replace words from the first matching word instead of allowing a full replacement
                     if not allow_initial_replacement:
@@ -319,7 +323,7 @@ class VirtualBufferManager:
                 self.context.apply_key(formatter_repair_key)
 
             repair_keys.extend(formatter_repair_keys)
-        
+
         # If there was a fix, keep track of it here
         if previous_selection:
             if not current_insertion:

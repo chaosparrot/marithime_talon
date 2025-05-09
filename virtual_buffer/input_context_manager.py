@@ -209,25 +209,8 @@ class InputContextManager:
         else:
             tokens = text_to_virtual_buffer_tokens(insert, phrase, "|".join(formatters))
  
-        # Clear the last insert phrases if we are doing a regular correction
-        if vbm.last_action_type not in ["first-correction", "correction"]:
-            self.last_insert_phrases = self.input_fixer.determine_phonetic_fixes(vbm, tokens) \
-                if vbm.skip_last_action_insert == False else self.last_insert_phrases
-        else:
-            self.last_insert_phrases = []
-
         vbm.input_history.add_event(InputEventType.INSERT, [token.text for token in tokens])
         vbm.insert_tokens(tokens)
-
-        # Remember corrections to make sure we can repeat them
-        # If we are cycling through homophones
-        last_action = "phonetic_correction" if len(self.last_insert_phrases) > 0 else "insert"
-
-        # For short characters without a space separator we naively expect it to have been spelled
-        if last_action == "insert" and len(insert) == 1:
-            last_action = "insert_character"
-
-        vbm.set_last_action(last_action, self.last_insert_phrases if last_action != "insert_character" else [insert])
 
         if self.current_context:
             caret_index = vbm.caret_tracker.get_caret_index()

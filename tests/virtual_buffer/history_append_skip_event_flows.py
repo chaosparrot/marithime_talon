@@ -191,11 +191,12 @@ def test_skip_full_self_repair_flow(assertion):
 
     # Tenth - A remove event is added
     input_history.add_event(InputEventType.REMOVE, [], 2600)
-    input_history.append_target_to_last_event(events)
+    # Target is not added - as that is skipped when the remove event is not active
+    # input_history.append_target_to_last_event(events)
 
     # Eleventh - The insert event is added and gets transformed to camel case by the formatter
     # With the changed text ( Old text followed by new text )
-    input_history.add_event(InputEventType.INSERT, "BigWordBigWerd", 4200)
+    input_history.add_event(InputEventType.INSERT, "BigWordBigWerd", 2800)
     events = text_to_virtual_buffer_tokens("Big", "big")
     events.extend( text_to_virtual_buffer_tokens("Word", "word"))
     events.extend( text_to_virtual_buffer_tokens("Big", "big"))

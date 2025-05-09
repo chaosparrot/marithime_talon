@@ -209,6 +209,24 @@ class InputHistory:
 
     def get_repetition_count(self):
         return self.repetition_count
+    
+    def count_remaining_single_character_presses(self) -> int:
+        single_character_presses = 0
+        index = 0
+        while abs(index) < len(self.history):
+            index -= 1
+
+            # Only count single character presses if we are dealing with repeated insert character and remove events
+            # As any other event interupts the flow for single character inputting and is no longer relevant to the user
+            if self.history[index].type not in [InputEventType.REMOVE, InputEventType.INSERT_CHARACTER]:
+                single_character_presses = 0
+                break
+            elif self.history[index].type == InputEventType.INSERT_CHARACTER:
+                single_character_presses += len(self.history[index].insert)
+            else:
+                single_character_presses -= len([token.text for token in self.history[index].target])
+
+        return max(single_character_presses, 0)
 
     def get_last_event(self) -> InputEvent:
         return self.history[-1] if len(self.history) > 0 else None

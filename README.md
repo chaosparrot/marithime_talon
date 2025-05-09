@@ -116,11 +116,15 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
   X Fix character removal tracking
   X Fix select remove character tracking
   X Integrate the skip checking 
-  ~ Integrate retrieving the states for fix looping
-  - Integrate phonetic repetition checking  
-  - Integrate the self repair checking
+  X Integrate retrieving the states for fix looping
+  X Integrate phonetic repetition checking  
+  X Integrate the self repair checking
   X Integrate using the previous correction target for correction looping
-  - Remove last event method
+  X Remove last event method
+  X Integrate single character event insertions
+  X Fix skip self repair flow
+  - Fix remove target not being proper after a skip self repair / self repair
+  - Real testing
 
 [ ] - Improve outside events and extend events with selection  
 While making the state machine, I found out that while a lot of fix events ARE covered by the flows, doing manual selections with 'press shift left ten times' is not, neither is extending the select, because it doesn't follow the select flow. While I think this workflow won't be done often, for completeness sake it should be added to ensure the InputFixer can properly track what changes were made for automatic fixes later.

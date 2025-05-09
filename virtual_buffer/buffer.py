@@ -24,30 +24,15 @@ class VirtualBuffer:
     caret_tracker: CaretTracker = None
     input_history: InputHistory = None
     virtual_selection = None
-    last_action_type = "insert"
-    last_search: List[str] = None
-    last_navigation: List[VirtualBufferToken] = None
-    last_phonetic_correction: List[VirtualBufferToken] = None
-    correction_start_phrases: List[VirtualBufferToken] = None
-    skip_last_action_insert = False
-    correction_cycle_count = 0
     last_direction = None
     settings: VirtualBufferSettings = None
-    single_character_presses = 0
 
     def __init__(self, settings: VirtualBufferSettings = None):
         global virtual_buffer_settings
         self.settings = settings if settings is not None else virtual_buffer_settings
         self.caret_tracker = CaretTracker(settings=self.settings)
         self.input_history = InputHistory()
-        self.last_search = []
-        self.last_navigation = []
-        self.last_phonetic_correction = []
-        self.correction_start_phrases = None
         self.last_direction = 0
-        self.skip_last_action_insert = False
-        self.correction_cycle_count = 0
-        self.single_character_presses = 0
         self.matcher = VirtualBufferMatcher(phonetic_search)
         self.set_tokens()
 
@@ -57,53 +42,9 @@ class VirtualBuffer:
     def is_phrase_selected(self, phrase: str) -> bool:
         return self.matcher.is_phrase_selected(self, phrase)
 
-    # Set the last action type - Used for remembering repeated items
-    def set_last_action(self, last_action_type: str, tokens = None): # Tokens is either a list of strings or virtual buffer tokens
-
-        # Skip saving the new state when doing repeated self repair inserts
-        # Which always follow remove -> insert
-        if self.skip_last_action_insert:
-            if last_action_type == "remove":
-                return
-            elif last_action_type == "insert":
-                self.skip_last_action_insert = False
-                return
-
-        changed_type = self.last_action_type != last_action_type and not (self.last_action_type == "first-correction" and last_action_type == "correction")
-        
-        # Initial correction needs to be renamed to "first-correction"
-        # So we can skip over the first repetition that it wants to do
-        if changed_type and last_action_type == "correction" and self.last_action_type != "phonetic_correction":
-            self.last_action_type = "first-correction"
-        else:
-            self.last_action_type = last_action_type
-
-        # The last search NEEDS to be a list of phrases as we want it to be
-        # The search, rather than the match
-        self.last_search = tokens if last_action_type in ["selection", "correction"] else []
-
-        self.last_navigation = tokens if last_action_type in ["navigation"] else []
-        self.last_direction = self.last_direction if last_action_type in ["selection", "correction"] else []
-        self.last_phonetic_correction = tokens if last_action_type == "phonetic_correction" else []
-        self.correction_start_phrases = self.correction_start_phrases if last_action_type in ["first-correction", "correction"] else None
-        self.correction_cycle_count = self.correction_cycle_count if not changed_type and last_action_type in ["phonetic_correction", "correction", "first-correction"] else 0
-
-
-        # Keep track of single character insertions for easier single removal
-        if last_action_type == "insert_character":
-            self.single_character_presses += len(tokens[-1])
-        else:
-            if last_action_type == "remove" and self.single_character_presses > 0:
-                self.single_character_presses -= 1
-            else:
-                self.single_character_presses = 0 if last_action_type != "insert_character" else self.single_character_presses
-
     def clear_tokens(self):
         self.set_tokens()
-        self.last_search = []
-        self.last_navigation = []
         self.last_direction = 0
-        self.single_character_presses = 0
 
     def set_tokens(self, tokens: List[VirtualBufferToken] = None, move_cursor_to_end: bool = False):
         self.virtual_selection = []
@@ -542,13 +483,11 @@ class VirtualBuffer:
             self.input_history.add_event(InputEventType.REMOVE, [])
             self.input_history.append_target_to_last_event(deleted_tokens)
             self.caret_tracker.remove_after_caret(delete_count)
-        self.set_last_action("remove")
         
     def apply_backspace(self, backspace_count = 0):
         if self.is_selecting() and backspace_count > 0:
             if self.remove_selection():
                 backspace_count -= 1
-            self.set_last_action("remove")
         if backspace_count <= 0:
             return
 
@@ -626,7 +565,6 @@ class VirtualBuffer:
             self.input_history.add_event(InputEventType.REMOVE, [])
             self.input_history.append_target_to_last_event(deleted_tokens, before=True)
             self.caret_tracker.remove_before_caret(backspace_count)
-        self.set_last_action("remove")
 
     def reformat_tokens(self):
         self.tokens = reindex_tokens(self.tokens)
@@ -664,7 +602,6 @@ class VirtualBuffer:
             tokens = text_to_virtual_buffer_tokens(insertion_keys)
             self.input_history.add_event(InputEventType.INSERT_CHARACTER, [insertion_keys])
             self.insert_tokens(tokens)
-            self.set_last_action("insert_character", tokens)
 
         if not self.caret_tracker.text_buffer:
             self.clear_tokens()
@@ -674,7 +611,9 @@ class VirtualBuffer:
 
     def go_phrase(self, phrase: str, position: str = 'end', keep_selection: bool = False, next_occurrence: bool = False, verbose: bool = False) -> List[str]:
         # Loop when we are navigating twice with the same phrase
-        if self.last_navigation and "".join([token.phrase for token in self.last_navigation]) == phrase:
+        if self.input_history.get_last_event() and \
+            self.input_history.get_last_event().type == InputEventType.NAVIGATION and \
+            "".join(self.input_history.get_last_event().phrases) == phrase:
             next_occurrence = True
 
         token = self.find_token_by_phrase(phrase, -1 if position == 'end' else 0, next_occurrence, verbose)
@@ -683,7 +622,6 @@ class VirtualBuffer:
             if not keep_selection:
                 self.input_history.add_event(InputEventType.NAVIGATION, [phrase])
                 self.input_history.append_target_to_last_event([token])
-                self.set_last_action("navigation", [token])
             return keys
         else:
             return None
@@ -718,7 +656,7 @@ class VirtualBuffer:
             should_go_to_next_occurrence = self.matcher.is_phrase_selected(self, total_phrase)
         
         self.last_direction = self.last_direction \
-            if should_go_to_next_occurrence and " ".join(self.last_search) == " ".join(phrases) else 0
+            if should_go_to_next_occurrence and self.input_history.is_repetition() else 0
 
         best_match_tokens, match = self.matcher.find_best_match_by_phrases(self, phrases, match_threshold, should_go_to_next_occurrence, selecting=True, for_correction=for_correction, verbose=verbose, direction=self.last_direction)
         if best_match_tokens is not None and len(best_match_tokens) > 0:            
@@ -728,18 +666,7 @@ class VirtualBuffer:
             if not should_go_to_next_occurrence:
                 self.last_direction = 1 if match.buffer_indices[0][0] > leftmost_token_index else -1
 
-            # Remember the first set of tokens as a thing to cycle through
-            if for_correction and (self.correction_start_phrases is None or should_go_to_next_occurrence):
-                self.correction_start_phrases = best_match_tokens
-
-                # Clear the correction count so it cycles properly
-                # Make sure it is at -1 because the next correction will be at 0
-                if should_go_to_next_occurrence:
-                    self.correction_cycle_count = -1
-
-            self.input_history.append_target_to_last_event(best_match_tokens)
-            self.set_last_action("selection" if not for_correction else "correction", phrases)
-            
+            self.input_history.append_target_to_last_event(best_match_tokens)            
             return self.select_token_range(best_match_tokens[0], best_match_tokens[-1], extend_selection=extend_selection)
         else:
             return []

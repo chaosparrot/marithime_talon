@@ -124,6 +124,7 @@ class VirtualBufferManager:
             # Reset the selection to the last insert statements when doing a repetition
             if for_correction and vb.input_history.is_repetition():
                 last_event_insert = vb.input_history.history[-2].insert
+                self.context.get_current_context().buffer.input_history.append_target_to_last_event(last_event_insert)
                 vb.select_token_range(last_event_insert[0], last_event_insert[-1])
             else:
                 return vb.select_phrases(phrases, match_threshold=match_threshold, for_correction=for_correction)
@@ -145,6 +146,9 @@ class VirtualBufferManager:
         self.enable_tracking()
         vbm = self.context.get_current_context().buffer
         original_insert = insert
+
+        input_history = vbm.input_history
+        previous_event = input_history.get_last_event()
 
         if add_input_history_event:
             vbm.input_history.add_event(InputEventType.MARITHIME_INSERT, insert.split(" "))
@@ -169,40 +173,27 @@ class VirtualBufferManager:
             for key in keys_to_remove_virtual_selection:
                 self.context.apply_key(key)
 
-        input_history = vbm.input_history
-        last_event = input_history.get_last_event()
-
         # Detect if we are doing a repeated phonetic correction
         # In order to cycle through it
-        if vbm.last_action_type == "phonetic_correction":
+        if add_input_history_event and len(previous_event.insert) > 0:
             normalized_input = normalize_text(insert).lower()
-            normalized_last_insert = normalize_text("".join([token.text for token in self.context.last_insert_phrases])).lower()
+            normalized_last_insert = normalize_text(" ".join([token.text for token in previous_event.insert])).lower()
             if normalized_last_insert.endswith(normalized_input):
                 enable_self_repair = enable_self_repair and not correction_insertion
 
                 # Replace the words with phonetic equivelants
-                insert, cycle_count = self.fixer.cycle_through_fixes(" ".join([token.phrase for token in self.context.last_insert_phrases]), vbm.correction_cycle_count)
-                vbm.correction_cycle_count = cycle_count
-
-                # Make sure we do not save the transformed text as an individual insert
-                # As it would update the state as if it wasn't a repeated item
-                vbm.skip_last_action_insert = True
-
-            # If the words don't match, just clear the correction
-            else:
-                vbm.correction_cycle_count = 0
-                vbm.skip_last_action_insert = False
+                insert, _ = self.fixer.cycle_through_fixes(normalized_last_insert, input_history.get_repetition_count())
 
         normalized_input = insert.lower()
 
         # On repeated corrections, cycle through the corrections
         # Only do an initial repeat if we have an exact match!
-        if last_event is not None and last_event.type == InputEventType.CORRECTION and input_history.is_repetition():
+        if previous_event is not None and previous_event.type == InputEventType.CORRECTION and input_history.is_repetition():
 
             # Replace the words with phonetic equivelants
             first_target = input_history.get_first_target_from_event()
             starting_phrases = "".join([token.text for token in first_target])
-            insert, cycle_count = self.fixer.cycle_through_fixes(" ".join(last_event.phrases).lower(), \
+            insert, _ = self.fixer.cycle_through_fixes(" ".join(previous_event.phrases).lower(), \
                 input_history.get_repetition_count(), starting_phrases)
 
         if enable_self_repair:
@@ -340,7 +331,7 @@ class VirtualBufferManager:
             return vbm.remove_virtual_selection()
 
         # For single character insertions we want to remove characters one by one
-        elif vbm and vbm.single_character_presses > 0 and backwards:
+        elif vbm and vbm.input_history.count_remaining_single_character_presses() > 0 and backwards:
             return [self.settings.get_remove_character_left_key()]
         
         if context.current is not None:

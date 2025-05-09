@@ -116,9 +116,10 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
   X Fix character removal tracking
   X Fix select remove character tracking
   X Integrate the skip checking 
-  - Integrate retrieving the states for fix looping
-  - Integrate using the previous correction target for correction looping
-  - Integrate phonetic repetition checking
+  ~ Integrate retrieving the states for fix looping
+  - Integrate phonetic repetition checking  
+  - Integrate the self repair checking
+  X Integrate using the previous correction target for correction looping
   - Remove last event method
 
 [ ] - Improve outside events and extend events with selection  

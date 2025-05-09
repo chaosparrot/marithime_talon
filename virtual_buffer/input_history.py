@@ -71,6 +71,9 @@ class InputHistory:
                 self.repetition_count += 1
             else:
                 self.repetition_count = 0
+        # Reset the events timestamp if we do not have a transition
+        else:
+            self.history[-1].timestamp_ms = event.timestamp_ms
 
     # Whether the new input event is part of the current input event
     # A correction contains a navigation, selection and an insert in rapid succession for instance
@@ -148,6 +151,13 @@ class InputHistory:
 
         return updating
 
+    def get_first_target_from_event(self) -> List[VirtualBufferToken]:
+        if len(self.history) == 0:
+            return []
+        if self.repetition_count > 0 and len(self.history) > self.repetition_count:
+            self.history[-(self.repetition_count + 1)].target
+        else:
+            self.get_last_event().target
 
     def flush_history(self):
         self.history = []

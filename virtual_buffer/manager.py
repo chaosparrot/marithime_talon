@@ -34,7 +34,6 @@ class VirtualBufferManager:
     fixer: InputFixer
     tracking = True
     tracking_lock: str = ""
-    repeater_type: str = "positive" # "positive", "skip", "positive_after_skip"
     use_last_set_formatter = False
 
     def __init__(self, settings: VirtualBufferSettings = None):
@@ -55,10 +54,6 @@ class VirtualBufferManager:
         self.context.set_formatter(name)
 
     def set_repeating_type(self, type: str):
-        if self.repeater_type == "skip" and type != "skip":
-            type = "positive_after_skip"
-        self.repeater_type = type
-
         self.context.get_current_context().buffer.input_history.mark_next_as_skip(type == "skip")
 
     def enable_tracking(self, lock: str = ""):
@@ -125,7 +120,13 @@ class VirtualBufferManager:
             return vb.select_until_end(phrases)
         else:
             match_threshold = CORRECTION_THRESHOLD if not for_correction else SELECTION_THRESHOLD
-            return vb.select_phrases(phrases, match_threshold=match_threshold, for_correction=for_correction)
+
+            # Reset the selection to the last insert statements when doing a repetition
+            if for_correction and vb.input_history.is_repetition():
+                last_event_insert = vb.input_history.history[-2].insert
+                vb.select_token_range(last_event_insert[0], last_event_insert[-1])
+            else:
+                return vb.select_phrases(phrases, match_threshold=match_threshold, for_correction=for_correction)
 
     def move_to_phrase(self, phrase: str, character_index: int = -1, keep_selection: bool = False, next_occurrence: bool = True) -> List[str]:
         self.disable_tracking()
@@ -168,6 +169,9 @@ class VirtualBufferManager:
             for key in keys_to_remove_virtual_selection:
                 self.context.apply_key(key)
 
+        input_history = vbm.input_history
+        last_event = input_history.get_last_event()
+
         # Detect if we are doing a repeated phonetic correction
         # In order to cycle through it
         if vbm.last_action_type == "phonetic_correction":
@@ -190,33 +194,16 @@ class VirtualBufferManager:
                 vbm.skip_last_action_insert = False
 
         normalized_input = insert.lower()
-        normalized_last_select = "" if vbm.correction_start_phrases is None else "".join([token.text.lower() for token in vbm.correction_start_phrases])
 
         # On repeated corrections, cycle through the corrections
         # Only do an initial repeat if we have an exact match!
-        if vbm.last_action_type == "correction" or \
-            ( vbm.last_action_type == "first-correction" and normalized_last_select.endswith(normalized_input) ):
-            normalized_input = normalize_text(normalized_input)
-            normalized_last_search = normalize_text(" ".join(vbm.last_search)).lower()
-            
-            if normalized_last_search.endswith(normalized_input):
-                # Replace the words with phonetic equivelants
-                starting_phrases = " ".join([token.text for token in vbm.correction_start_phrases]) if vbm.correction_start_phrases is not None else ""
-                insert, cycle_count = self.fixer.cycle_through_fixes(" ".join(vbm.last_search).lower(), \
-                    vbm.correction_cycle_count, starting_phrases)
-                vbm.correction_cycle_count = cycle_count
+        if last_event is not None and last_event.type == InputEventType.CORRECTION and input_history.is_repetition():
 
-                # Make sure we do not save the transformed text as an individual insert
-                # As it would update the state as if it wasn't a repeated item
-                vbm.skip_last_action_insert = True
-            else:
-                vbm.correction_cycle_count = 0
-                vbm.skip_last_action_insert = False
-
-        # Make sure we do not save the transformed text as an individual insert
-        # As it would update the state as if it wasn't a repeated item
-        if vbm.last_action_type == "first-correction":
-            vbm.skip_last_action_insert = True
+            # Replace the words with phonetic equivelants
+            first_target = input_history.get_first_target_from_event()
+            starting_phrases = "".join([token.text for token in first_target])
+            insert, cycle_count = self.fixer.cycle_through_fixes(" ".join(last_event.phrases).lower(), \
+                input_history.get_repetition_count(), starting_phrases)
 
         if enable_self_repair:
             

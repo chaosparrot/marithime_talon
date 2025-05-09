@@ -34,10 +34,12 @@ class InputEvent:
 class InputHistory:    
     history: List[InputEvent] = None
     mark_as_skip: bool = False
+    repetition_count: int = 0
 
     def __init__(self):
         self.history = []
         self.mark_as_skip = False
+        self.repetition_count = 0
 
     def add_event(self, type: InputEventType, phrases: List[str] = None, timestamp_ms: int = -1):
         if timestamp_ms == -1:
@@ -64,6 +66,11 @@ class InputHistory:
         elif self.should_transition(event):
             self.history.append(event)
             self.history = self.history[-60:] # Do not make the history balloon too much
+
+            if self.is_repetition():
+                self.repetition_count += 1
+            else:
+                self.repetition_count = 0
 
     # Whether the new input event is part of the current input event
     # A correction contains a navigation, selection and an insert in rapid succession for instance
@@ -110,6 +117,11 @@ class InputHistory:
                 if len(self.history) > 1 and self.history[-2].type == InputEventType.SELECT:
                     transitioning = False
 
+            # If we have a marithime insert event added as a part of a correction event with the same phrases
+            elif event.type == InputEventType.MARITHIME_INSERT and last_event_type == InputEventType.CORRECTION:
+                if "".join(last_event.phrases) == "".join(event.phrases):
+                    transitioning = False
+
         return transitioning
 
     # Whether the new input event should replace the previous input event type
@@ -119,7 +131,6 @@ class InputHistory:
         if len(self.history) > 0:
             last_event = self.get_last_event()
             last_event_ts = last_event.timestamp_ms
-            last_event_type = last_event.type
             if event.timestamp_ms - last_event_ts > 500:
                 updating = False
 
@@ -140,6 +151,7 @@ class InputHistory:
 
     def flush_history(self):
         self.history = []
+        self.repetition_count = 0
 
     def mark_next_as_skip(self, mark_next: bool = True):
         self.mark_as_skip = mark_next
@@ -184,6 +196,9 @@ class InputHistory:
                 if current_event.type == InputEventType.PARTIAL_SELF_REPAIR and previous_event.type == InputEventType.PARTIAL_SELF_REPAIR:
                     is_repeated_event = False
         return is_repeated_event
+
+    def get_repetition_count(self):
+        return self.repetition_count
 
     def get_last_event(self) -> InputEvent:
         return self.history[-1] if len(self.history) > 0 else None

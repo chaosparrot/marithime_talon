@@ -92,12 +92,15 @@ def test_correction_flow(assertion):
     events.extend( text_to_virtual_buffer_tokens("Bird", "bird"))
     input_history.append_target_to_last_event(events)
 
-    # Third - A remove event is added after the text is selected
+    # Third - The marithime insert event is added
+    input_history.add_event(InputEventType.MARITHIME_INSERT, ["this", "big", "word"], 1600)
+
+    # Fourth - A remove event is added after the text is selected
     input_history.add_event(InputEventType.REMOVE, [], 1900)
     input_history.append_target_to_last_event(events)
 
-    # Fourth - The insert event is added and gets transformed to camel case by the formatter
-    input_history.add_event(InputEventType.INSERT, "ThisBigWord", 1900)    
+    # Fifth - The insert event is added and gets transformed to camel case by the formatter
+    input_history.add_event(InputEventType.INSERT, ["ThisBigWord"], 1900)
     events = text_to_virtual_buffer_tokens("This", "this")
     events.extend( text_to_virtual_buffer_tokens("Big", "big"))
     events.extend( text_to_virtual_buffer_tokens("Word", "word"))

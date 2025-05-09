@@ -3,6 +3,7 @@ from .input_context_manager import InputContextManager
 from .input_fixer import InputFixer
 from .typing import CORRECTION_THRESHOLD, SELECTION_THRESHOLD
 from .settings import VirtualBufferSettings, virtual_buffer_settings
+from .input_history import InputEventType
 from ..phonetics.detection import EXACT_MATCH, normalize_text
 from typing import List, Union
 import json
@@ -88,6 +89,9 @@ class VirtualBufferManager:
 
     def has_phrase(self, phrase: str) -> bool:
         return self.context.get_current_context().buffer.has_matching_phrase(phrase)
+    
+    def get_input_history(self):
+        return self.context.get_current_context().buffer.input_history
     
     def move_caret_back(self, keep_selection: bool = False) -> List[str]:
         self.disable_tracking()
@@ -533,16 +537,20 @@ class Actions:
         """Select a fuzzy match of the words and apply the given words"""
         mutator = get_mutator()
 
+        input_history = mutator.get_input_history()
         # We can repeat this command - But skip to the next selection if we are dealing with a "skip" repetition
         # Positive - cycle through single corrections
         # Skip - Select the next correctable phrase
         # Positive_after_skip - Replace the selection with the insertion
-        if mutator.repeater_type == "positive_after_skip":
+        last_event = input_history.get_last_event()
+        if input_history.is_skip_event() == False and \
+            ( last_event is not None and last_event.type == InputEventType.CORRECTION and "".join(last_event.phrases) == "".join(selection_and_correction) ):
             keys = []
         else:
             keys = mutator.select_phrases(selection_and_correction, for_correction=True)
 
-        if len(keys) > 0 or mutator.is_virtual_selecting() or mutator.repeater_type == "positive_after_skip":
+        last_event = input_history.get_last_event()
+        if len(keys) > 0 or mutator.is_virtual_selecting() or last_event.type != InputEventType.SKIP_CORRECTION:
             mutator.disable_tracking()
             if keys:
                 for key in keys:
@@ -550,7 +558,7 @@ class Actions:
             mutator.enable_tracking()
 
             # Do not insert text upon skipping a correction
-            if mutator.repeater_type != "skip":
+            if last_event.type != InputEventType.SKIP_CORRECTION:
                 text = " ".join(selection_and_correction)
                 actions.user.marithime_insert(text)
         else:

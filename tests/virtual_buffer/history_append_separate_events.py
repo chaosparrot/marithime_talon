@@ -68,7 +68,7 @@ non_related_events_transition_table = [
     ["select", "exit"],
 
     # Correction event
-    ["correction", "marithime_insert"],
+    # ["correction", "marithime_insert"], - Possible part of correction event
     # ["correction", "insert"], - Possible part of correction event
     ["correction", "insert_character"],
     # ["correction", "remove"], - Possible part of correction event

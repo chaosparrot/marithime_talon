@@ -43,24 +43,27 @@ def test_skip_correction_flow(assertion):
     events.extend( text_to_virtual_buffer_tokens("Bird", "bird"))
     input_history.append_target_to_last_event(events)
 
-    # Third - A remove event is added
+    # Third - Add the marithime insert event
+    input_history.add_event(InputEventType.MARITHIME_INSERT, ["this", "big", "word"], 1700)    
+
+    # Fourth - A remove event is added
     input_history.add_event(InputEventType.REMOVE, [], 1900)
     input_history.append_target_to_last_event(events)
 
-    # Fourth - The insert event is added and gets transformed to camel case by the formatter
+    # Fifth - The insert event is added and gets transformed to camel case by the formatter
     input_history.add_event(InputEventType.INSERT, ["ThisBigWord"], 1900)
     events = text_to_virtual_buffer_tokens("This", "this")
     events.extend( text_to_virtual_buffer_tokens("Big", "big"))
     events.extend( text_to_virtual_buffer_tokens("Word", "word"))
     input_history.append_insert_to_last_event(events)
 
-    # Fifth - Mark the next event as a skip event
+    # Sixth - Mark the next event as a skip event
     input_history.mark_next_as_skip()
 
-    # Sixth - Add the skip correction event
+    # Seventh - Add the skip correction event
     input_history.add_event(InputEventType.CORRECTION, ["this", "big", "word"], 3000)
 
-    # Seventh - A target is found
+    # Eighth - A target is found
     events = text_to_virtual_buffer_tokens("This", "this")
     events.extend( text_to_virtual_buffer_tokens("Big", "big"))
     events.extend( text_to_virtual_buffer_tokens("Bird", "bird"))
@@ -78,7 +81,7 @@ def test_skip_partial_self_repair_flow(assertion):
     input_history.add_event(InputEventType.MARITHIME_INSERT, ["this", "big", "word"], 1500)
 
     # Second - The insert event is added and gets transformed to camel case
-    input_history.add_event(InputEventType.INSERT, ["thisBigWord"], 1500)    
+    input_history.add_event(InputEventType.INSERT, ["thisBigWord"], 1500)
     events = text_to_virtual_buffer_tokens("this", "this")
     events.extend( text_to_virtual_buffer_tokens("Big", "big"))
     events.extend( text_to_virtual_buffer_tokens("Word", "word"))

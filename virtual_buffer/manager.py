@@ -175,7 +175,7 @@ class VirtualBufferManager:
 
         # Detect if we are doing a repeated phonetic correction
         # In order to cycle through it
-        if add_input_history_event and len(previous_event.insert) > 0:
+        if add_input_history_event and previous_event is not None and previous_event.insert is not None and len(previous_event.insert) > 0:
             normalized_input = normalize_text(insert).lower()
             normalized_last_insert = normalize_text(" ".join([token.text for token in previous_event.insert])).lower()
             if normalized_last_insert.endswith(normalized_input):
@@ -234,11 +234,11 @@ class VirtualBufferManager:
                         allow_initial_replacement = True
                     replacement_index = 0 if allow_initial_replacement else 1
 
-                    input_event_type = InputEventType.PARTIAL_SELF_REPAIR if insert.split() > [
+                    input_event_type = InputEventType.PARTIAL_SELF_REPAIR if len(insert.split()) > len([
                             query_index_index
                             for query_index in self_repair_match.query_indices
                             for query_index_index in query_index
-                        ] else InputEventType.SELF_REPAIR
+                        ]) else InputEventType.SELF_REPAIR
                     vbm.input_history.add_event(input_event_type, original_insert.split(" "))
 
                     # Make sure that we only replace words from the first matching word instead of allowing a full replacement

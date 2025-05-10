@@ -23,7 +23,6 @@ class InputContextManager:
     contexts: List[InputContext] = None
     last_clear_check = time.perf_counter()
     use_last_set_formatter = False
-    last_insert_phrases = None
     active_formatters: List[TextFormatter]
     formatter_names: List[str]
     state_callback: Callable[[str, int, int, bool], None] = None
@@ -51,7 +50,6 @@ class InputContextManager:
         self.contexts = []
         self.active_formatters = []
         self.formatter_names = []
-        self.last_insert_phrases = []
         self.switch_context(ui.active_window())
 
     def switch_context(self, window) -> bool:

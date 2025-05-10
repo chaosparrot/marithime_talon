@@ -124,7 +124,18 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
   X Integrate single character event insertions
   X Fix skip self repair flow
   - Fix remove target not being proper after a skip self repair / self repair
-  - Real testing
+  ~ Real testing
+    - Self repair: There is something I want to *pause* where - repeat cluck to cycle through phonetics
+    - Self repair: There is something I want to wear *pause* to wear - repeat cluck to cycle through phonetics
+    - Partial self repair: There is something I want to wear *pause* to wear at work
+    - Selection: Cluck cycle through single word
+    - Selection: Cluck cycle through multiple words
+    - Selection into correction: Select where, correction where
+    - Selection into insert: Select where, insert where    
+    - Correction cycle through single words: Correct where - Cluck through elements
+    - Correction with multiple targets: Correction where - Cluck through options - Skip correction, cluck through second option from the start
+    - Correction multiple words: Correction to where - Cluck through elements
+    - Correction multiple words with pop remove: Correction to where - pop once, cluck to see what it corrects
 
 [ ] - Improve outside events and extend events with selection  
 While making the state machine, I found out that while a lot of fix events ARE covered by the flows, doing manual selections with 'press shift left ten times' is not, neither is extending the select, because it doesn't follow the select flow. While I think this workflow won't be done often, for completeness sake it should be added to ensure the InputFixer can properly track what changes were made for automatic fixes later.

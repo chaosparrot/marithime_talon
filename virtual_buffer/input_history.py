@@ -178,13 +178,42 @@ class InputHistory:
             if self.history[-1].target is None:
                 self.history[-1].target = target
 
-            # Append to the left or to the right of the existing targe
+            # Append to the left or to the right of the existing target
             else:
+                last_event_target = self.history[-1].target
+
+                new_target = []
+
+                # When the new target is larger than the existing target, naively assume that they don't include duplicates
+                if len(target) > len(last_event_target):
+                    new_target = target
+
+                else:
+                    for target_token_index, target_token in enumerate(target):
+                        if before:
+
+                            # Only add the event before the target if it doesn't exactly match the existing target
+                            # To ensure we don't get duplicates
+                            if not (target_token.line_index == last_event_target[target_token_index].line_index and \
+                                target_token.index_from_line_end == last_event_target[target_token_index].index_from_line_end and \
+                                len(target_token.text) == len(last_event_target[target_token_index].text)):
+                                new_target.append(target_token)
+                        
+                        elif not before:
+                            target_after_index = -len(target) + target_token_index
+
+                            # Only add the event afer the target if it doesn't exactly match the existing target
+                            # To ensure we don't get duplicates
+                            if not (target_token.line_index == last_event_target[target_after_index].line_index and \
+                                target_token.index_from_line_end == last_event_target[target_after_index].index_from_line_end and \
+                                len(target_token.text) == len(last_event_target[target_after_index].text)):
+                                new_target.append(target_token)
+
                 if before:
-                    target.extend(self.history[-1].target)
-                    self.history[-1].target = target
+                    new_target.extend(self.history[-1].target)
+                    self.history[-1].target = new_target
                 elif before == False:
-                    self.history[-1].target.extend(target)
+                    self.history[-1].target.extend(new_target)
     
     def append_insert_to_last_event(self, insert: List[VirtualBufferToken]):
         if len(self.history) > 0:

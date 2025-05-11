@@ -123,7 +123,7 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
   X Remove last event method
   X Integrate single character event insertions
   X Fix skip self repair flow
-  - Fix remove target not being proper after a skip self repair / self repair
+  X Fix remove target not being proper after a skip self repair / self repair
   ~ Real testing
     - Self repair: There is something I want to *pause* where - repeat cluck to cycle through phonetics
     - Self repair: There is something I want to wear *pause* to wear - repeat cluck to cycle through phonetics
@@ -132,6 +132,7 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
     - Selection: Cluck cycle through multiple words
     - Selection into correction: Select where, correction where
     - Selection into insert: Select where, insert where    
+    - Correction where - If same value, cycle through options?
     - Correction cycle through single words: Correct where - Cluck through elements
     - Correction with multiple targets: Correction where - Cluck through options - Skip correction, cluck through second option from the start
     - Correction multiple words: Correction to where - Cluck through elements

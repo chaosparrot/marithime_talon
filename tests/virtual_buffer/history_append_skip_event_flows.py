@@ -138,8 +138,8 @@ def test_skip_partial_self_repair_flow(assertion):
     input_history.append_insert_to_last_event(events)
 
     assertion( "    Should give the history three events", len(input_history.history) == 3)
-    assertion( "    should not detect a repetition", input_history.is_repetition() == False)
-    assertion( "    should transform the second self repair as a skip self repair", input_history.history[-1].type == InputEventType.SKIP_SELF_REPAIR)
+    assertion( "    Should not detect a repetition", input_history.is_repetition() == False)
+    assertion( "    Should transform the second self repair as a skip self repair", input_history.history[-1].type == InputEventType.SKIP_SELF_REPAIR)
 
 def test_skip_full_self_repair_flow(assertion):
     assertion( "Appending the events used for skipping full self repairs" )
@@ -191,8 +191,9 @@ def test_skip_full_self_repair_flow(assertion):
 
     # Tenth - A remove event is added
     input_history.add_event(InputEventType.REMOVE, [], 2600)
-    # Target is not added - as that is skipped when the remove event is not active
-    # input_history.append_target_to_last_event(events)
+    input_history.append_target_to_last_event(events)
+    assertion( "    Should not append events if they already exist in the previous event", len(input_history.history[-1].target) == 2)
+    assertion( input_history.history[-1].target )
 
     # Eleventh - The insert event is added and gets transformed to camel case by the formatter
     # With the changed text ( Old text followed by new text )
@@ -203,8 +204,8 @@ def test_skip_full_self_repair_flow(assertion):
     events.extend( text_to_virtual_buffer_tokens("Werd", "werd"))
     input_history.append_insert_to_last_event(events)
     assertion( "    Should give the history three events", len(input_history.history) == 3)
-    assertion( "    should not detect a repetition", input_history.is_repetition() == False)
-    assertion( "    should transform the second self repair as a skip self repair", input_history.history[-1].type == InputEventType.SKIP_SELF_REPAIR)
+    assertion( "    Should not detect a repetition", input_history.is_repetition() == False)
+    assertion( "    Should transform the second self repair as a skip self repair", input_history.history[-1].type == InputEventType.SKIP_SELF_REPAIR)
 
 suite = create_test_suite("Appending skip events to the history that shouldn't result in more than one issue")
 suite.add_test(test_skip_non_skippable_events_flow)

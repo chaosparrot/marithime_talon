@@ -164,24 +164,14 @@ class InputHistory:
         if len(self.history) == 0:
             return []
         if self.repetition_count > 0 and len(self.history) > self.repetition_count:
-            #offset = 1
-
-            # For a self repair cycle, the starting point is a marithime insert or a regular insert which does not have a target
-            # In that case, check the event happening right after that for the target
-            #if self.history[-(self.repetition_count + 1)].type in [InputEventType.MARITHIME_INSERT, InputEventType.INSERT]:
-            #    offset = 0
-
-            print( "TARGET!", self.repetition_count, self.history[-(self.repetition_count)] )
             return self.history[-(self.repetition_count)].target
         else:
             last_event = self.get_last_event()
-            print( "TARGET W/O REPETITION!", last_event )
 
             # Potential self repair, use previous target
             if last_event.type in [InputEventType.MARITHIME_INSERT] and last_event.insert is None and \
                 len(self.history) > 1 and self.history[-2].type == InputEventType.SELF_REPAIR:
                 last_event = self.history[-2]
-                print( "USE PREVIOUS TARGET!", last_event )
 
             return last_event.target
 
@@ -190,16 +180,25 @@ class InputHistory:
             return []
         
         last_event = self.get_last_event()
-        if last_event is not None:
-            print( "LAST INSERT", last_event.insert)
-        
+
         # Potential self repair, use previous insert
         if last_event.type in [InputEventType.MARITHIME_INSERT] and last_event.insert is None and \
-            len(self.history) > 1 and self.history[-2].type == InputEventType.SELF_REPAIR:
+            len(self.history) > 1 and self.history[-2].insert is not None:
             last_event = self.history[-2]
-            print( "USE EVEN EARLIER INSERT", last_event.insert)
 
-        return last_event.insert if last_event else []
+        if last_event and last_event.insert is not None:
+            if last_event.type == InputEventType.PARTIAL_SELF_REPAIR:
+
+                # Partial repairs types
+                # B - C - D
+                #         D - E - Type one, continuation
+                #     C - E - F - Type two, continuation + replacement
+                # How do we support both types?
+                return last_event.insert
+            else:
+                return last_event.insert
+        else:
+            return []
 
     def flush_history(self):
         self.history = []

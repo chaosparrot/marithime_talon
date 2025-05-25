@@ -186,14 +186,25 @@ class VirtualBufferManager:
                 # This will get the first text replaced if we are cycling through self repairs
                 first_target = input_history.get_first_target_from_event()
 
+                cycle_count = input_history.get_repetition_count(enable_self_repair)
+
+                # When inserting a text like
+                # I want to wear -> to wear - *No insert*
+                # The input history does not mark this as a repetition but rather a new event
+                # Because the user most likely expected this to be a match to cycle through
+                # We pretend that this is the first cycle which can be repeated through so the result becomes
+                # I want to wear -> to wear -> *Insert the correction 'to where'*
+                if cycle_count == 0:
+                    cycle_count = 1
+
                 # Replace the words with phonetic equivelants
                 insert, _ = self.fixer.cycle_through_fixes(normalized_input,
                     input_history.get_repetition_count(enable_self_repair),
                     "".join([token.text for token in first_target]) if first_target else None)
                 
-                print( "SELF REPAIR", insert )
-            else:
-                print( "CLEAR!", insert )
+                #print( "SELF REPAIR", insert )
+            #else:
+            #    print( "CLEAR!", insert )
 
         normalized_input = insert.lower()
 
@@ -224,9 +235,9 @@ class VirtualBufferManager:
                 self_repair_match = vbm.find_self_repair(insert.split())
 
             # For repeated self repairs, use the previous insert for the match
-            # TODO IMPROVE PERFORMANCE AS WE TECHNICALLY DO NOT NEED TO DO A SEARCH
+            # TODO IMPROVE PERFORMANCE AS WE TECHNICALLY DO NOT NEED TO DO A SEARCH BUT JUST USE THE INSERTED TOKENS
             else:
-                print( "REPEATED SELF REPAIR", [token.phrase for token in input_history.get_last_insert()] )
+                #print( "REPEATED SELF REPAIR", [token.phrase for token in input_history.get_last_insert()] )
                 self_repair_match = vbm.find_self_repair([token.phrase for token in input_history.get_last_insert()])
 
             if self_repair_match is not None:
@@ -245,6 +256,7 @@ class VirtualBufferManager:
                 # We do not support replacing initial words, only inserting, as replacing initial words requires more context about meaning
                 # ( We have no -> We have a , but not, We have no -> They have no )
                 else:
+
                     first_index = self_repair_match.buffer_indices[0][0]
                     allow_initial_replacement = False
                     if first_index - 1 > 0:
@@ -252,6 +264,12 @@ class VirtualBufferManager:
                     else:
                         allow_initial_replacement = True
                     replacement_index = 0 if allow_initial_replacement else 1
+
+                    # Add the full target even if we are only replacing the end
+                    # As this allows us to repeat the self repair and let it cycle through phonetic changes
+                    # In the words that were the same but need to change
+                    # Examle: to -> to wear ( contintuation ) -> too wear ( repetition)
+                    vbm.input_history.append_target_to_last_event(vbm.tokens[first_index:self_repair_match.buffer_indices[-1][-1] + 1])
 
                     input_event_type = InputEventType.PARTIAL_SELF_REPAIR if len(insert.split()) > len([
                             query_index_index
@@ -274,8 +292,6 @@ class VirtualBufferManager:
 
                         tokens = vbm.tokens
                         if start_index < len(tokens) and end_index < len(tokens):
-                            vbm.input_history.append_target_to_last_event(tokens[start_index:end_index + 1])
-
                             repair_keys.extend( vbm.select_token_range(tokens[start_index], tokens[end_index]) )
                             previous_selection = vbm.caret_tracker.get_selection_text()
                             current_insertion = " ".join(insert.split()[:end_index - start_index])
@@ -465,8 +481,6 @@ class Actions:
         """Input words based on context surrounding the words to input, allowing for self repair within speech as well"""
         mutator = get_mutator()
 
-        print( "MARITHIME INSERT!", prose )
-
         text_to_insert, keys = mutator.transform_insert(prose, True)
         if len(keys) > 0:
             mutator.disable_tracking()
@@ -479,8 +493,6 @@ class Actions:
     def marithime_insert(prose: str):
         """Input words based on context surrounding the words to input"""
         mutator = get_mutator()
-
-        print( "MARITHIME INSERT!", prose )
 
         text_to_insert, keys = mutator.transform_insert(prose)
         if len(keys) > 0:

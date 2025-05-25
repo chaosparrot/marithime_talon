@@ -126,9 +126,10 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
   X Fix remove target not being proper after a skip self repair / self repair
   ~ Real testing
     X Self repair: Where - repeat cluck to cycle through phonetics
-    ~ Self repair: There is something I want to *pause* where - repeat cluck to cycle through phonetics
+    X Self repair: There is something I want to *pause* where - repeat cluck to cycle through phonetics
+    X Self repair: We *pause* were - repeat cluck to cycle through self repair and make the self repair correct 'were' to 'we' instead of appending after the words
+    X Partial self repair: There is something I want to wear *pause* to wear at work
     - Self repair: There is something I want to wear *pause* to wear - repeat cluck to cycle through phonetics
-    - Partial self repair: There is something I want to wear *pause* to wear at work
     - Selection: Cluck cycle through single word
     - Selection: Cluck cycle through multiple words
     - Selection into correction: Select where, correction where
@@ -141,6 +142,9 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
 
 [ ] - Improve outside events and extend events with selection  
 While making the state machine, I found out that while a lot of fix events ARE covered by the flows, doing manual selections with 'press shift left ten times' is not, neither is extending the select, because it doesn't follow the select flow. While I think this workflow won't be done often, for completeness sake it should be added to ensure the InputFixer can properly track what changes were made for automatic fixes later.
+
+[ ] - Self repair repetition bug(?)  
+When doing a repetition through self repairs, only the initial cycle do we get the initial fix ( we -> were -> we ). After that, it only detects the phonetic words relating to the change 'were'. I am unsure if this is something that needs to be fixed, or if it is enough to have this initial fix only happen once.
 
 #### Programs
 

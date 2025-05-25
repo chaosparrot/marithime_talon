@@ -190,6 +190,10 @@ class VirtualBufferManager:
                 insert, _ = self.fixer.cycle_through_fixes(normalized_input,
                     input_history.get_repetition_count(enable_self_repair),
                     "".join([token.text for token in first_target]) if first_target else None)
+                
+                print( "SELF REPAIR", insert )
+            else:
+                print( "CLEAR!", insert )
 
         normalized_input = insert.lower()
 
@@ -215,11 +219,19 @@ class VirtualBufferManager:
                 preceding_word = word
             insert = " ".join(words_to_insert)
 
-            self_repair_match = vbm.find_self_repair(insert.split())
+            is_repeated_self_repair = input_history.get_repetition_count(True) > 0
+            if not is_repeated_self_repair:
+                self_repair_match = vbm.find_self_repair(insert.split())
+
+            # For repeated self repairs, use the previous insert for the match
+            # TODO IMPROVE PERFORMANCE AS WE TECHNICALLY DO NOT NEED TO DO A SEARCH
+            else:
+                print( "REPEATED SELF REPAIR", [token.phrase for token in input_history.get_last_insert()] )
+                self_repair_match = vbm.find_self_repair([token.phrase for token in input_history.get_last_insert()])
 
             if self_repair_match is not None:
                 # If we are dealing with a continuation, change the insert to remove the first few words
-                if self_repair_match.score_potential == EXACT_MATCH:
+                if self_repair_match.score_potential == EXACT_MATCH and not is_repeated_self_repair:
                     words = insert.split()
                     if len(words) > len(self_repair_match.scores):
                         insert = " ".join(words[len(self_repair_match.scores):])
@@ -453,6 +465,8 @@ class Actions:
         """Input words based on context surrounding the words to input, allowing for self repair within speech as well"""
         mutator = get_mutator()
 
+        print( "MARITHIME INSERT!", prose )
+
         text_to_insert, keys = mutator.transform_insert(prose, True)
         if len(keys) > 0:
             mutator.disable_tracking()
@@ -465,6 +479,8 @@ class Actions:
     def marithime_insert(prose: str):
         """Input words based on context surrounding the words to input"""
         mutator = get_mutator()
+
+        print( "MARITHIME INSERT!", prose )
 
         text_to_insert, keys = mutator.transform_insert(prose)
         if len(keys) > 0:

@@ -215,6 +215,8 @@ class InputFixer:
         # that a user notices a mistake in a dictation sequence
         replaced_words = flattened_word_cycles[cycle_amount]
         fixed_text = " ".join(replaced_words)
+
+        print( cycle_amount, flattened_word_cycles, total_cycle_amount, fixed_text )
         
         return (fixed_text, cycle_amount)
 

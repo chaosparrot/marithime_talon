@@ -164,15 +164,42 @@ class InputHistory:
         if len(self.history) == 0:
             return []
         if self.repetition_count > 0 and len(self.history) > self.repetition_count:
-            offset = 1
+            #offset = 1
 
             # For a self repair cycle, the starting point is a marithime insert or a regular insert which does not have a target
             # In that case, check the event happening right after that for the target
-            if self.history[-(self.repetition_count + 1)].type in [InputEventType.MARITHIME_INSERT, InputEventType.INSERT]:
-                offset = 0
-            return self.history[-(self.repetition_count + offset)].target
+            #if self.history[-(self.repetition_count + 1)].type in [InputEventType.MARITHIME_INSERT, InputEventType.INSERT]:
+            #    offset = 0
+
+            print( "TARGET!", self.repetition_count, self.history[-(self.repetition_count)] )
+            return self.history[-(self.repetition_count)].target
         else:
-            return self.get_last_event().target
+            last_event = self.get_last_event()
+            print( "TARGET W/O REPETITION!", last_event )
+
+            # Potential self repair, use previous target
+            if last_event.type in [InputEventType.MARITHIME_INSERT] and last_event.insert is None and \
+                len(self.history) > 1 and self.history[-2].type == InputEventType.SELF_REPAIR:
+                last_event = self.history[-2]
+                print( "USE PREVIOUS TARGET!", last_event )
+
+            return last_event.target
+
+    def get_last_insert(self) -> List[VirtualBufferToken]:
+        if len(self.history) == 0:
+            return []
+        
+        last_event = self.get_last_event()
+        if last_event is not None:
+            print( "LAST INSERT", last_event.insert)
+        
+        # Potential self repair, use previous insert
+        if last_event.type in [InputEventType.MARITHIME_INSERT] and last_event.insert is None and \
+            len(self.history) > 1 and self.history[-2].type == InputEventType.SELF_REPAIR:
+            last_event = self.history[-2]
+            print( "USE EVEN EARLIER INSERT", last_event.insert)
+
+        return last_event.insert if last_event else []
 
     def flush_history(self):
         self.history = []
@@ -189,7 +216,9 @@ class InputHistory:
             self.history[-1].phrases = phrases
     
     def append_target_to_last_event(self, target: List[VirtualBufferToken], before: bool = False):
+        target = [token for token in target if token.text != ""]
         if len(self.history) > 0 and "".join([token.text for token in target]) != "":
+
             if self.history[-1].target is None:
                 self.history[-1].target = target
 
@@ -224,11 +253,12 @@ class InputHistory:
                                 len(target_token.text) == len(last_event_target[target_after_index].text)):
                                 new_target.append(target_token)
 
-                if before:
-                    new_target.extend(self.history[-1].target)
-                    self.history[-1].target = new_target
-                elif before == False:
-                    self.history[-1].target.extend(new_target)
+                if len(new_target) > 0:
+                    if before:
+                        new_target.extend(self.history[-1].target)
+                        self.history[-1].target = new_target
+                    elif before == False:
+                        self.history[-1].target.extend(new_target)
     
     def append_insert_to_last_event(self, insert: List[VirtualBufferToken]):
         if len(self.history) > 0:

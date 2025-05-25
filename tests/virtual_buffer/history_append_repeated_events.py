@@ -64,6 +64,44 @@ def test_append_dissimilar_repeating_events(assertion):
         assertion( "    Should give the history two events", len(input_history.history) == 2)
         assertion( "    Should detect a repetition", input_history.is_repetition() == False)
 
+def test_repetition_count(assertion):
+    for repeated_event in repeated_events_list:
+        assertion( "Appending the same " + repeated_event + " event after one another")
+        input_history = get_input_history()
+        apply_event(input_history, repeated_event, ["this"])
+        apply_event(input_history, repeated_event, ["this"])
+        assertion( "    Should detect a repetition", input_history.is_repetition() == True)
+        assertion( "    Should count a single repetition", input_history.get_repetition_count() == 1)
+        apply_event(input_history, repeated_event, ["this"])
+        assertion( "Appending it again")
+        assertion( "    Should count two repetitions", input_history.get_repetition_count() == 2)
+
+def test_marthime_insert_repetition(assertion):
+    input_history = get_input_history()
+    assertion( "Appending a self repair after the exact same marthime insert")
+    apply_event(input_history, "marithime_insert", ["testing"])
+    apply_event(input_history, "marithime_insert", ["testing"])
+    apply_event(input_history, "self_repair", ["testing"])
+    events = text_to_virtual_buffer_tokens("Testink", "testing")
+    input_history.append_target_to_last_event(events, before=True)
+    assertion( "    Should count a single repetition", input_history.get_repetition_count() == 1)
+
+    assertion( "Appending another same marthime insert that can become a self repair")
+    apply_event(input_history, "marithime_insert", ["testing"])
+    assertion( "    Should not count a second repetition yet", input_history.get_repetition_count() == 1)
+    apply_event(input_history, "self_repair", ["testing"])
+    events = text_to_virtual_buffer_tokens("Testinh", "testinh")
+    input_history.append_target_to_last_event(events, before=True)
+    assertion( "    Should count a second repetition after the event has changed to self repair", input_history.get_repetition_count(True) == 2)
+
+    assertion( "Appending a different marthime insert that can become a self repair")
+    apply_event(input_history, "marithime_insert", ["besting"])
+    assertion( "    Should reset the repetition count", input_history.get_repetition_count() == 0)
+    assertion( input_history.history )
+    assertion( input_history.get_repetition_count() )
+
 suite = create_test_suite("Appending same events to the history")
 suite.add_test(test_append_exact_repeating_events)
 suite.add_test(test_append_dissimilar_repeating_events)
+suite.add_test(test_repetition_count)
+suite.add_test(test_marthime_insert_repetition)

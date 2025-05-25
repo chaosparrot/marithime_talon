@@ -63,14 +63,25 @@ class InputHistory:
             self.history[-1].timestamp_ms = event.timestamp_ms
             self.history[-1].type = event.type
 
+            if self.is_repetition():
+                self.repetition_count += 1
+                print( "INCREASING REPETITION COUNT UPDATE!", event.type, self.repetition_count )
+
         elif self.should_transition(event):
+            last_event = self.get_last_event()
+
             self.history.append(event)
             self.history = self.history[-60:] # Do not make the history balloon too much
 
             if self.is_repetition():
                 self.repetition_count += 1
+                print( "INCREASING REPETITION COUNT TRANSITION!", event.type, self.repetition_count )                
             else:
-                self.repetition_count = 0
+                # Reset the event count only if the phrases do not match up directly
+                # And if we aren't in an event that can still transition to another event
+                if last_event is not None and ("".join(event.phrases) != "".join(last_event.phrases) or event.type != InputEventType.MARITHIME_INSERT):
+                    self.repetition_count = 0
+                
         # Reset the events timestamp if we do not have a transition
         else:
             self.history[-1].timestamp_ms = event.timestamp_ms
@@ -155,9 +166,15 @@ class InputHistory:
         if len(self.history) == 0:
             return []
         if self.repetition_count > 0 and len(self.history) > self.repetition_count:
-            self.history[-(self.repetition_count + 1)].target
+            offset = 1
+
+            # For a self repair cycle, the starting point is a marithime insert or a regular insert which does not have a target
+            # In that case, check the event happening right after that for the target
+            if self.history[-(self.repetition_count + 1)].type in [InputEventType.MARITHIME_INSERT, InputEventType.INSERT]:
+                offset = 0
+            return self.history[-(self.repetition_count + offset)].target
         else:
-            self.get_last_event().target
+            return self.get_last_event().target
 
     def flush_history(self):
         self.history = []
@@ -226,8 +243,8 @@ class InputHistory:
         if len(self.history) > 1:
             current_event = self.history[-1]
             previous_event = self.history[-2]
-            is_repeated_event = current_event.type == previous_event.type and "".join(current_event.phrases) == "".join(previous_event.phrases)
 
+            is_repeated_event = current_event.type == previous_event.type and "".join(current_event.phrases) == "".join(previous_event.phrases)
             if is_repeated_event:
 
                 # Partially repeated events cannot follow one another up
@@ -236,8 +253,21 @@ class InputHistory:
                     is_repeated_event = False
         return is_repeated_event
 
-    def get_repetition_count(self):
-        return self.repetition_count
+    def get_repetition_count(self, can_become_self_repair: bool = False):
+        potential_repetition = 0
+
+        # A marithime insert can still become a self repair in the future
+        last_event = self.get_last_event()
+        if len(self.history) > 1 and can_become_self_repair:
+            current_event = self.history[-1]
+            previous_event = self.history[-2]
+
+            if "".join(current_event.phrases) == "".join(previous_event.phrases) and \
+                previous_event.type == InputEventType.SELF_REPAIR and \
+                current_event.type == InputEventType.MARITHIME_INSERT:
+                potential_repetition = 1
+
+        return self.repetition_count + potential_repetition
     
     def count_remaining_single_character_presses(self) -> int:
         single_character_presses = 0

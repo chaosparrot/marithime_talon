@@ -177,12 +177,19 @@ class VirtualBufferManager:
         # In order to cycle through it
         if add_input_history_event and previous_event is not None and previous_event.insert is not None and len(previous_event.insert) > 0:
             normalized_input = normalize_text(insert).lower()
-            normalized_last_insert = normalize_text(" ".join([token.text for token in previous_event.insert])).lower()
+            normalized_last_insert = normalize_text(" ".join(previous_event.phrases)).lower()
+            
             if normalized_last_insert.endswith(normalized_input):
                 enable_self_repair = enable_self_repair and not correction_insertion
 
+                # Initial target replacement
+                # This will get the first text replaced if we are cycling through self repairs
+                first_target = input_history.get_first_target_from_event()
+
                 # Replace the words with phonetic equivelants
-                insert, _ = self.fixer.cycle_through_fixes(normalized_last_insert, input_history.get_repetition_count())
+                insert, _ = self.fixer.cycle_through_fixes(normalized_input,
+                    input_history.get_repetition_count(),
+                    "".join([token.text for token in first_target]) if first_target else None)
 
         normalized_input = insert.lower()
 
@@ -194,7 +201,7 @@ class VirtualBufferManager:
             first_target = input_history.get_first_target_from_event()
             starting_phrases = "".join([token.text for token in first_target])
             insert, _ = self.fixer.cycle_through_fixes(" ".join(previous_event.phrases).lower(), \
-                input_history.get_repetition_count(), starting_phrases)
+                input_history.get_repetition_count() - 1, starting_phrases)
 
         if enable_self_repair:
             

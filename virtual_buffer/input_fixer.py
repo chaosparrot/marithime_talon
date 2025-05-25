@@ -202,16 +202,11 @@ class InputFixer:
     # Repeat the same input or correction to cycle through the possible changes
     def cycle_through_fixes(self, text: str, cycle_amount: int = 0, initial_state: str = None) -> Tuple[str, int]:
         words = text.split(" ")
-        starting_words = [word for word in initial_state.split(" ") if word != ""] if initial_state is not None else []
+        starting_words = [word.lower() for word in initial_state.split(" ") if word != ""] if initial_state is not None else []
         flattened_word_cycles = self.determine_cycles_for_words(words, starting_words)
         total_cycle_amount = len(flattened_word_cycles)
-
-        cycle_amount += 1
-
-        # Loop back to the first item if we are beyond the total count
-        if cycle_amount >= total_cycle_amount:
-            cycle_amount = 0
-            fixed_text = text
+        cycle_amount = cycle_amount % total_cycle_amount
+        #print( cycle_amount, flattened_word_cycles, flattened_word_cycles[cycle_amount] )
 
         # Determine what word to replace in the sequence
         # By walking backwards through the list of words and replacing them
@@ -219,11 +214,8 @@ class InputFixer:
         #
         # We prioritize later words because they have a bigger possibility 
         # that a user notices a mistake in a dictation sequence
-        else:
-            replaced_words = flattened_word_cycles[cycle_amount]
-
-            # TODO PROPER FORMATTING
-            fixed_text = " ".join(replaced_words)
+        replaced_words = flattened_word_cycles[cycle_amount]
+        fixed_text = " ".join(replaced_words)
         
         return (fixed_text, cycle_amount)
 

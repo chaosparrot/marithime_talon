@@ -125,7 +125,7 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
   X Fix skip self repair flow
   X Fix remove target not being proper after a skip self repair / self repair
   ~ Real testing
-    ~ Self repair: Where - repeat cluck to cycle through phonetics
+    X Self repair: Where - repeat cluck to cycle through phonetics
     ~ Self repair: There is something I want to *pause* where - repeat cluck to cycle through phonetics
     - Self repair: There is something I want to wear *pause* to wear - repeat cluck to cycle through phonetics
     - Partial self repair: There is something I want to wear *pause* to wear at work

@@ -7,18 +7,18 @@ import time
 # All kinds of events that can be applied to the input history
 # To detect a transition or an input fix
 class InputEventType(Enum):
-    MARITHIME_INSERT = "marithime_insert" # DONE
-    INSERT = "insert" # DONE
-    INSERT_CHARACTER = "insert_character" # DONE
+    MARITHIME_INSERT = "marithime_insert"
+    INSERT = "insert"
+    INSERT_CHARACTER = "insert_character"
     REMOVE = "remove"
-    SELECT = "select" # DONE
-    CORRECTION = "correction" # DONE
-    SKIP_CORRECTION = "skip_correction" # DONE
-    PARTIAL_SELF_REPAIR = "partial_self_repair" # DONE
-    SKIP_SELF_REPAIR = "skip_self_repair" # DONE
-    SELF_REPAIR = "self_repair" # DONE
-    NAVIGATION = "navigation" # DONE
-    EXIT = "exit" # DONE
+    SELECT = "select"
+    CORRECTION = "correction"
+    SKIP_CORRECTION = "skip_correction"
+    PARTIAL_SELF_REPAIR = "partial_self_repair"
+    SKIP_SELF_REPAIR = "skip_self_repair"
+    SELF_REPAIR = "self_repair"
+    NAVIGATION = "navigation"
+    EXIT = "exit"
 
 @dataclass
 class InputEvent:
@@ -58,7 +58,6 @@ class InputHistory:
                 type = InputEventType.SKIP_SELF_REPAIR
 
         event = InputEvent(timestamp_ms, type, phrases)
-        print( "ADD EVENT", event )
 
         if self.should_update_event(event):
             self.history[-1].timestamp_ms = event.timestamp_ms
@@ -66,7 +65,6 @@ class InputHistory:
 
             if self.is_repetition():
                 self.repetition_count += 1
-                print( "INCREASING REPETITION COUNT UPDATE!", event.type, self.repetition_count )
 
         elif self.should_transition(event):
             last_event = self.get_last_event()
@@ -76,7 +74,6 @@ class InputHistory:
 
             if self.is_repetition():
                 self.repetition_count += 1
-                print( "INCREASING REPETITION COUNT TRANSITION!", event.type, self.repetition_count )                
             else:
                 # Reset the event count only if the phrases do not match up directly
                 # And if we aren't in an event that can still transition to another event
@@ -254,8 +251,21 @@ class InputHistory:
                     is_repeated_event = False
         return is_repeated_event
 
-    def get_repetition_count(self):
-        return self.repetition_count
+    def get_repetition_count(self, can_become_self_repair: bool = False):
+        potential_repetition = 0
+
+        # A marithime insert can still become a self repair in the future
+        last_event = self.get_last_event()
+        if len(self.history) > 1 and can_become_self_repair:
+            current_event = self.history[-1]
+            previous_event = self.history[-2]
+
+            if "".join(current_event.phrases) == "".join(previous_event.phrases) and \
+                previous_event.type == InputEventType.SELF_REPAIR and \
+                current_event.type == InputEventType.MARITHIME_INSERT:
+                potential_repetition = 1
+
+        return self.repetition_count + potential_repetition
     
     def count_remaining_single_character_presses(self) -> int:
         single_character_presses = 0

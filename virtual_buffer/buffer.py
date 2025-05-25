@@ -94,12 +94,14 @@ class VirtualBuffer:
             return VirtualBufferTokenContext(0)
 
     def insert_tokens(self, tokens: List[VirtualBufferToken]):
-        token_index = self.determine_token_index()
-        reformat_after_each_token = token_index[0] < len(self.tokens) - 1
+        starting_token_index, token_character_index = self.determine_token_index()
+        reformat_after_each_token = starting_token_index < len(self.tokens) - 1
+        starting_token_text = "" if starting_token_index == -1 else self.tokens[starting_token_index].text
 
         for index, token in enumerate(tokens):
             self.insert_token(token, reformat_after_each_token or index == len(tokens) - 1)
-        self.input_history.append_insert_to_last_event(tokens)
+
+        self.reconstruct_insert_token_events(tokens, starting_token_text, starting_token_index)
 
     def insert_token(self, token_to_insert: VirtualBufferToken, reformat = True):
         if token_to_insert != "":
@@ -301,7 +303,63 @@ class VirtualBuffer:
                     self.tokens[token_index].index_from_line_end = 0
             else:
                 self.append_token_after(token_index + index - 1, new_token)
-        
+    
+    def reconstruct_insert_token_events(self, tokens, starting_token_text: str = "", starting_token_index: int = 0):
+        # TODO FIX EVENTS FOR PARTIAL SELF REPAIR
+
+        # Reconstruct the history so we can properly repeat corrections and partial self repairs
+        new_token_index = starting_token_index
+        new_starting_token_text = self.tokens[new_token_index].text
+        new_tokens = []
+
+        # If the new length of the tokens less than the actual token amount we've supported
+        # Then a clear has happend and we should just give the full tokens
+        if len(self.tokens) < len(tokens) or starting_token_index == -1 or starting_token_index > len(self.tokens) - 1:
+            new_tokens = self.tokens
+        else:
+            contains_merges = False
+            for index, token in enumerate(tokens):
+                # Starting tokens may be appends or merges
+                if index == 0:
+    
+                    # We did not start inside another token - So skip to the next
+                    if starting_token_text in new_starting_token_text:
+                        new_token_index += 1
+                    else:
+                        contains_merges = True
+
+                    if new_token_index < len(self.tokens):
+                        new_tokens.append(tokens[index])
+                        new_tokens[-1].line_index = self.tokens[new_token_index].line_index
+                        new_tokens[-1].index_from_line_end = self.tokens[new_token_index].index_from_line_end
+
+                        # Remove the difference of the length of the merged text and the total token text
+                        # If the token isn't fully merged
+                        if contains_merges and not self.tokens[new_token_index].text.endswith(token.text):
+                            substring_start_index = self.tokens[new_token_index].text.rfind(token.text)
+                            new_tokens[-1].index_from_line_end = new_tokens[-1].index_from_line_end - substring_start_index + 1
+                        new_token_index += 1
+
+                # Middle tokens are just appends
+                elif index != len(tokens) - 1:
+                    if new_token_index < len(self.tokens):
+                        new_tokens.append(tokens[index])
+                        new_tokens[-1].line_index = self.tokens[new_token_index].line_index
+                        new_tokens[-1].index_from_line_end = self.tokens[new_token_index].index_from_line_end
+                        new_token_index += 1
+                # Ending tokens may be appends or merges
+                else:
+                    if new_token_index < len(self.tokens):
+                        new_tokens.append(tokens[index])                        
+                        new_tokens[-1].line_index = self.tokens[new_token_index].line_index
+                        new_tokens[-1].index_from_line_end = self.tokens[new_token_index].index_from_line_end
+
+                        # Remove the difference of the length of the merged text and the total token text
+                        if contains_merges:
+                            new_tokens[-1].index_from_line_end -= len(self.tokens[new_token_index].text) - len(token.text)
+
+        self.input_history.append_insert_to_last_event(new_tokens)
+
     def remove_selection(self) -> bool:
         deleted_tokens = []
         selection_indices = self.caret_tracker.remove_selection()

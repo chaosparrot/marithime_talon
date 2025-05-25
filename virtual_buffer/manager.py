@@ -122,10 +122,12 @@ class VirtualBufferManager:
             match_threshold = CORRECTION_THRESHOLD if not for_correction else SELECTION_THRESHOLD
 
             # Reset the selection to the last insert statements when doing a repetition
+            print( "IS REPETITION?!?!", vb.input_history.is_repetition(), phrases)
             if for_correction and vb.input_history.is_repetition():
                 last_event_insert = vb.input_history.history[-2].insert
+                print( "LAST INSERT", last_event_insert )
                 self.context.get_current_context().buffer.input_history.append_target_to_last_event(last_event_insert)
-                vb.select_token_range(last_event_insert[0], last_event_insert[-1])
+                return vb.select_token_range(last_event_insert[0], last_event_insert[-1])
             else:
                 return vb.select_phrases(phrases, match_threshold=match_threshold, for_correction=for_correction)
 
@@ -556,10 +558,7 @@ class Actions:
         # Skip - Select the next correctable phrase
         # Positive_after_skip - Replace the selection with the insertion
         last_event = input_history.get_last_event()
-        if input_history.is_skip_event() == False and \
-            ( last_event is not None and last_event.type == InputEventType.CORRECTION and "".join(last_event.phrases) == "".join(selection_and_correction) ):
-            keys = []
-        else:
+        if input_history.is_skip_event() == False:
             keys = mutator.select_phrases(selection_and_correction, for_correction=True)
 
         last_event = input_history.get_last_event()

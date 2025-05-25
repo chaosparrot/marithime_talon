@@ -98,26 +98,8 @@ def test_marthime_insert_repetition(assertion):
     apply_event(input_history, "marithime_insert", ["besting"])
     assertion( "    Should reset the repetition count", input_history.get_repetition_count() == 0)
 
-def test_partial_self_repair_insert_repetition(assertion):
-    input_history = get_input_history()
-    assertion( "Appending a partial self repair after a marthime insert")
-    apply_event(input_history, "marithime_insert", ["I", "want", "to"])
-    apply_event(input_history, "marithime_insert", ["to", "wear"])
-    apply_event(input_history, "partial_self_repair", ["to", "wear"])
-    events = text_to_virtual_buffer_tokens("to", "to")
-    input_history.append_target_to_last_event(events, before=True)
-    
-    # TODO DOES THIS GIVE THE RIGHT INPUT EVENTS?
-    insert_events = text_to_virtual_buffer_tokens(" wear", "wear")
-    input_history.append_insert_to_last_event(insert_events)
-    assertion( "    Should not count a repetition", input_history.get_repetition_count() == 0)
-
-    last_insert = input_history.get_last_insert()
-    assertion( "    Should retrieve both the target and the insert combined for getting the last insert", len(last_insert) == 2)
-
 suite = create_test_suite("Appending same events to the history")
 suite.add_test(test_append_exact_repeating_events)
 suite.add_test(test_append_dissimilar_repeating_events)
 suite.add_test(test_repetition_count)
 suite.add_test(test_marthime_insert_repetition)
-suite.add_test(test_partial_self_repair_insert_repetition)

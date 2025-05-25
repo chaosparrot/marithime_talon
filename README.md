@@ -131,17 +131,17 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
     X Self repair: We *pause* were - repeat cluck to cycle through self repair and make the self repair correct 'were' to 'we' instead of appending after the words
     X Partial self repair: There is something I want to wear *pause* to wear at work
     X Self repair: There is something I want to wear *pause* to wear - repeat cluck to cycle through phonetics
-    - Continuation partial self repair: There is something I want to *pause* to wear - repeat cluck to cycle through phonetics
-    - Partial self repair: There is something I want to *pause* want too wear - repeat cluck to cycle through phonetics
+    ~ Continuation partial self repair: There is something I want to *pause* to wear - repeat cluck to cycle through phonetics
+    ~ Partial self repair: There is something I want to *pause* want too wear - repeat cluck to cycle through phonetics
     - Skip self repair: There is something I want to wear *pause* to wear - repeat cluck to cycle through phonetics
 
-    ~ Selection: Cluck cycle through single word - Skips adjacent non-exact matches?
-    ~ Selection: Cluck cycle through multiple words - Skips adjacent matches?
+    - Selection: Cluck cycle through single word - Skips adjacent non-exact matches?
+    - Selection: Cluck cycle through multiple words - Skips adjacent matches?
     X Selection into insert: Select where, insert where    
 
     - Correction fixes:
       - Selection into correction: Select where, correction where
-      - Make sure to use the correct inserted ( and changed ) tokens for append_insert otherwise the correction cycling in the middle of the sentences do not work as they assume they are at the end of the document
+      ~ Make sure to use the correct inserted ( and changed ) tokens for append_insert otherwise the correction cycling in the middle of the sentences do not work as they assume they are at the end of the document
       - Correction where - If same value, cycle through options like exact match phonetic self repair
       X Correction cycle through single words: Correct where - Cluck through elements on end
       ~ Correction cycle through single words: Correct where - Cluck through elements in middle of the sentence

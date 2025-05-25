@@ -185,6 +185,7 @@ class VirtualBufferManager:
                 # Initial target replacement
                 # This will get the first text replaced if we are cycling through self repairs
                 first_target = input_history.get_first_target_from_event()
+                print( first_target )
 
                 # Replace the words with phonetic equivelants
                 insert, _ = self.fixer.cycle_through_fixes(normalized_input,
@@ -201,7 +202,7 @@ class VirtualBufferManager:
             first_target = input_history.get_first_target_from_event()
             starting_phrases = "".join([token.text for token in first_target])
             insert, _ = self.fixer.cycle_through_fixes(" ".join(previous_event.phrases).lower(), \
-                input_history.get_repetition_count() - 1, starting_phrases)
+                input_history.get_repetition_count(), starting_phrases)
 
         if enable_self_repair:
             

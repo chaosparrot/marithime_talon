@@ -58,6 +58,7 @@ class InputHistory:
                 type = InputEventType.SKIP_SELF_REPAIR
 
         event = InputEvent(timestamp_ms, type, phrases)
+        print( "ADD EVENT", event )
 
         if self.should_update_event(event):
             self.history[-1].timestamp_ms = event.timestamp_ms
@@ -191,7 +192,7 @@ class InputHistory:
             self.history[-1].phrases = phrases
     
     def append_target_to_last_event(self, target: List[VirtualBufferToken], before: bool = False):
-        if len(self.history) > 0:
+        if len(self.history) > 0 and "".join([token.text for token in target]) != "":
             if self.history[-1].target is None:
                 self.history[-1].target = target
 
@@ -253,21 +254,8 @@ class InputHistory:
                     is_repeated_event = False
         return is_repeated_event
 
-    def get_repetition_count(self, can_become_self_repair: bool = False):
-        potential_repetition = 0
-
-        # A marithime insert can still become a self repair in the future
-        last_event = self.get_last_event()
-        if len(self.history) > 1 and can_become_self_repair:
-            current_event = self.history[-1]
-            previous_event = self.history[-2]
-
-            if "".join(current_event.phrases) == "".join(previous_event.phrases) and \
-                previous_event.type == InputEventType.SELF_REPAIR and \
-                current_event.type == InputEventType.MARITHIME_INSERT:
-                potential_repetition = 1
-
-        return self.repetition_count + potential_repetition
+    def get_repetition_count(self):
+        return self.repetition_count
     
     def count_remaining_single_character_presses(self) -> int:
         single_character_presses = 0

@@ -331,19 +331,40 @@ class VirtualBuffer:
         if last_event is not None and last_event.type == InputEventType.PARTIAL_SELF_REPAIR:
             target_left = last_event.target
             previous_token_index = new_token_index - 1
-            if contains_merge or starting_token_character_index == len(starting_token_text):
+            if contains_merge or (starting_token_character_index == len(starting_token_text) and len(starting_token_text) != 0):
                 previous_token_index += 1
 
-            while target_left is not None and len(target_left) > 0:
-                if not self.tokens[previous_token_index].text.startswith(target_left[-1].text):
-                    target_left = target_left[:-1]
-                else:
-                    break
+            if previous_token_index != 0:
+                while target_left is not None and len(target_left) > 0:
+                    if not self.tokens[previous_token_index].text.startswith(target_left[-1].text):
+                        target_left = target_left[:-1]
+                    else:
+                        break
 
-            previous_total_character_count = sum([token.text for token in target_left])
-            # TODO - REVERSE WALK THROUGH THE TOKENS THAT HAVE BEEN TARGETED
-            # SO WE CAN START AT THE RIGHT TOKEN INDEX
-            # TODO - CHECK MERGE START AFTER THAT
+                # Reverse walk through the tokens and append them one by one
+                previous_total_character_count = sum([len(token.text) for token in target_left])
+                starting_loop = True
+                while previous_total_character_count > 0:
+                    previous_token = self.tokens[previous_token_index]
+
+                    # If we are left with a merged token
+                    # Make sure to reset the starting token character index
+                    if previous_total_character_count <= len(previous_token.text):
+                        contains_merge = previous_total_character_count < len(previous_token.text)
+                        starting_token_character_index = len(previous_token.text) - previous_total_character_count
+                        break
+
+                    # At the start - Only remove the first starting token character indices
+                    elif starting_loop and contains_merge:
+                        previous_total_character_count -= starting_token_character_index
+                    else:
+                        previous_total_character_count -= len(previous_token.text)
+
+                    starting_loop = False
+                    previous_token_index -= 1
+                    if previous_token_index <= 0:
+                        break
+                new_token_index = previous_token_index
 
         starting_loop = True
         new_tokens = []

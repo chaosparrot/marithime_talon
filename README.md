@@ -141,10 +141,10 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
 
     - Correction fixes:
       - Selection into correction: Select where, correction where
-      ~ Make sure to use the correct inserted ( and changed ) tokens for append_insert otherwise the correction cycling in the middle of the sentences do not work as they assume they are at the end of the document
+      X Make sure to use the correct inserted ( and changed ) tokens for append_insert otherwise the correction cycling in the middle of the sentences do not work as they assume they are at the end of the document
       - Correction where - If same value, cycle through options like exact match phonetic self repair
       X Correction cycle through single words: Correct where - Cluck through elements on end
-      ~ Correction cycle through single words: Correct where - Cluck through elements in middle of the sentence
+      X Correction cycle through single words: Correct where - Cluck through elements in middle of the sentence
       - Correction with multiple targets: Correction where - Cluck through options - Skip correction, cluck through second option from the start
       - Correction multiple words: Correction to where - Cluck through elements
       - Correction multiple words with pop remove: Correction to where - pop once, cluck to see what it corrects

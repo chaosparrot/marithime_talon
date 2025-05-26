@@ -140,14 +140,12 @@ def test_append_events_with_clear_on_enter(assertion):
 def test_append_events_with_partial_self_repair(assertion):
     assertion( "Appending marithime inserts with a partial self repair" )
     buffer = get_filled_vb()
-    buffer.settings.multiline_supported = False
-    buffer.settings.clear_key = "enter"
     input_history = buffer.input_history
 
     assertion( "Appending marithime insert event" )
     buffer.input_history.add_event(InputEventType.MARITHIME_INSERT, ["anding"])
     buffer.insert_tokens(text_to_virtual_buffer_tokens(" anding", "anding"))
-    assertion( "    Should give the history two events", len(input_history.history) == 2)
+    assertion( "    Should give the history one event", len(input_history.history) == 1)
 
     assertion( "Appending the partial self repair event with the target" )
     buffer.input_history.add_event(InputEventType.PARTIAL_SELF_REPAIR, ["ending", "with"])
@@ -162,14 +160,12 @@ def test_append_events_with_partial_self_repair(assertion):
 def test_append_events_with_continuous_self_repair(assertion):
     assertion( "Appending marithime inserts with a continuous self repair" )
     buffer = get_filled_vb()
-    buffer.settings.multiline_supported = False
-    buffer.settings.clear_key = "enter"
     input_history = buffer.input_history
 
     assertion( "Appending marithime insert event" )
-    buffer.input_history.add_event(InputEventType.MARITHIME_INSERT, ["anding"])
-    buffer.insert_tokens(text_to_virtual_buffer_tokens(" anding", "anding"))
-    assertion( "    Should give the history two events", len(input_history.history) == 2)
+    buffer.input_history.add_event(InputEventType.MARITHIME_INSERT, ["ending"])
+    buffer.insert_tokens(text_to_virtual_buffer_tokens(" ending", "ending"))
+    assertion( "    Should give the history one event", len(input_history.history) == 1)
 
     assertion( "Appending the partial self repair event with the target" )
     buffer.input_history.add_event(InputEventType.PARTIAL_SELF_REPAIR, ["ending", "with"])
@@ -218,8 +214,9 @@ suite.add_test(test_append_events_between_token)
 suite.add_test(test_append_events_between_token_split)
 suite.add_test(test_append_events_between_token_merge)
 suite.add_test(test_append_events_with_clear_on_enter)
+suite.add_test(test_append_events_with_partial_self_repair)
 
-#suite.add_test(test_append_events_with_partial_self_repair)
+# TODO PROPERLY CONNECT PARTIAL SELF REPAIR
 #suite.add_test(test_append_events_with_continuous_self_repair)
 #suite.add_test(test_append_events_with_continuous_partial_self_repair) 
 #suite.run()

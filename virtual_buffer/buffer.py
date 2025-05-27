@@ -331,7 +331,7 @@ class VirtualBuffer:
         if last_event is not None and last_event.type == InputEventType.PARTIAL_SELF_REPAIR:
             target_left = last_event.target
             previous_token_index = new_token_index - 1
-            if contains_merge or (starting_token_character_index == len(starting_token_text) and len(starting_token_text) != 0):
+            if contains_merge:
                 previous_token_index += 1
 
             if previous_token_index != 0:
@@ -352,13 +352,16 @@ class VirtualBuffer:
                     if previous_total_character_count <= len(previous_token.text):
                         contains_merge = previous_total_character_count < len(previous_token.text)
                         starting_token_character_index = len(previous_token.text) - previous_total_character_count
+                        total_added_character_count += previous_total_character_count
                         break
 
                     # At the start - Only remove the first starting token character indices
                     elif starting_loop and contains_merge:
                         previous_total_character_count -= starting_token_character_index
+                        total_added_character_count += starting_token_character_index
                     else:
                         previous_total_character_count -= len(previous_token.text)
+                        total_added_character_count += len(previous_token.text)
 
                     starting_loop = False
                     previous_token_index -= 1

@@ -150,12 +150,18 @@ def test_append_events_with_partial_self_repair(assertion):
     assertion( "Appending the partial self repair event with the target" )
     buffer.input_history.add_event(InputEventType.PARTIAL_SELF_REPAIR, ["ending", "with"])
     buffer.input_history.append_target_to_last_event([buffer.tokens[-1]])
-    insert_tokens = text_to_virtual_buffer_tokens(" anding", "anding")
+    
+    # Remove the token that is being replaced with 'ending'
+    buffer.tokens.pop()
+    buffer.reformat_tokens()
+
+    insert_tokens = text_to_virtual_buffer_tokens(" ending", "ending")
     insert_tokens.extend(text_to_virtual_buffer_tokens(" with", "with"))
     buffer.insert_tokens(insert_tokens)
     assertion( "    Should give the history two events", len(input_history.history) == 2)
     assertion( "    Should not count a repetition", input_history.get_repetition_count() == 0)
     assertion( "    Should retrieve the full insertion of the partial self repair", len(input_history.history[-1].insert) == 2)
+    assertion( input_history.history[-1].insert )
 
 def test_append_events_with_continuous_self_repair(assertion):
     assertion( "Appending marithime inserts with a continuous self repair" )
@@ -169,13 +175,14 @@ def test_append_events_with_continuous_self_repair(assertion):
 
     assertion( "Appending the partial self repair event with the target" )
     buffer.input_history.add_event(InputEventType.PARTIAL_SELF_REPAIR, ["ending", "with"])
-    buffer.input_history.append_target_to_last_event([buffer.tokens[-2], buffer.tokens[-1]])
+    buffer.input_history.append_target_to_last_event([buffer.tokens[-1]])
 
     # Skip the ending insert token as it isn't being executed
     insert_tokens = text_to_virtual_buffer_tokens(" with", "with")
     buffer.insert_tokens(insert_tokens)
     assertion( "    Should give the history two events", len(input_history.history) == 2)
     assertion( "    Should not count a repetition", input_history.get_repetition_count() == 0)
+    assertion( input_history.history[-1].insert ) 
     assertion( "    Should retrieve the combined insert of the partial self repair", len(input_history.history[-1].insert) == 2)
     assertion( "    Should start the insert with the same token", input_history.history[-1].insert[0].phrase == "ending")
     assertion( "    Should end the insert with the token 'with'", input_history.history[-1].insert[-1].phrase == "with")
@@ -183,28 +190,30 @@ def test_append_events_with_continuous_self_repair(assertion):
 def test_append_events_with_continuous_partial_self_repair(assertion):
     assertion( "Appending marithime inserts with a continuous self repair" )
     buffer = get_filled_vb()
-    buffer.settings.multiline_supported = False
-    buffer.settings.clear_key = "enter"
     input_history = buffer.input_history
 
     assertion( "Appending marithime insert event" )
     buffer.input_history.add_event(InputEventType.MARITHIME_INSERT, ["anding"])
     buffer.insert_tokens(text_to_virtual_buffer_tokens(" anding", "anding"))
-    assertion( "    Should give the history two events", len(input_history.history) == 2)
+    assertion( "    Should give the history one event", len(input_history.history) == 1)
 
     assertion( "Appending the continuous partial self repair event with the target" )
     buffer.input_history.add_event(InputEventType.PARTIAL_SELF_REPAIR, ["insertion", "ending", "with"])
-    buffer.input_history.append_target_to_last_event([buffer.tokens[-3], buffer.tokens[-2], buffer.tokens[-1]])
+    buffer.input_history.append_target_to_last_event([buffer.tokens[-2], buffer.tokens[-1]])
+
+    # Remove the token that is being replaced with 'ending'
+    buffer.tokens.pop()
+    buffer.reformat_tokens()
 
     # Skip the 'insertion' insert token as it isn't being executed
-    insert_tokens = text_to_virtual_buffer_tokens(" anding", "anding")
+    insert_tokens = text_to_virtual_buffer_tokens(" ending", "ending")
     insert_tokens.extend(text_to_virtual_buffer_tokens(" with", "with"))
-    buffer.insert_tokens(insert_tokens)
+    buffer.insert_tokens(insert_tokens) 
     assertion( "    Should give the history two events", len(input_history.history) == 2)
     assertion( "    Should not count a repetition", input_history.get_repetition_count() == 0)
     assertion( "    Should retrieve the combined insert of the continuous partial self repair", len(input_history.history[-1].insert) == 3)
     assertion( "    Should start the insert with the 'insertion' token", input_history.history[-1].insert[0].phrase == "insertion")
-    assertion( "    Should end the insert with the replaced token 'ending'", input_history.history[-1].insert[1].phrase == "with")
+    assertion( "    Should add the insert with the replaced token 'ending'", input_history.history[-1].insert[1].phrase == "ending")
     assertion( "    Should end the insert with the token 'with'", input_history.history[-1].insert[-1].phrase == "with")
 
 suite = create_test_suite("Appending insert tokens after history events")
@@ -213,10 +222,7 @@ suite.add_test(test_append_events_between_buffer)
 suite.add_test(test_append_events_between_token)
 suite.add_test(test_append_events_between_token_split)
 suite.add_test(test_append_events_between_token_merge)
-suite.add_test(test_append_events_with_clear_on_enter)
+suite.add_test(test_append_events_with_clear_on_enter) 
 suite.add_test(test_append_events_with_partial_self_repair)
-
-# TODO PROPERLY CONNECT PARTIAL SELF REPAIR
-#suite.add_test(test_append_events_with_continuous_self_repair)
-#suite.add_test(test_append_events_with_continuous_partial_self_repair) 
-#suite.run()
+suite.add_test(test_append_events_with_continuous_self_repair)
+suite.add_test(test_append_events_with_continuous_partial_self_repair)

@@ -131,8 +131,8 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
     X Self repair: We *pause* were - repeat cluck to cycle through self repair and make the self repair correct 'were' to 'we' instead of appending after the words
     X Partial self repair: There is something I want to wear *pause* to wear at work
     X Self repair: There is something I want to wear *pause* to wear - repeat cluck to cycle through phonetics
-    ~ Continuation partial self repair: There is something I want to *pause* to wear - repeat cluck to cycle through phonetics
-    ~ Partial self repair: There is something I want to *pause* want too wear - repeat cluck to cycle through phonetics
+    X Continuation partial self repair: There is something I want to *pause* to wear - repeat cluck to cycle through phonetics
+    X Partial self repair: There is something I want to *pause* want too wear - repeat cluck to cycle through phonetics
     - Skip self repair: There is something I want to wear *pause* to wear - repeat cluck to cycle through phonetics
 
     - Selection: Cluck cycle through single word - Skips adjacent non-exact matches?

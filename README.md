@@ -141,7 +141,7 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
     X Continuation partial self repair: There is something I want to *pause* to wear - repeat cluck to cycle through phonetics
     X Partial self repair: There is something I want to *pause* want too wear - repeat cluck to cycle through phonetics
     X Self repair cycles: There is something I want to wear *pause* want to wear - repeat cluck - to wear - repeat cluck
-    - Skip self repair: There is something I want to wear *pause* to wear - repeat cluck to cycle through phonetics
+    X Skip self repair: There is something I want to wear *pause* to wear - repeat cluck to cycle through phonetics
 
     X Selection: Cluck cycle through single word - Skips adjacent non-exact matches?
     X Selection: Cluck cycle through multiple words - Skips adjacent matches?
@@ -156,14 +156,11 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
     X Correction multiple words: Correction to where - Cluck through elements
     X Correction where - If same value, cycle through options like exact match phonetic self repair
     X Correction multiple words with pop remove: Correction to where - pop once, cluck to see what it corrects
-    X - Correct cycling when initial is different?
     X Remove event desyncs
+  - Correct cycling when initial is different?
 
 [ ] - Improve outside events and extend events with selection  
 While making the state machine, I found out that while a lot of fix events ARE covered by the flows, doing manual selections with 'press shift left ten times' is not, neither is extending the select, because it doesn't follow the select flow. While I think this workflow won't be done often, for completeness sake it should be added to ensure the InputFixer can properly track what changes were made for automatic fixes later.
-
-[ ] - Self repair repetition bug(?)  
-When doing a repetition through self repairs, only the initial cycle do we get the initial fix ( we -> were -> we ). After that, it only detects the phonetic words relating to the change 'were'. I am unsure if this is something that needs to be fixed, or if it is enough to have this initial fix only happen once.
 
 #### Programs
 

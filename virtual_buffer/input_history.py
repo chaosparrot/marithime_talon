@@ -54,7 +54,7 @@ class InputHistory:
 
             if type == InputEventType.CORRECTION:
                 type = InputEventType.SKIP_CORRECTION
-            elif type == InputEventType.SELF_REPAIR:
+            elif type in [InputEventType.SELF_REPAIR, InputEventType.PARTIAL_SELF_REPAIR]:
                 type = InputEventType.SKIP_SELF_REPAIR
 
         event = InputEvent(timestamp_ms, type, phrases)

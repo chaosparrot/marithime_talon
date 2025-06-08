@@ -239,28 +239,40 @@ class VirtualBufferManager:
                     preceding_word = word
                 insert = " ".join(words_to_insert)
 
-            is_repeated_self_repair = input_history.get_repetition_count(True) > 0
-            if not is_repeated_self_repair:
-                self_repair_match = vbm.find_self_repair(insert.split())
+            repetition_count = input_history.get_repetition_count(not is_skip_event)
+            is_repeated_self_repair = repetition_count > 0 and \
+                previous_event is not None and previous_event.type != InputEventType.SKIP_SELF_REPAIR
 
-            # For repeated self repairs, use the previous insert for the match
+            # For the first self repair - Search based on the insert
+            if not is_repeated_self_repair and not is_skip_event:
+                self_repair_match = vbm.find_self_repair(insert.split())
+            
+            # For the first SKIP event, always search based on the previous uncombined insert
+            # As the target and insert will be combined and put out later
+            elif repetition_count == 0 and is_skip_event and previous_event is not None:
+                self_repair_match = vbm.find_self_repair([token.phrase for token in previous_event.insert])
+
+            # For repeated self repairs, use the previous (combined) insert for the match
+            # Also for skip events
             # TODO IMPROVE PERFORMANCE AS WE TECHNICALLY DO NOT NEED TO DO A SEARCH BUT JUST USE THE INSERTED TOKENS
             else:
                 self_repair_match = vbm.find_self_repair([token.phrase for token in input_history.get_last_insert()])
 
             if self_repair_match is not None:
                 # If we are dealing with a continuation, change the insert to remove the first few words
-                if self_repair_match.score_potential == EXACT_MATCH and not is_repeated_self_repair:
+                if self_repair_match.score_potential == EXACT_MATCH and not is_repeated_self_repair and not is_skip_event:
                     words = insert.split()
                     
                     # Add the target of the first few words to make sure that repetitions can cycle through options
                     self_repair_target = vbm.tokens[self_repair_match.buffer_indices[0][0]:self_repair_match.buffer_indices[-1][-1] + 1]
-
+                    
+                    # Partial self repair
                     if len(words) > len(self_repair_match.scores):
                         insert = " ".join(words[len(self_repair_match.scores):])
                         
                         vbm.input_history.add_event(InputEventType.PARTIAL_SELF_REPAIR, original_insert.split(" "))
                         vbm.input_history.append_target_to_last_event(self_repair_target)
+
                     # Complete repetition - Do not insert anything
                     else:
                         vbm.input_history.add_event(InputEventType.SELF_REPAIR, original_insert.split(" "))
@@ -274,6 +286,14 @@ class VirtualBufferManager:
                 # We do not support replacing initial words, only inserting, as replacing initial words requires more context about meaning
                 # ( We have no -> We have a , but not, We have no -> They have no )
                 else:
+
+                    # Complete SKIP repetition - Append the previous target before the original insert
+                    if is_skip_event:
+                        skip_phrases = [token.phrase for token in previous_event.target]
+                        additional_input = original_insert.split(" ")
+                        skip_phrases.extend(additional_input)
+
+                        insert = " ".join(skip_phrases)                    
 
                     first_index = self_repair_match.buffer_indices[0][0]
                     allow_initial_replacement = False
@@ -433,6 +453,12 @@ class VirtualBufferManager:
         if context_switched:
             self.index()
 
+    def is_skip_self_repair_repetition(self):
+        input_history = mutator.get_input_history()
+        last_event = input_history.get_last_event()
+
+        return last_event is not None and last_event.type == InputEventType.SKIP_SELF_REPAIR and input_history.is_skip_event()
+
     def window_closed(self, event):
         self.context.close_context(event)
 
@@ -499,12 +525,19 @@ class Actions:
         """Input words based on context surrounding the words to input, allowing for self repair within speech as well"""
         mutator = get_mutator()
 
-        text_to_insert, keys = mutator.transform_insert(prose, True)
+        skipping_through_self_repairs = mutator.is_skip_self_repair_repetition()
+        text_to_insert, keys = mutator.transform_insert(prose, not skipping_through_self_repairs)
         if len(keys) > 0:
             mutator.disable_tracking()
             for key in keys:
                 actions.key(key)
             mutator.enable_tracking()
+
+        # Change the event type to be a self repair in case we are skipping through self repairs
+        # Since we aren't actually going through the self repair flow as a performance speed up
+        if skipping_through_self_repairs:
+            input_history = mutator.get_input_history()
+            input_history.add_event(InputEventType.SELF_REPAIR, prose.split(" "))
 
         # Skip inserting text if it is filtered out completely
         # This happens when we are doing an exact self repair match

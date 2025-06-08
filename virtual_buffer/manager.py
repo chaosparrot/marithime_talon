@@ -122,11 +122,11 @@ class VirtualBufferManager:
             match_threshold = CORRECTION_THRESHOLD if not for_correction else SELECTION_THRESHOLD
 
             # Reset the selection to the last insert statements when doing a repetition
-            print( "IS REPETITION?!?!", vb.input_history.is_repetition(), phrases)
-            if for_correction and vb.input_history.is_repetition():
+            if for_correction and vb.input_history.is_repetition() and not vb.input_history.is_skip_event():
                 last_event_insert = vb.input_history.history[-2].insert
-                print( "LAST INSERT", last_event_insert )
                 self.context.get_current_context().buffer.input_history.append_target_to_last_event(last_event_insert)
+                print( vb.input_history.history[-2] )
+                print( "LAST INSERTION!!!", last_event_insert)
                 return vb.select_token_range(last_event_insert[0], last_event_insert[-1])
             else:
                 return vb.select_phrases(phrases, match_threshold=match_threshold, for_correction=for_correction)
@@ -239,17 +239,28 @@ class VirtualBufferManager:
             # For repeated self repairs, use the previous insert for the match
             # TODO IMPROVE PERFORMANCE AS WE TECHNICALLY DO NOT NEED TO DO A SEARCH BUT JUST USE THE INSERTED TOKENS
             else:
-                #print( "REPEATED SELF REPAIR", [token.phrase for token in input_history.get_last_insert()] )
                 self_repair_match = vbm.find_self_repair([token.phrase for token in input_history.get_last_insert()])
 
             if self_repair_match is not None:
                 # If we are dealing with a continuation, change the insert to remove the first few words
                 if self_repair_match.score_potential == EXACT_MATCH and not is_repeated_self_repair:
                     words = insert.split()
+                    
+                    # Add the target of the first few words to make sure that repetitions can cycle through options
+                    self_repair_target = vbm.tokens[self_repair_match.buffer_indices[0][0]:self_repair_match.buffer_indices[-1][-1] + 1]
+
                     if len(words) > len(self_repair_match.scores):
                         insert = " ".join(words[len(self_repair_match.scores):])
+                        
+                        vbm.input_history.add_event(InputEventType.PARTIAL_SELF_REPAIR, original_insert.split(" "))
+                        vbm.input_history.append_target_to_last_event(self_repair_target)
+                        print("PARTIAL APPEND TARGET", self_repair_target)                        
                     # Complete repetition - Do not insert anything
                     else:
+                        vbm.input_history.add_event(InputEventType.SELF_REPAIR, original_insert.split(" "))
+                        vbm.input_history.append_target_to_last_event(self_repair_target)
+                        print("COMPLETE APPEND TARGET", self_repair_target)
+
                         # Make sure to add an empty insert so that
                         # Follow up inserts will not be merged into this one
                         vbm.input_history.append_insert_to_last_event([])
@@ -558,8 +569,7 @@ class Actions:
         # Skip - Select the next correctable phrase
         # Positive_after_skip - Replace the selection with the insertion
         last_event = input_history.get_last_event()
-        if input_history.is_skip_event() == False:
-            keys = mutator.select_phrases(selection_and_correction, for_correction=True)
+        keys = mutator.select_phrases(selection_and_correction, for_correction=True)
 
         last_event = input_history.get_last_event()
         if len(keys) > 0 or mutator.is_virtual_selecting() or last_event.type != InputEventType.SKIP_CORRECTION:

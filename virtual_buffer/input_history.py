@@ -260,6 +260,7 @@ class InputHistory:
                         self.history[-1].target.extend(new_target)
     
     def append_insert_to_last_event(self, insert: List[VirtualBufferToken]):
+        print( "APPEND INSERT!", insert )
         if len(self.history) > 0:
             self.history[-1].insert = insert
     
@@ -295,7 +296,12 @@ class InputHistory:
                 potential_repetition = 1
 
         return self.repetition_count + potential_repetition
-    
+
+    # Whether the current event is a skip variant of the event
+    def is_skip_event(self) -> bool:
+        last_event = self.get_last_event()
+        return last_event.type in [InputEventType.SKIP_CORRECTION, InputEventType.SKIP_SELF_REPAIR]        
+
     def count_remaining_single_character_presses(self) -> int:
         single_character_presses = 0
         index = 0

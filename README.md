@@ -29,6 +29,13 @@ If you do not want marithime dictation, but instead only want to use the selecti
 
 You can always say `marithime` followed by a phrase to use it if you do not want to override the regular dictation insert.
 
+### Removing stutters or repetitions
+
+If you happen to stutter sometimes, or your speech has a lot of repetition, you might want to turn on the remove stutter feature. Change the 0 to a 1 in the following line in the `settings.talon` file.
+```
+    user.marithime_remove_stutters_in_same_phrase = 0
+```
+
 ### List of supported programs
 
 Generally this package tries to support all kinds of programs through the accessibility APIs. Though in order to properly know whether they work, the programs are tested manually for support. [The list of supported programs is documented here](programs/SUPPORTED.md)
@@ -38,7 +45,7 @@ Generally this package tries to support all kinds of programs through the access
 Because most software isn't accessible, this package relies on a couple of ways to understand what is inside a text field, and where the caret inside of it is. One of these methods is **locally tracking keystrokes that happen through Talon voice**.
 If you are uncomfortable with that, simply delete the `main_context_overrides.py` file, but know that you might not get as well of a performance.
 
-Words that have been inserted that really sound like one another ( Homophones ) are automatically detected and saved in `phonetics/lists/homophones.csv`. 
+Words that have been inserted that really sound like one another ( Homophones ) are automatically detected and saved in `phonetics/lists/phonetic_similarities.csv`. 
 
 The auto fixing functionality, that functions like an auto-correct, also saves CSV files containing fixes and the context around it within the `settings/cache` directory. You can disable this feature by setting `user.marithime_auto_fixing_enabled` to 0 inside `settings.talon`.
 By default the `settings` directory is kept outside of git so any corrections won't be accidentally commited to an external repository by you.
@@ -140,16 +147,16 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
     X Selection: Cluck cycle through multiple words - Skips adjacent matches?
     X Selection into insert: Select where, insert where
 
-    - Correction fixes:
-      X Selection into correction: Select where, correction where
-      X Make sure to use the correct inserted ( and changed ) tokens for append_insert otherwise the correction cycling in the middle of the sentences do not work as they assume they are at the end of the document
-      X Correction cycle through single words: Correct where - Cluck through elements on end
-      X Correction cycle through single words: Correct where - Cluck through elements in middle of the sentence
-      X Correction with multiple targets: Correction where - Cluck through options - Skip correction, cluck through second option from the start
-      X Correction multiple words: Correction to where - Cluck through elements
-      X Correction where - If same value, cycle through options like exact match phonetic self repair
-      - Correction multiple words with pop remove: Correction to where - pop once, cluck to see what it corrects
-
+    X Correction fixes:
+    X Selection into correction: Select where, correction where
+    X Make sure to use the correct inserted ( and changed ) tokens for append_insert otherwise the correction cycling in the middle of the sentences do not work as they assume they are at the end of the document
+    X Correction cycle through single words: Correct where - Cluck through elements on end
+    X Correction cycle through single words: Correct where - Cluck through elements in middle of the sentence
+    X Correction with multiple targets: Correction where - Cluck through options - Skip correction, cluck through second option from the start
+    X Correction multiple words: Correction to where - Cluck through elements
+    X Correction where - If same value, cycle through options like exact match phonetic self repair
+    X Correction multiple words with pop remove: Correction to where - pop once, cluck to see what it corrects
+    X - Correct cycling when initial is different?
     X Remove event desyncs
 
 [ ] - Improve outside events and extend events with selection  

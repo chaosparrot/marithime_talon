@@ -29,6 +29,7 @@ mod.setting("marithime_context_end_line_key", type=str, default="end", desc="The
 #         - aggressive - After every marithime command that requires context, we re-index
 #         - disabled - Disable indexing altogether, so no shift-select, clipboard, file or accessibility indexing
 mod.setting("marithime_indexing_strategy", type=str, default="", desc="Determine what strategy we should use to begin reindexing documents")
+mod.setting("marithime_remove_stutters_in_same_phrase", type=int, default=0, desc="Enables or disables the removal of words that repeat after one another")
 
 ctx.tags = ["user.marithime_available"]
 ctx.lists["user.marithime_terminator_word"] = [

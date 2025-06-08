@@ -229,14 +229,15 @@ class VirtualBufferManager:
         if enable_self_repair:
             
             # Remove stutters / repeats in the same phrase
-            words = insert.split()
-            words_to_insert = []
-            preceding_word = ""
-            for word in words:
-                if word != preceding_word:
-                    words_to_insert.append(word)
-                preceding_word = word
-            insert = " ".join(words_to_insert)
+            if settings.get("user.marithime_remove_stutters_in_same_phrase") >= 1:
+                words = insert.split()
+                words_to_insert = []
+                preceding_word = ""
+                for word in words:
+                    if word != preceding_word:
+                        words_to_insert.append(word)
+                    preceding_word = word
+                insert = " ".join(words_to_insert)
 
             is_repeated_self_repair = input_history.get_repetition_count(True) > 0
             if not is_repeated_self_repair:

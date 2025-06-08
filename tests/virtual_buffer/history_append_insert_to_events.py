@@ -182,7 +182,7 @@ def test_append_events_with_continuous_self_repair(assertion):
     buffer.insert_tokens(insert_tokens)
     assertion( "    Should give the history two events", len(input_history.history) == 2)
     assertion( "    Should not count a repetition", input_history.get_repetition_count() == 0)
-    assertion( input_history.history[-1].insert ) 
+    assertion( input_history.history[-1].insert )
     assertion( "    Should retrieve the combined insert of the partial self repair", len(input_history.history[-1].insert) == 2)
     assertion( "    Should start the insert with the same token", input_history.history[-1].insert[0].phrase == "ending")
     assertion( "    Should end the insert with the token 'with'", input_history.history[-1].insert[-1].phrase == "with")
@@ -216,9 +216,29 @@ def test_append_events_with_continuous_partial_self_repair(assertion):
     assertion( "    Should add the insert with the replaced token 'ending'", input_history.history[-1].insert[1].phrase == "ending")
     assertion( "    Should end the insert with the token 'with'", input_history.history[-1].insert[-1].phrase == "with")
 
+def test_append_events_with_complete_self_repair(assertion):
+    assertion( "Appending marithime inserts with a complete self repair" )
+    buffer = get_filled_vb()
+    input_history = buffer.input_history
+
+    assertion( "Appending marithime insert event" )
+    buffer.input_history.add_event(InputEventType.MARITHIME_INSERT, ["ending"], 1000)
+    buffer.insert_tokens(text_to_virtual_buffer_tokens(" ending", "ending"))
+    assertion( "    Should give the history one event", len(input_history.history) == 1)
+
+    assertion( "Appending the complete self repair event with the target" )
+    buffer.input_history.add_event(InputEventType.SELF_REPAIR, ["ending"], 2000)
+    buffer.input_history.append_target_to_last_event([buffer.tokens[-1]])
+
+    # Skip the 'insertion' insert token as it isn't being executed
+    buffer.input_history.append_insert_to_last_event([])
+    assertion( "    Should give the history two events", len(input_history.history) == 2)
+    assertion( "    Should not count a repetition", input_history.get_repetition_count() == 0)
+    assertion( "    Should retrieve the target of the complete self repair", len(input_history.get_last_insert()) == 1)
+
 suite = create_test_suite("Appending insert tokens after history events")
 suite.add_test(test_append_events_after_buffer)
-suite.add_test(test_append_events_between_buffer) 
+suite.add_test(test_append_events_between_buffer)
 suite.add_test(test_append_events_between_token)
 suite.add_test(test_append_events_between_token_split)
 suite.add_test(test_append_events_between_token_merge)
@@ -226,3 +246,8 @@ suite.add_test(test_append_events_with_clear_on_enter)
 suite.add_test(test_append_events_with_partial_self_repair)
 suite.add_test(test_append_events_with_continuous_self_repair)
 suite.add_test(test_append_events_with_continuous_partial_self_repair)
+suite.add_test(test_append_events_with_complete_self_repair)
+
+# TODO - ENSURE THAT GET_LAST_INSERT WORKS PROPERLY
+# SINCE THAT IS USED FOR ALL THE CONTINUOUS AND COMPLETE SELF REPAIR REPETITIONS
+suite.run()

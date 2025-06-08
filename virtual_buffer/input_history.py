@@ -193,8 +193,13 @@ class InputHistory:
                 # B - C - D
                 #         D - E - Type one, continuation
                 #     C - E - F - Type two, continuation + replacement
-                # Naively only support full cycling through full self repairs since it is only a single cycle that is missed
+                # All these types are handled by appending the target to the initial insert as well
                 return last_event.insert
+
+            # Complete self repair without an insert, use the target if it is empty
+            # Otherwise just use the last insert
+            elif last_event.type == InputEventType.SELF_REPAIR:
+                return last_event.target if len(last_event.insert) == 0 else last_event.insert
             else:
                 return last_event.insert
         else:

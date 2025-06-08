@@ -188,6 +188,15 @@ class VirtualBufferManager:
                 first_target = input_history.get_first_target_from_event()
                 cycle_count = input_history.get_repetition_count(enable_self_repair)
 
+                # When inserting a text like
+                # I want to wear -> to wear - *No insert*
+                # The input history does not mark this as a repetition but rather a new event
+                # Because the user most likely expected this to be a match to cycle through
+                # We pretend that this is the first cycle which can be repeated through so the result becomes
+                # I want to wear -> to wear -> *Insert the correction 'to where'*
+                if cycle_count == 0:
+                    cycle_count = 1
+
                 # Replace the words with phonetic equivelants
                 insert, _ = self.fixer.cycle_through_fixes(normalized_input, cycle_count, "".join([token.text for token in first_target]) if first_target else None)
 
@@ -199,11 +208,11 @@ class VirtualBufferManager:
 
             # Replace the words with phonetic equivelants
             first_target = input_history.get_first_target_from_event()
-            starting_phrases = "".join([token.text for token in first_target])
+            starting_phrases =  "".join([token.text for token in first_target]) if first_target is not None else ""
             cycle_count = input_history.get_repetition_count(False)
 
             # When correction a text like
-            # I want to wear -> correciton to wear - *No insert*
+            # I want to wear -> correction to wear - *No insert*
             # The input history does not mark this as a repetition but rather a new event
             # Because the user most likely expected this to be a match to cycle through
             # We pretend that this is the first cycle which can be repeated through so the result becomes
@@ -251,12 +260,10 @@ class VirtualBufferManager:
                         
                         vbm.input_history.add_event(InputEventType.PARTIAL_SELF_REPAIR, original_insert.split(" "))
                         vbm.input_history.append_target_to_last_event(self_repair_target)
-                        print("PARTIAL APPEND TARGET", self_repair_target)                        
                     # Complete repetition - Do not insert anything
                     else:
                         vbm.input_history.add_event(InputEventType.SELF_REPAIR, original_insert.split(" "))
                         vbm.input_history.append_target_to_last_event(self_repair_target)
-                        print("COMPLETE APPEND TARGET", self_repair_target)
 
                         # Make sure to add an empty insert so that
                         # Follow up inserts will not be merged into this one
@@ -498,7 +505,11 @@ class Actions:
                 actions.key(key)
             mutator.enable_tracking()
 
-        actions.insert(text_to_insert)
+        # Skip inserting text if it is filtered out completely
+        # This happens when we are doing an exact self repair match
+        # I want to wear -> want to wear
+        if text_to_insert:
+            actions.insert(text_to_insert)
 
     def marithime_insert(prose: str):
         """Input words based on context surrounding the words to input"""

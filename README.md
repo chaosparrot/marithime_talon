@@ -130,9 +130,10 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
     X Self repair: There is something I want to *pause* where - repeat cluck to cycle through phonetics
     X Self repair: We *pause* were - repeat cluck to cycle through self repair and make the self repair correct 'were' to 'we' instead of appending after the words
     X Partial self repair: There is something I want to wear *pause* to wear at work
-    ~ Self repair: There is something I want to wear *pause* to wear - repeat cluck to cycle through phonetics
-    ~ Continuation partial self repair: There is something I want to *pause* to wear - repeat cluck to cycle through phonetics
-    ~ Partial self repair: There is something I want to *pause* want too wear - repeat cluck to cycle through phonetics
+    X Self repair: There is something I want to wear *pause* to wear - repeat cluck to cycle through phonetics
+    X Continuation partial self repair: There is something I want to *pause* to wear - repeat cluck to cycle through phonetics
+    X Partial self repair: There is something I want to *pause* want too wear - repeat cluck to cycle through phonetics
+    - Self repair cycles: There is something I want to wear *pause* want to wear - repeat cluck - to wear - repeat cluck
     - Skip self repair: There is something I want to wear *pause* to wear - repeat cluck to cycle through phonetics
 
     X Selection: Cluck cycle through single word - Skips adjacent non-exact matches?
@@ -142,12 +143,13 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
     - Correction fixes:
       X Selection into correction: Select where, correction where
       X Make sure to use the correct inserted ( and changed ) tokens for append_insert otherwise the correction cycling in the middle of the sentences do not work as they assume they are at the end of the document
-      - Correction where - If same value, cycle through options like exact match phonetic self repair
       X Correction cycle through single words: Correct where - Cluck through elements on end
       X Correction cycle through single words: Correct where - Cluck through elements in middle of the sentence
       X Correction with multiple targets: Correction where - Cluck through options - Skip correction, cluck through second option from the start
       X Correction multiple words: Correction to where - Cluck through elements
-      ? Correction multiple words with pop remove: Correction to where - pop once, cluck to see what it corrects
+      ~ Correction where - If same value, cycle through options like exact match phonetic self repair
+      - Correction multiple words with pop remove: Correction to where - pop once, cluck to see what it corrects
+
 
 [ ] - Improve outside events and extend events with selection  
 While making the state machine, I found out that while a lot of fix events ARE covered by the flows, doing manual selections with 'press shift left ten times' is not, neither is extending the select, because it doesn't follow the select flow. While I think this workflow won't be done often, for completeness sake it should be added to ensure the InputFixer can properly track what changes were made for automatic fixes later.

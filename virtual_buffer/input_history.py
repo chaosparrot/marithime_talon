@@ -193,7 +193,7 @@ class InputHistory:
                 # B - C - D
                 #         D - E - Type one, continuation
                 #     C - E - F - Type two, continuation + replacement
-                # How do we support both types?
+                # Naively only support full cycling through full self repairs since it is only a single cycle that is missed
                 return last_event.insert
             else:
                 return last_event.insert
@@ -207,7 +207,7 @@ class InputHistory:
     def mark_next_as_skip(self, mark_next: bool = True):
         self.mark_as_skip = mark_next
 
-    def is_skip_event(self) -> bool:
+    def is_skip_event(self, timestamp_ms: int = -1) -> bool:
         return self.mark_as_skip
 
     def append_phrases_to_last_event(self, phrases: List[str]):
@@ -260,7 +260,6 @@ class InputHistory:
                         self.history[-1].target.extend(new_target)
     
     def append_insert_to_last_event(self, insert: List[VirtualBufferToken]):
-        print( "APPEND INSERT!", insert )
         if len(self.history) > 0:
             self.history[-1].insert = insert
     
@@ -296,11 +295,6 @@ class InputHistory:
                 potential_repetition = 1
 
         return self.repetition_count + potential_repetition
-
-    # Whether the current event is a skip variant of the event
-    def is_skip_event(self) -> bool:
-        last_event = self.get_last_event()
-        return last_event.type in [InputEventType.SKIP_CORRECTION, InputEventType.SKIP_SELF_REPAIR]        
 
     def count_remaining_single_character_presses(self) -> int:
         single_character_presses = 0

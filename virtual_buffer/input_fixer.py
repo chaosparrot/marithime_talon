@@ -215,8 +215,6 @@ class InputFixer:
         # that a user notices a mistake in a dictation sequence
         replaced_words = flattened_word_cycles[cycle_amount]
         fixed_text = " ".join(replaced_words)
-
-        #print( cycle_amount, flattened_word_cycles, total_cycle_amount, fixed_text )
         
         return (fixed_text, cycle_amount)
 
@@ -558,9 +556,9 @@ class InputFixer:
                     # Words that are too dissimilar aren't misinterpretations of the speech engine, but rather the user replacing one word for another
                     if biggest_score < EXACT_MATCH and biggest_score >= CORRECTION_THRESHOLD:
 
-                        # Automatically find and persist homophones
+                        # Automatically find and persist homophones as similarties
                         if (one_to_one_similarity_score >= 1 and one_to_one_similarity_score <= 2) and to_word.lower() not in self.phonetic_search.find_homophones(from_word):
-                            self.phonetic_search.add_homophone(from_word.lower(), to_word.lower())
+                            self.phonetic_search.add_phonetic_similarity(from_word.lower(), to_word.lower())
                         
                         # If one to one word replacement is more likely, add a fix for that
                         if one_to_one_similarity_score >= two_to_one_similarity_score and one_to_one_similarity_score >= one_to_two_similarity_score:

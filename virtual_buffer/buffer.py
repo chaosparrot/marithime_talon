@@ -101,8 +101,6 @@ class VirtualBuffer:
         for index, token in enumerate(tokens):
             self.insert_token(token, reformat_after_each_token or index == len(tokens) - 1)
 
-        print( "STARTING TOKEN INDEX", starting_token_index, starting_token_character_index)
-        print( "LEN TOKENS!", len(tokens))
         self.reconstruct_insert_token_events(tokens, starting_token_text, starting_token_index, starting_token_character_index)
 
     def insert_token(self, token_to_insert: VirtualBufferToken, reformat = True):
@@ -315,7 +313,6 @@ class VirtualBuffer:
         # Reconstruct the history so we can properly repeat corrections and partial self repairs
         total_added_character_count = sum([len(token.text) for token in tokens])
         new_token_index = starting_token_index
-        print( "STARTING TOKEN", new_token_index )
 
         # If we start in the middle of a token, or end in the middle of a token
         # We need to take that into account when building the insert tokens
@@ -323,14 +320,11 @@ class VirtualBuffer:
         if len(starting_token_text) != 0:
             if starting_token_character_index == len(starting_token_text):
                 new_token_index += 1
-                print( "APPEND ONE TO NEW TOKEN INDEX", new_token_index )                
             elif starting_token_character_index == 0:
                 new_token_index -= 1 
-                print( "REMOVE ONE FROM NEW TOKEN INDEX", new_token_index )
 
         if new_token_index >= len(self.tokens):
             new_token_index = len(self.tokens) - 1
-            print( "RESET NEW TOKEN INDEX", new_token_index )
 
         # Ensure we contain the target for the continuation of the partial self repair as well
         last_event = self.input_history.get_last_event()
@@ -402,7 +396,6 @@ class VirtualBuffer:
                 current_token.phrase = text_to_phrase(current_token.text)
 
             new_tokens.append(current_token)
-            print("TOTAL ADDED CHARACTER COUNT", total_added_character_count, "TO ", total_added_character_count - len(current_token.text))
             total_added_character_count -= len(current_token.text)
             new_token_index += 1
             starting_loop = False
@@ -410,7 +403,6 @@ class VirtualBuffer:
             if new_token_index >= len(self.tokens):
                 break
 
-        print("SET TARGET!", new_tokens)
         self.input_history.append_insert_to_last_event(new_tokens)
 
     def remove_selection(self) -> bool:

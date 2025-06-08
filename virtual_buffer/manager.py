@@ -111,9 +111,9 @@ class VirtualBufferManager:
         self.context.ensure_viable_context()
         self.enable_tracking()
 
-        self.context.get_current_context().buffer.input_history.add_event(InputEventType.CORRECTION if for_correction else InputEventType.SELECT, phrases)
-
         vb = self.context.get_current_context().buffer
+        is_skip_event = vb.input_history.is_skip_event()
+        self.context.get_current_context().buffer.input_history.add_event(InputEventType.CORRECTION if for_correction else InputEventType.SELECT, phrases)
         self.context.should_use_last_formatter(False)
 
         if until_end:
@@ -122,11 +122,9 @@ class VirtualBufferManager:
             match_threshold = CORRECTION_THRESHOLD if not for_correction else SELECTION_THRESHOLD
 
             # Reset the selection to the last insert statements when doing a repetition
-            if for_correction and vb.input_history.is_repetition() and not vb.input_history.is_skip_event():
+            if for_correction and vb.input_history.is_repetition() and not is_skip_event:
                 last_event_insert = vb.input_history.history[-2].insert
                 self.context.get_current_context().buffer.input_history.append_target_to_last_event(last_event_insert)
-                print( vb.input_history.history[-2] )
-                print( "LAST INSERTION!!!", last_event_insert)
                 return vb.select_token_range(last_event_insert[0], last_event_insert[-1])
             else:
                 return vb.select_phrases(phrases, match_threshold=match_threshold, for_correction=for_correction)
@@ -151,6 +149,7 @@ class VirtualBufferManager:
 
         input_history = vbm.input_history
         previous_event = input_history.get_last_event()
+        is_skip_event = input_history.is_skip_event()
 
         if add_input_history_event:
             vbm.input_history.add_event(InputEventType.MARITHIME_INSERT, insert.split(" "))
@@ -177,7 +176,7 @@ class VirtualBufferManager:
 
         # Detect if we are doing a repeated phonetic correction
         # In order to cycle through it
-        if add_input_history_event and previous_event is not None and previous_event.insert is not None and len(previous_event.insert) > 0:
+        if add_input_history_event and previous_event is not None and previous_event.insert is not None and not is_skip_event:
             normalized_input = normalize_text(insert).lower()
             normalized_last_insert = normalize_text(" ".join(previous_event.phrases)).lower()
             
@@ -187,38 +186,36 @@ class VirtualBufferManager:
                 # Initial target replacement
                 # This will get the first text replaced if we are cycling through self repairs
                 first_target = input_history.get_first_target_from_event()
-
                 cycle_count = input_history.get_repetition_count(enable_self_repair)
 
-                # When inserting a text like
-                # I want to wear -> to wear - *No insert*
-                # The input history does not mark this as a repetition but rather a new event
-                # Because the user most likely expected this to be a match to cycle through
-                # We pretend that this is the first cycle which can be repeated through so the result becomes
-                # I want to wear -> to wear -> *Insert the correction 'to where'*
-                if cycle_count == 0:
-                    cycle_count = 1
-
                 # Replace the words with phonetic equivelants
-                insert, _ = self.fixer.cycle_through_fixes(normalized_input,
-                    input_history.get_repetition_count(enable_self_repair),
-                    "".join([token.text for token in first_target]) if first_target else None)
-                
-                #print( "SELF REPAIR", insert )
-            #else:
-            #    print( "CLEAR!", insert )
+                insert, _ = self.fixer.cycle_through_fixes(normalized_input, cycle_count, "".join([token.text for token in first_target]) if first_target else None)
 
         normalized_input = insert.lower()
 
         # On repeated corrections, cycle through the corrections
         # Only do an initial repeat if we have an exact match!
-        if previous_event is not None and previous_event.type == InputEventType.CORRECTION and input_history.is_repetition():
+        if previous_event is not None and previous_event.type in [InputEventType.CORRECTION, InputEventType.SKIP_CORRECTION]:
 
             # Replace the words with phonetic equivelants
             first_target = input_history.get_first_target_from_event()
             starting_phrases = "".join([token.text for token in first_target])
-            insert, _ = self.fixer.cycle_through_fixes(" ".join(previous_event.phrases).lower(), \
-                input_history.get_repetition_count(), starting_phrases)
+            cycle_count = input_history.get_repetition_count(False)
+
+            # When correction a text like
+            # I want to wear -> correciton to wear - *No insert*
+            # The input history does not mark this as a repetition but rather a new event
+            # Because the user most likely expected this to be a match to cycle through
+            # We pretend that this is the first cycle which can be repeated through so the result becomes
+            # I want to wear -> to wear -> *Insert the correction 'to where'*
+            last_event_exact_match = " ".join(previous_event.phrases) == normalized_input
+            if cycle_count == 0 and last_event_exact_match:
+                cycle_count = 1
+
+            # Only cycle through if we have an exact match or if we are actually repeating
+            # Otherwise just insert the text
+            if last_event_exact_match or input_history.is_repetition():
+                insert, _ = self.fixer.cycle_through_fixes(" ".join(previous_event.phrases).lower(), cycle_count, starting_phrases)
 
         if enable_self_repair:
             

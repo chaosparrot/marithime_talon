@@ -247,7 +247,3 @@ suite.add_test(test_append_events_with_partial_self_repair)
 suite.add_test(test_append_events_with_continuous_self_repair)
 suite.add_test(test_append_events_with_continuous_partial_self_repair)
 suite.add_test(test_append_events_with_complete_self_repair)
-
-# TODO - ENSURE THAT GET_LAST_INSERT WORKS PROPERLY
-# SINCE THAT IS USED FOR ALL THE CONTINUOUS AND COMPLETE SELF REPAIR REPETITIONS
-suite.run()

@@ -605,7 +605,7 @@ class VirtualBuffer:
             # If we are removing a full token in the middle, make sure to just remove the token
             text = text[:token_character_index - remove_from_token] + text[token_character_index:]
             should_detect_merge = token_character_index - backspace_count <= 0 or token_character_index >= len(text.replace("\n", ""))            
-            if text == "" and token_index + 1 < len(self.tokens) - 1:
+            if text == "" and token_index < len(self.tokens) - 1:
                 deleted_tokens.insert(0, self.tokens[token_index])
                 del self.tokens[token_index]
             else:
@@ -663,7 +663,9 @@ class VirtualBuffer:
                         self.tokens[previous_token_index].phrase = text_to_phrase(text)
                         del self.tokens[previous_token_index + 1]
 
-                        self.reformat_tokens()
+
+            # Always reformat the tokens as the indices from the line end are always changed
+            self.reformat_tokens()
 
             self.input_history.add_event(InputEventType.REMOVE, [])
             self.input_history.append_target_to_last_event(deleted_tokens, before=True)

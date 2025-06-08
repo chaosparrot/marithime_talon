@@ -150,7 +150,7 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
       X Correction where - If same value, cycle through options like exact match phonetic self repair
       - Correction multiple words with pop remove: Correction to where - pop once, cluck to see what it corrects
 
-    - Remove event desyncs
+    X Remove event desyncs
 
 [ ] - Improve outside events and extend events with selection  
 While making the state machine, I found out that while a lot of fix events ARE covered by the flows, doing manual selections with 'press shift left ten times' is not, neither is extending the select, because it doesn't follow the select flow. While I think this workflow won't be done often, for completeness sake it should be added to ensure the InputFixer can properly track what changes were made for automatic fixes later.

@@ -40,7 +40,6 @@ class InputHistory:
         self.history = []
         self.mark_as_skip = False
         self.repetition_count = 0
-        self.repetition_offset = 0
 
     def add_event(self, type: InputEventType, phrases: List[str] = None, timestamp_ms: int = -1):
         if timestamp_ms == -1:
@@ -80,7 +79,6 @@ class InputHistory:
                 # And if we aren't in an event that can still transition to another event
                 if last_event is not None and ("".join(event.phrases) != "".join(last_event.phrases) or event.type != InputEventType.MARITHIME_INSERT):
                     self.repetition_count = 0
-                    self.repetition_offset = 0
                 
         # Reset the events timestamp if we do not have a transition
         else:
@@ -301,10 +299,7 @@ class InputHistory:
                 current_event.type == InputEventType.MARITHIME_INSERT:
                 potential_repetition = 1
 
-        return self.repetition_count + self.repetition_offset + potential_repetition
-
-    def increment_repetition_offset(self):
-        self.repetition_offset += 1
+        return self.repetition_count + potential_repetition
 
     def count_remaining_single_character_presses(self) -> int:
         single_character_presses = 0

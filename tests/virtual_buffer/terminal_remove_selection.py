@@ -102,8 +102,6 @@ def test_remove_multiline_multiple_tokens(assertion):
 
     assertion( "    Virtually selecting a single token to the left in the middle of the text and remove it...")
     vb.select_phrases(["become"])
-    assertion( caret_index[1] )
-    assertion( vb.caret_tracker.text_buffer )
     keys = vb.remove_virtual_selection()
     for key in keys:
         vb.apply_key(key)

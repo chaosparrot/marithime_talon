@@ -218,8 +218,6 @@ class VirtualBufferManager:
             # We pretend that this is the first cycle which can be repeated through so the result becomes
             # I want to wear -> to wear -> *Insert the correction 'to where'*
             last_event_exact_match = " ".join(previous_event.phrases) == normalized_input
-            if cycle_count == 0 and last_event_exact_match:
-                cycle_count = 1
 
             # Only cycle through if we have an exact match or if we are actually repeating
             # Otherwise just insert the text

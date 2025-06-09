@@ -188,14 +188,17 @@ class InputFixer:
         # TODO this does not fix phonetic combination duplications
         # - affix -> a fix, a fix -> affix
         if starting_words is not None and len(starting_words) > 0 and len(flattened_cycles) > 0:
-            found_in_flattened_cycles = False
-            for flattened_cycle in flattened_cycles:
+            found_indices_flattened_cycles = []
+            for index, flattened_cycle in enumerate(flattened_cycles):
                 if " ".join(flattened_cycle) == " ".join(starting_words):
-                    found_in_flattened_cycles = True
-                    break
+                    found_indices_flattened_cycles.append(index)
 
-            if not found_in_flattened_cycles:
-                flattened_cycles.insert(1, starting_words)
+            # Remove if this is an existing element later in the list
+            while len(found_indices_flattened_cycles) > 0:
+                del flattened_cycles[found_indices_flattened_cycles[-1]]
+                del found_indices_flattened_cycles[-1]
+
+            flattened_cycles.insert(1, starting_words)
 
         return flattened_cycles
 

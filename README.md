@@ -108,7 +108,7 @@ We need to find a way to deal with word wrap, meaning things being on a single l
 [ ] - Add clipboard pasting insert support  
 Right now it isn't possible to use clipboard pasting as a way to insert things rather than typing out the characters one by one. This makes the insertion slower than it could be. This can be done with 'Ctrl+C' and 'Ctrl+V', or 'Ctrl+Shift+C' and 'Ctrl+Shift+V' in terminals. Though we probably want to use `action.edit.paste()` to make it compatible with other packages. We do need to be aware that in terminals there is a possibility that `Remove trailing white-space when pasting` is turned on, which might cause desyncs.
 
-[~] - Refactor last action type into state machine
+[x] - Refactor last action type into state machine
 Technically the repetition flow is an implicit state machine that doesn't quite belong in either the InputFixer or the VirtualBuffer. Ideally this gets moved to its own class so it can be unit tested like the rest. Now it will just have to be manually tested like some other context related stuff. With it, tackle the following known bugs:
 - Formatting isn't taken into account properly - should use the same formatting if it is mixed
 - Skipping a correction does not move to the next best match but instead to the current match, this is hard to fix because we don't want to skip over elements twice
@@ -116,48 +116,8 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
 - Repeating a self repair should fix like a correction should - With the text first
 - Skipping a self repair cycle should append the value instead
 - Selections do not work when repeating the same correction, but having another correction be a closer match - Expected is it selecting the first correction instead TOKEN-WISE
-- TODO:
-  X Integrate input history event registering on the right places in the actions
-  X Integrate proper self repair with EXACT matches ( because insert with exact matches do not result in key presses / inserts )
-  X Integrate remove event registering
-  X Fix character removal tracking
-  X Fix select remove character tracking
-  X Integrate the skip checking 
-  X Integrate retrieving the states for fix looping
-  X Integrate phonetic repetition checking  
-  X Integrate the self repair checking
-  X Integrate using the previous correction target for correction looping
-  X Remove last event method
-  X Integrate single character event insertions
-  X Fix skip self repair flow
-  X Fix remove target not being proper after a skip self repair / self repair
-  ~ Real testing
-    X Exact match phonetic self repair without cluck repetition - To where *pause* where
-    X Self repair: Where - repeat cluck to cycle through phonetics
-    X Self repair: There is something I want to *pause* where - repeat cluck to cycle through phonetics
-    X Self repair: We *pause* were - repeat cluck to cycle through self repair and make the self repair correct 'were' to 'we' instead of appending after the words
-    X Partial self repair: There is something I want to wear *pause* to wear at work
-    X Self repair: There is something I want to wear *pause* to wear - repeat cluck to cycle through phonetics
-    X Continuation partial self repair: There is something I want to *pause* to wear - repeat cluck to cycle through phonetics
-    X Partial self repair: There is something I want to *pause* want too wear - repeat cluck to cycle through phonetics
-    X Self repair cycles: There is something I want to wear *pause* want to wear - repeat cluck - to wear - repeat cluck
-    X Skip self repair: There is something I want to wear *pause* to wear - repeat cluck to cycle through phonetics
 
-    X Selection: Cluck cycle through single word - Skips adjacent non-exact matches?
-    X Selection: Cluck cycle through multiple words - Skips adjacent matches?
-    X Selection into insert: Select where, insert where
-
-    X Correction fixes:
-    X Selection into correction: Select where, correction where
-    X Make sure to use the correct inserted ( and changed ) tokens for append_insert otherwise the correction cycling in the middle of the sentences do not work as they assume they are at the end of the document
-    X Correction cycle through single words: Correct where - Cluck through elements on end
-    X Correction cycle through single words: Correct where - Cluck through elements in middle of the sentence
-    X Correction with multiple targets: Correction where - Cluck through options - Skip correction, cluck through second option from the start
-    X Correction multiple words: Correction to where - Cluck through elements
-    X Correction where - If same value, cycle through options like exact match phonetic self repair
-    X Correction multiple words with pop remove: Correction to where - pop once, cluck to see what it corrects
-    X Remove event desyncs
-  - Correct cycling when initial is different?
+[ ] - Known bug: SKIP_SELF_REPAIR target is off by one sometimes
 
 [ ] - Improve outside events and extend events with selection  
 While making the state machine, I found out that while a lot of fix events ARE covered by the flows, doing manual selections with 'press shift left ten times' is not, neither is extending the select, because it doesn't follow the select flow. While I think this workflow won't be done often, for completeness sake it should be added to ensure the InputFixer can properly track what changes were made for automatic fixes later.

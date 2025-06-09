@@ -1,4 +1,4 @@
-from talon import Module, Context, actions, settings, ui, speech_system, app
+from talon import Module, Context, actions, settings, ui, speech_system, app, clip
 from .input_context_manager import InputContextManager
 from .input_fixer import InputFixer
 from .typing import CORRECTION_THRESHOLD, SELECTION_THRESHOLD
@@ -68,10 +68,35 @@ class VirtualBufferManager:
 
     def track_key(self, key_string: str):
         if self.tracking:
-            self.context.apply_key(key_string, True)
+            paste_key = settings.get("user.marithime_context_paste_key")
+
+            # Detect a paste action and try to track insertions with clipboard contents
+            if paste_key in key_string:
+                inserted_text = clip.text()
+
+                split_key_string = key_string.split(" ")
+                for split_key in split_key_string:
+
+                    # Paste for as many key strokes as has repeated
+                    if inserted_text and paste_key in key_string:
+                        key_elements = key_string.split(":")
+                        repeated_pastes = 1
+                        if len(key_elements) > 1:
+                            repeated_pastes = int(key_elements[1])
+
+                        # Track the insert, but SKIP tracking the keys
+                        for i in range(repeated_pastes):
+                            self.context.track_insert(inserted_text, "")
+
+                    # Regular key tracking
+                    else:
+                        self.context.apply_key(key_string, True)
+
+            else:
+                self.context.apply_key(key_string, True)
             self.index()
 
-    def track_insert(self, insert: str, phrase: str = None):
+    def track_insert(self, insert: str, phrase: str = ""):
         if self.tracking:
             self.context.track_insert(insert, phrase)
             self.index()

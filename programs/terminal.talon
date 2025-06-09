@@ -12,3 +12,4 @@ settings():
     user.marithime_context_remove_line = "ctrl-u"
     user.marithime_context_remove_word = "ctrl-w"    
     user.marithime_context_clear_key = "enter"
+    user.marithime_context_paste_key = "ctrl-shift-v"

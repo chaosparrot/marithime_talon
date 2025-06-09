@@ -9,3 +9,4 @@ settings():
     user.marithime_context_remove_line = ""
     user.marithime_context_end_line_key = "cmd-right"
     user.marithime_context_start_line_key = "cmd-left"
+    user.marithime_context_paste_key = "cmd-v"

@@ -105,7 +105,7 @@ Right now, you still need to say `numb zero` every time between commands. We can
 [ ] - Word wrap detection  
 We need to find a way to deal with word wrap, meaning things being on a single line, but visually ( and most importantly, keyboard relatively ) they are on multiple lines. Our current Up and Down arrow key pressing does not deal with that.
 
-[ ] - Add clipboard pasting insert support  
+[x] - Add clipboard pasting insert support
 Right now it isn't possible to use clipboard pasting as a way to insert things rather than typing out the characters one by one. This makes the insertion slower than it could be. This can be done with 'Ctrl+C' and 'Ctrl+V', or 'Ctrl+Shift+C' and 'Ctrl+Shift+V' in terminals. Though we probably want to use `action.edit.paste()` to make it compatible with other packages. We do need to be aware that in terminals there is a possibility that `Remove trailing white-space when pasting` is turned on, which might cause desyncs.
 
 [x] - Refactor last action type into state machine

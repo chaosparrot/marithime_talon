@@ -188,30 +188,27 @@ class InputFixer:
         # TODO this does not fix phonetic combination duplications
         # - affix -> a fix, a fix -> affix
         if starting_words is not None and len(starting_words) > 0 and len(flattened_cycles) > 0:
-            found_in_flattened_cycles = False
-            for flattened_cycle in flattened_cycles:
+            found_indices_flattened_cycles = []
+            for index, flattened_cycle in enumerate(flattened_cycles):
                 if " ".join(flattened_cycle) == " ".join(starting_words):
-                    found_in_flattened_cycles = True
-                    break
+                    found_indices_flattened_cycles.append(index)
 
-            if not found_in_flattened_cycles:
-                flattened_cycles.insert(1, starting_words)
+            # Remove if this is an existing element later in the list
+            while len(found_indices_flattened_cycles) > 0:
+                del flattened_cycles[found_indices_flattened_cycles[-1]]
+                del found_indices_flattened_cycles[-1]
+
+            flattened_cycles.insert(1, starting_words)
 
         return flattened_cycles
 
     # Repeat the same input or correction to cycle through the possible changes
     def cycle_through_fixes(self, text: str, cycle_amount: int = 0, initial_state: str = None) -> Tuple[str, int]:
         words = text.split(" ")
-        starting_words = [word for word in initial_state.split(" ") if word != ""] if initial_state is not None else []
+        starting_words = [word.lower() for word in initial_state.split(" ") if word != ""] if initial_state is not None else []
         flattened_word_cycles = self.determine_cycles_for_words(words, starting_words)
         total_cycle_amount = len(flattened_word_cycles)
-
-        cycle_amount += 1
-
-        # Loop back to the first item if we are beyond the total count
-        if cycle_amount >= total_cycle_amount:
-            cycle_amount = 0
-            fixed_text = text
+        cycle_amount = cycle_amount % total_cycle_amount
 
         # Determine what word to replace in the sequence
         # By walking backwards through the list of words and replacing them
@@ -219,11 +216,8 @@ class InputFixer:
         #
         # We prioritize later words because they have a bigger possibility 
         # that a user notices a mistake in a dictation sequence
-        else:
-            replaced_words = flattened_word_cycles[cycle_amount]
-
-            # TODO PROPER FORMATTING
-            fixed_text = " ".join(replaced_words)
+        replaced_words = flattened_word_cycles[cycle_amount]
+        fixed_text = " ".join(replaced_words)
         
         return (fixed_text, cycle_amount)
 
@@ -565,9 +559,9 @@ class InputFixer:
                     # Words that are too dissimilar aren't misinterpretations of the speech engine, but rather the user replacing one word for another
                     if biggest_score < EXACT_MATCH and biggest_score >= CORRECTION_THRESHOLD:
 
-                        # Automatically find and persist homophones
+                        # Automatically find and persist homophones as similarties
                         if (one_to_one_similarity_score >= 1 and one_to_one_similarity_score <= 2) and to_word.lower() not in self.phonetic_search.find_homophones(from_word):
-                            self.phonetic_search.add_homophone(from_word.lower(), to_word.lower())
+                            self.phonetic_search.add_phonetic_similarity(from_word.lower(), to_word.lower())
                         
                         # If one to one word replacement is more likely, add a fix for that
                         if one_to_one_similarity_score >= two_to_one_similarity_score and one_to_one_similarity_score >= one_to_two_similarity_score:

@@ -11,7 +11,6 @@ class InputContext:
     modified_at: float = 0
     accessible_api_available = False
     buffer: VirtualBuffer = None
-    last_insert = None
 
     def __init__(self, app_name: str = "", title: str = "", pid: int = -1):
         self.app_name = app_name

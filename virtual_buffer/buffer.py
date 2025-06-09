@@ -5,6 +5,7 @@ from typing import List
 from .caret_tracker import CaretTracker
 from ..phonetics.actions import phonetic_search
 from .indexer import text_to_phrase, normalize_text, reindex_tokens, text_to_virtual_buffer_tokens
+from .input_history import InputHistory, InputEventType
 import re
 from .settings import VirtualBufferSettings, virtual_buffer_settings
 mod = Module()
@@ -21,30 +22,17 @@ MERGE_STRATEGY_SPLIT = 4
 class VirtualBuffer:
     tokens: List[VirtualBufferToken] = None
     caret_tracker: CaretTracker = None
+    input_history: InputHistory = None
     virtual_selection = None
-    last_action_type = "insert"
-    last_search: List[str] = None
-    last_navigation: List[VirtualBufferToken] = None
-    last_phonetic_correction: List[VirtualBufferToken] = None
-    correction_start_phrases: List[VirtualBufferToken] = None
-    skip_last_action_insert = False
-    correction_cycle_count = 0
     last_direction = None
     settings: VirtualBufferSettings = None
-    single_character_presses = 0
 
     def __init__(self, settings: VirtualBufferSettings = None):
         global virtual_buffer_settings
         self.settings = settings if settings is not None else virtual_buffer_settings
         self.caret_tracker = CaretTracker(settings=self.settings)
-        self.last_search = []
-        self.last_navigation = []
-        self.last_phonetic_correction = []
-        self.correction_start_phrases = None
+        self.input_history = InputHistory()
         self.last_direction = 0
-        self.skip_last_action_insert = False
-        self.correction_cycle_count = 0
-        self.single_character_presses = 0
         self.matcher = VirtualBufferMatcher(phonetic_search)
         self.set_tokens()
 
@@ -54,53 +42,9 @@ class VirtualBuffer:
     def is_phrase_selected(self, phrase: str) -> bool:
         return self.matcher.is_phrase_selected(self, phrase)
 
-    # Set the last action type - Used for remembering repeated items
-    def set_last_action(self, last_action_type: str, tokens = None): # Tokens is either a list of strings or virtual buffer tokens
-
-        # Skip saving the new state when doing repeated self repair inserts
-        # Which always follow remove -> insert
-        if self.skip_last_action_insert:
-            if last_action_type == "remove":
-                return
-            elif last_action_type == "insert":
-                self.skip_last_action_insert = False
-                return
-
-        changed_type = self.last_action_type != last_action_type and not (self.last_action_type == "first-correction" and last_action_type == "correction")
-        
-        # Initial correction needs to be renamed to "first-correction"
-        # So we can skip over the first repetition that it wants to do
-        if changed_type and last_action_type == "correction" and self.last_action_type != "phonetic_correction":
-            self.last_action_type = "first-correction"
-        else:
-            self.last_action_type = last_action_type
-
-        # The last search NEEDS to be a list of phrases as we want it to be
-        # The search, rather than the match
-        self.last_search = tokens if last_action_type in ["selection", "correction"] else []
-
-        self.last_navigation = tokens if last_action_type in ["navigation"] else []
-        self.last_direction = self.last_direction if last_action_type in ["selection", "correction"] else []
-        self.last_phonetic_correction = tokens if last_action_type == "phonetic_correction" else []
-        self.correction_start_phrases = self.correction_start_phrases if last_action_type in ["first-correction", "correction"] else None
-        self.correction_cycle_count = self.correction_cycle_count if not changed_type and last_action_type in ["phonetic_correction", "correction", "first-correction"] else 0
-
-
-        # Keep track of single character insertions for easier single removal
-        if last_action_type == "insert_character":
-            self.single_character_presses += len(tokens[-1])
-        else:
-            if last_action_type == "remove" and self.single_character_presses > 0:
-                self.single_character_presses -= 1
-            else:
-                self.single_character_presses = 0 if last_action_type != "insert_character" else self.single_character_presses
-
     def clear_tokens(self):
         self.set_tokens()
-        self.last_search = []
-        self.last_navigation = []
         self.last_direction = 0
-        self.single_character_presses = 0
 
     def set_tokens(self, tokens: List[VirtualBufferToken] = None, move_cursor_to_end: bool = False):
         self.virtual_selection = []
@@ -150,11 +94,14 @@ class VirtualBuffer:
             return VirtualBufferTokenContext(0)
 
     def insert_tokens(self, tokens: List[VirtualBufferToken]):
-        token_index = self.determine_token_index()
-        reformat_after_each_token = token_index[0] < len(self.tokens) - 1
+        starting_token_index, starting_token_character_index = self.determine_leftmost_token_index()
+        reformat_after_each_token = starting_token_index < len(self.tokens) - 1
+        starting_token_text = "" if starting_token_index == -1 else self.tokens[starting_token_index].text
 
         for index, token in enumerate(tokens):
             self.insert_token(token, reformat_after_each_token or index == len(tokens) - 1)
+
+        self.reconstruct_insert_token_events(tokens, starting_token_text, starting_token_index, starting_token_character_index)
 
     def insert_token(self, token_to_insert: VirtualBufferToken, reformat = True):
         if token_to_insert != "":
@@ -356,14 +303,142 @@ class VirtualBuffer:
                     self.tokens[token_index].index_from_line_end = 0
             else:
                 self.append_token_after(token_index + index - 1, new_token)
+    
+    def reconstruct_insert_token_events(self, tokens, starting_token_text: str = "", starting_token_index: int = 0, starting_token_character_index: int = 0):
+        # If the new length of the tokens less than the actual token amount we've supported
+        # Then a clear has happend and we should just give the full tokens
+        if len(self.tokens) <= len(tokens) or starting_token_index == -1 or starting_token_index > len(self.tokens) - 1:
+            self.input_history.append_insert_to_last_event(self.tokens)
         
-    def remove_selection(self) -> bool:
-        selection_indexes = self.caret_tracker.remove_selection()
-        if selection_indexes[0][0] != selection_indexes[1][0] or \
-            selection_indexes[0][1] != selection_indexes[1][1]:
+        # Reconstruct the history so we can properly repeat corrections and partial self repairs
+        total_added_character_count = sum([len(token.text) for token in tokens])
+        new_token_index = starting_token_index
+
+        # If we start in the middle of a token, or end in the middle of a token
+        # We need to take that into account when building the insert tokens
+        contains_merge = starting_token_character_index != 0 and starting_token_character_index < len(starting_token_text)
+        if len(starting_token_text) != 0:
+            if starting_token_character_index == len(starting_token_text):
+                new_token_index += 1
+            elif starting_token_character_index == 0:
+                new_token_index -= 1 
+
+        if new_token_index >= len(self.tokens):
+            new_token_index = len(self.tokens) - 1
+
+        # Ensure we contain the target for the continuation of the partial self repair as well
+        last_event = self.input_history.get_last_event()
+        if last_event is not None and last_event.type == InputEventType.PARTIAL_SELF_REPAIR:
+            target_left = last_event.target
+            previous_token_index = new_token_index - 1
+            if contains_merge:
+                previous_token_index += 1
+
+            if previous_token_index != 0:
+                while target_left is not None and len(target_left) > 0:
+                    if not self.tokens[previous_token_index].text.startswith(target_left[-1].text):
+                        target_left = target_left[:-1]
+                    else:
+                        break
+
+                # Reverse walk through the tokens and append them one by one
+                previous_total_character_count = sum([len(token.text) for token in target_left])
+                starting_loop = True
+                while previous_total_character_count > 0:
+                    previous_token = self.tokens[previous_token_index]
+
+                    # If we are left with a merged token
+                    # Make sure to reset the starting token character index
+                    if previous_total_character_count <= len(previous_token.text):
+                        contains_merge = previous_total_character_count < len(previous_token.text)
+                        starting_token_character_index = len(previous_token.text) - previous_total_character_count
+                        total_added_character_count += previous_total_character_count
+                        break
+
+                    # At the start - Only remove the first starting token character indices
+                    elif starting_loop and contains_merge:
+                        previous_total_character_count -= starting_token_character_index
+                        total_added_character_count += starting_token_character_index
+                    else:
+                        previous_total_character_count -= len(previous_token.text)
+                        total_added_character_count += len(previous_token.text)
+
+                    starting_loop = False
+                    previous_token_index -= 1
+                    if previous_token_index <= 0:
+                        break
+                new_token_index = previous_token_index
+
+        starting_loop = True
+        new_tokens = []
+        while total_added_character_count > 0:
+            token = self.tokens[new_token_index]
+            current_token = VirtualBufferToken(token.text, token.phrase, token.format, token.line_index, token.index_from_line_end)
             
-            start_index = self.determine_token_index(selection_indexes[0])
-            end_index = self.determine_token_index(selection_indexes[1])
+            # Starting token
+            if contains_merge and starting_loop:
+                # Total merge inside of a token
+                if len(current_token.text) - starting_token_character_index > total_added_character_count:
+                    new_text = current_token.text[starting_token_character_index:starting_token_character_index + total_added_character_count]
+                    current_token.index_from_line_end += len(current_token.text) - (starting_token_character_index + total_added_character_count)
+                    current_token.text = new_text
+
+                # Merging at the start of a token and continuing afterwards
+                else:
+                    current_token.text = current_token.text[starting_token_character_index:]
+                current_token.phrase = text_to_phrase(current_token.text)
+
+            # End of the tokens
+            elif len(current_token.text) < total_added_character_count:
+                new_text = current_token.text[:total_added_character_count]
+                current_token.index_from_line_end += len(current_token.text) - len(new_text)
+                current_token.text = new_text
+                current_token.phrase = text_to_phrase(current_token.text)
+
+            new_tokens.append(current_token)
+            total_added_character_count -= len(current_token.text)
+            new_token_index += 1
+            starting_loop = False
+
+            if new_token_index >= len(self.tokens):
+                break
+
+        self.input_history.append_insert_to_last_event(new_tokens)
+
+    def remove_selection(self) -> bool:
+        deleted_tokens = []
+        selection_indices = self.caret_tracker.remove_selection()
+        if selection_indices[0][0] != selection_indices[1][0] or \
+            selection_indices[0][1] != selection_indices[1][1]:
+
+            # Add deleted tokens
+            start_index = self.determine_token_index(selection_indices[0])
+            end_index = self.determine_token_index(selection_indices[1])
+            deleted_tokens = self.tokens[start_index[0]:end_index[0] + 1]
+            if selection_indices[0][1] != (deleted_tokens[0].index_from_line_end - len(deleted_tokens[0].text)):
+                remaining_text_length = selection_indices[0][1] - deleted_tokens[0].index_from_line_end
+                difference = len(deleted_tokens[0].text) - remaining_text_length
+
+                # Partial token for the start
+                deleted_tokens[0] = VirtualBufferToken(
+                    deleted_tokens[0].text[:-difference],
+                    deleted_tokens[0].phrase,
+                    deleted_tokens[0].format,
+                    deleted_tokens[0].line_index,
+                    deleted_tokens[0].index_from_line_end,
+                )
+            if selection_indices[1][1] != deleted_tokens[-1].index_from_line_end:
+                remaining_text_length = deleted_tokens[-1].index_from_line_end - selection_indices[1][1]
+                difference = len(deleted_tokens[-1].text) - remaining_text_length
+
+                # Partial token for the end
+                deleted_tokens[-1] = VirtualBufferToken(
+                    deleted_tokens[-1].text[difference:],
+                    deleted_tokens[-1].phrase,
+                    deleted_tokens[-1].format,
+                    deleted_tokens[-1].line_index,
+                    deleted_tokens[-1].index_from_line_end,
+                )
 
             merge_token = None
             should_detect_merge = False
@@ -417,6 +492,9 @@ class VirtualBuffer:
                         if text != "":
                             tokens.append(VirtualBufferToken(text, text_to_phrase(text), "", token.line_index))
             
+            self.input_history.add_event(InputEventType.REMOVE, [])
+            self.input_history.append_target_to_last_event(deleted_tokens)
+
             # If we are left with a merge token, add it anyway
             if merge_token is not None:
                 tokens.append(merge_token)
@@ -436,6 +514,7 @@ class VirtualBuffer:
         if delete_count <= 0:
             return
 
+        deleted_tokens = []
         line_index, character_index = self.caret_tracker.get_caret_index()
         if line_index > -1 and character_index > -1:
             token_index, token_character_index = self.determine_token_index()
@@ -448,9 +527,19 @@ class VirtualBuffer:
             should_detect_merge = token_character_index == 0 or token_character_index >= len(text.replace("\n", ""))
 
             if text == "":
+                deleted_tokens.append(self.tokens[token_index])
                 del self.tokens[token_index]
                 token_index -= 1
             else:
+                # Mark a partially deleted start token
+                deleted_tokens.append(VirtualBufferToken(
+                  self.tokens[token_index].text[:-len(text)],
+                  self.tokens[token_index].phrase,
+                  self.tokens[token_index].format,
+                  self.tokens[token_index].line_index,
+                  self.tokens[token_index].index_from_line_end
+                ))
+
                 self.tokens[token_index].text = text
                 self.tokens[token_index].phrase = text_to_phrase(text)
 
@@ -459,8 +548,18 @@ class VirtualBuffer:
                 while next_token_index < len(self.tokens) and remove_from_next_tokens > 0:
                     if len(self.tokens[next_token_index].text) <= remove_from_next_tokens:
                         remove_from_next_tokens -= len(self.tokens[next_token_index].text)
+                        deleted_tokens.append(self.tokens[next_token_index])
                         del self.tokens[next_token_index]
                     else:
+                        # Mark a partially deleted start token
+                        deleted_tokens.append(VirtualBufferToken(
+                            self.tokens[token_index].text[:remove_from_next_tokens],
+                            self.tokens[token_index].phrase,
+                            self.tokens[token_index].format,
+                            self.tokens[token_index].line_index,
+                            self.tokens[token_index].index_from_line_end
+                        ))
+
                         next_text = self.tokens[next_token_index].text[remove_from_next_tokens:]
                         self.tokens[next_token_index].text = next_text
                         self.tokens[next_token_index].phrase = text_to_phrase(next_text)
@@ -484,17 +583,18 @@ class VirtualBuffer:
                         del self.tokens[next_token_index]
                         self.reformat_tokens()            
 
+            self.input_history.add_event(InputEventType.REMOVE, [])
+            self.input_history.append_target_to_last_event(deleted_tokens)
             self.caret_tracker.remove_after_caret(delete_count)
-        self.set_last_action("remove")
         
     def apply_backspace(self, backspace_count = 0):
         if self.is_selecting() and backspace_count > 0:
             if self.remove_selection():
                 backspace_count -= 1
-            self.set_last_action("remove")
         if backspace_count <= 0:
             return
 
+        deleted_tokens = []
         line_index, character_index = self.caret_tracker.get_caret_index()
         if line_index > -1 and character_index > -1:
             token_index, token_character_index = self.determine_token_index()
@@ -505,9 +605,19 @@ class VirtualBuffer:
             # If we are removing a full token in the middle, make sure to just remove the token
             text = text[:token_character_index - remove_from_token] + text[token_character_index:]
             should_detect_merge = token_character_index - backspace_count <= 0 or token_character_index >= len(text.replace("\n", ""))            
-            if text == "" and token_index + 1 < len(self.tokens) - 1:
+            if text == "" and token_index < len(self.tokens) - 1:
+                deleted_tokens.insert(0, self.tokens[token_index])
                 del self.tokens[token_index]
             else:
+                # Mark a partially deleted start token
+                deleted_tokens.insert(0, VirtualBufferToken(
+                  self.tokens[token_index].text[len(text):],
+                  self.tokens[token_index].phrase,
+                  self.tokens[token_index].format,
+                  self.tokens[token_index].line_index,
+                  self.tokens[token_index].index_from_line_end
+                ))
+
                 self.tokens[token_index].text = text
                 self.tokens[token_index].phrase = text_to_phrase(text)
             
@@ -516,9 +626,19 @@ class VirtualBuffer:
                 while previous_token_index >= 0 and remove_from_previous_tokens > 0:
                     if len(self.tokens[previous_token_index].text) <= remove_from_previous_tokens:
                         remove_from_previous_tokens -= len(self.tokens[previous_token_index].text)
+                        deleted_tokens.insert(0, self.tokens[previous_token_index])
                         del self.tokens[previous_token_index]
                         previous_token_index -= 1
                     else:
+                        # Mark a partially deleted start token from the end
+                        deleted_tokens.insert(0, VirtualBufferToken(
+                            self.tokens[token_index].text[:-remove_from_previous_tokens],
+                            self.tokens[token_index].phrase,
+                            self.tokens[token_index].format,
+                            self.tokens[token_index].line_index,
+                            self.tokens[token_index].index_from_line_end
+                        ))
+
                         previous_text = self.tokens[previous_token_index].text
                         previous_text = previous_text[:len(previous_text) - remove_from_previous_tokens]
                         self.tokens[previous_token_index].text = previous_text
@@ -543,10 +663,13 @@ class VirtualBuffer:
                         self.tokens[previous_token_index].phrase = text_to_phrase(text)
                         del self.tokens[previous_token_index + 1]
 
-                        self.reformat_tokens()
 
+            # Always reformat the tokens as the indices from the line end are always changed
+            self.reformat_tokens()
+
+            self.input_history.add_event(InputEventType.REMOVE, [])
+            self.input_history.append_target_to_last_event(deleted_tokens, before=True)
             self.caret_tracker.remove_before_caret(backspace_count)
-        self.set_last_action("remove")
 
     def reformat_tokens(self):
         self.tokens = reindex_tokens(self.tokens)
@@ -582,8 +705,8 @@ class VirtualBuffer:
         # Insert tokens if we press keys one by one
         if len(insertion_keys) > 0:
             tokens = text_to_virtual_buffer_tokens(insertion_keys)
+            self.input_history.add_event(InputEventType.INSERT_CHARACTER, [insertion_keys])
             self.insert_tokens(tokens)
-            self.set_last_action("insert_character", tokens)
 
         if not self.caret_tracker.text_buffer:
             self.clear_tokens()
@@ -593,14 +716,17 @@ class VirtualBuffer:
 
     def go_phrase(self, phrase: str, position: str = 'end', keep_selection: bool = False, next_occurrence: bool = False, verbose: bool = False) -> List[str]:
         # Loop when we are navigating twice with the same phrase
-        if self.last_navigation and "".join([token.phrase for token in self.last_navigation]) == phrase:
+        if self.input_history.get_last_event() and \
+            self.input_history.get_last_event().type == InputEventType.NAVIGATION and \
+            "".join(self.input_history.get_last_event().phrases) == phrase:
             next_occurrence = True
 
         token = self.find_token_by_phrase(phrase, -1 if position == 'end' else 0, next_occurrence, verbose)
         if token:
             keys = self.navigate_to_token(token, -1 if position == 'end' else 0, keep_selection)
             if not keep_selection:
-                self.set_last_action("navigation", [token])
+                self.input_history.add_event(InputEventType.NAVIGATION, [phrase])
+                self.input_history.append_target_to_last_event([token])
             return keys
         else:
             return None
@@ -635,7 +761,7 @@ class VirtualBuffer:
             should_go_to_next_occurrence = self.matcher.is_phrase_selected(self, total_phrase)
         
         self.last_direction = self.last_direction \
-            if should_go_to_next_occurrence and " ".join(self.last_search) == " ".join(phrases) else 0
+            if should_go_to_next_occurrence and self.input_history.is_repetition() else 0
 
         best_match_tokens, match = self.matcher.find_best_match_by_phrases(self, phrases, match_threshold, should_go_to_next_occurrence, selecting=True, for_correction=for_correction, verbose=verbose, direction=self.last_direction)
         if best_match_tokens is not None and len(best_match_tokens) > 0:            
@@ -645,17 +771,7 @@ class VirtualBuffer:
             if not should_go_to_next_occurrence:
                 self.last_direction = 1 if match.buffer_indices[0][0] > leftmost_token_index else -1
 
-            # Remember the first set of tokens as a thing to cycle through
-            if for_correction and (self.correction_start_phrases is None or should_go_to_next_occurrence):
-                self.correction_start_phrases = best_match_tokens
-
-                # Clear the correction count so it cycles properly
-                # Make sure it is at -1 because the next correction will be at 0
-                if should_go_to_next_occurrence:
-                    self.correction_cycle_count = -1
-
-            self.set_last_action("selection" if not for_correction else "correction", phrases)
-            
+            self.input_history.append_target_to_last_event(best_match_tokens)            
             return self.select_token_range(best_match_tokens[0], best_match_tokens[-1], extend_selection=extend_selection)
         else:
             return []
@@ -821,6 +937,7 @@ class VirtualBuffer:
 
     def remove_virtual_selection(self) -> List[str]:
         keys = []
+        deleted_tokens = []
         if len(self.virtual_selection) > 0:
             total_amount = 0
             if self.virtual_selection[0].line_index == self.virtual_selection[-1].line_index:
@@ -837,6 +954,15 @@ class VirtualBuffer:
 
             if total_amount:
                 keys = [self.settings.get_remove_character_left_key() + ":" + str(total_amount)]
+
+            self.input_history.add_event(InputEventType.REMOVE, [])
+
+            # Add the remove event with the right targets
+            left_token_index, _ = self.determine_token_index((self.virtual_selection[0].line_index, self.virtual_selection[0].index_from_line_end + len(self.virtual_selection[0].text)))
+            right_token_index, _ = self.determine_token_index((self.virtual_selection[1].line_index, self.virtual_selection[1].index_from_line_end))
+            if left_token_index > -1 and right_token_index > -1:
+                deleted_tokens = self.tokens[left_token_index:right_token_index]
+                self.input_history.append_target_to_last_event(deleted_tokens)
             self.virtual_selection = []
 
         return keys

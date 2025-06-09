@@ -2,11 +2,11 @@ from ...virtual_buffer.buffer import VirtualBuffer
 from ...virtual_buffer.indexer import text_to_virtual_buffer_tokens
 from ..test import create_test_suite
 from ...virtual_buffer.settings import VirtualBufferSettings
+from ...virtual_buffer.input_history import InputEventType
 
 def get_virtual_buffer() -> VirtualBuffer:
     settings = VirtualBufferSettings(live_checking=False)
     return VirtualBuffer(settings)
-
 
 def get_filled_vb():
     vb = get_virtual_buffer()
@@ -28,13 +28,15 @@ def get_filled_vb():
 
 def test_looping_sentence(assertion):
     vb = get_filled_vb()
-    assertion( "    Moving from the end to the buffer to the last occurrence of 'sentence'...") 
+    assertion( "    Moving from the end to the buffer to the last occurrence of 'sentence'...")
+    
+    vb.input_history.add_event(InputEventType.NAVIGATION, ["sentence"])
     keys = vb.go_phrase("sentence", 'start', next_occurrence=False)
     assertion( "        Should go left until the last occurrence of sentence", keys[0] == "left:9")
     assertion( "    Repeating the search for 'sentence'...")
     keys = vb.go_phrase("sentence", 'start')
     assertion( "        Should go left until the first occurrence of sentence", keys[0] == "left:60")
-    assertion( "    Repeating the search for 'sentence' again...") 
+    assertion( "    Repeating the search for 'sentence' again...")
     keys = vb.go_phrase("sentence", 'start')
     assertion( "        Should loop back to the last occurrence", keys[0] == "right:60")
     assertion( "    Repeating the search for 'sentence' once more...")
@@ -42,7 +44,7 @@ def test_looping_sentence(assertion):
     assertion( "        Should loop back to the first occurrence", keys[0] == "left:60")
 
     vb = get_filled_vb()
-    assertion( "    Moving from the end to the buffer to the last occurrence of 'sentence'...") 
+    assertion( "    Moving from the end to the buffer to the last occurrence of 'sentence'...")
     keys = vb.go_phrase("sentence", 'end', next_occurrence=False)
     assertion( "        Should not move anywhere as we are already at the end", len(keys) == 0)
     assertion( "    Repeating the search for 'sentence'...")
@@ -70,6 +72,7 @@ def test_looping_new_sentence(assertion):
 def test_looping_to(assertion):
     vb = get_filled_vb()
     assertion( "    Moving from the end to the buffer to the last occurrence of 'to'...") 
+    vb.input_history.add_event(InputEventType.NAVIGATION, ["to"])
     keys = vb.go_phrase("to", 'end')
     assertion( "        Should move to the left until we have reached the word 'to'", keys[0] == "left:22")
     assertion( "    Repeating the search for 'to' again...")

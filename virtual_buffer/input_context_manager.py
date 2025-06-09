@@ -6,6 +6,7 @@ from ..formatters.text_formatter import TextFormatter
 from ..formatters.formatters import FORMATTERS_LIST
 from .indexer import VirtualBufferIndexer, text_to_virtual_buffer_tokens
 from .input_fixer import InputFixer
+from .input_history import InputEventType
 from .caret_tracker import _CARET_MARKER, _COARSE_MARKER
 from ..utils.levenshtein import levenshtein
 import os
@@ -22,7 +23,6 @@ class InputContextManager:
     contexts: List[InputContext] = None
     last_clear_check = time.perf_counter()
     use_last_set_formatter = False
-    last_insert_phrases = None
     active_formatters: List[TextFormatter]
     formatter_names: List[str]
     state_callback: Callable[[str, int, int, bool], None] = None
@@ -50,7 +50,6 @@ class InputContextManager:
         self.contexts = []
         self.active_formatters = []
         self.formatter_names = []
-        self.last_insert_phrases = []
         self.switch_context(ui.active_window())
 
     def switch_context(self, window) -> bool:
@@ -208,24 +207,8 @@ class InputContextManager:
         else:
             tokens = text_to_virtual_buffer_tokens(insert, phrase, "|".join(formatters))
  
-        # Clear the last insert phrases if we are doing a regular correction
-        if vbm.last_action_type not in ["first-correction", "correction"]:
-            self.last_insert_phrases = self.input_fixer.determine_phonetic_fixes(vbm, tokens) \
-                if vbm.skip_last_action_insert == False else self.last_insert_phrases
-        else:
-            self.last_insert_phrases = []
-
+        vbm.input_history.add_event(InputEventType.INSERT, [token.text for token in tokens])
         vbm.insert_tokens(tokens)
-
-        # Remember corrections to make sure we can repeat them
-        # If we are cycling through homophones
-        last_action = "phonetic_correction" if len(self.last_insert_phrases) > 0 else "insert"
-
-        # For short characters without a space separator we naively expect it to have been spelled
-        if last_action == "insert" and len(insert) == 1:
-            last_action = "insert_character"
-
-        vbm.set_last_action(last_action, self.last_insert_phrases if last_action != "insert_character" else [insert])
 
         if self.current_context:
             caret_index = vbm.caret_tracker.get_caret_index()

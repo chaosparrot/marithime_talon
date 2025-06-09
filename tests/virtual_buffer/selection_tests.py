@@ -45,6 +45,7 @@ def test_selection(assertion, buffer: str, query: str, result: str = "") -> (boo
         query_tokens.extend(text_to_virtual_buffer_tokens(query_token + (" " if index < len(query_text_tokens) - 1 else "")))
 
     vb.set_tokens(tokens, True)
+    vb.input_history.history = []
     vb.select_phrases([x.phrase for x in query_tokens], SELECTION_THRESHOLD, verbose=buffer.startswith("###"))
 
     if result != "":
@@ -75,6 +76,7 @@ def test_correction(assertion, buffer: str, query: str, result: str = "") -> (bo
         query_tokens.extend(text_to_virtual_buffer_tokens(query_token + (" " if index < len(query_text_tokens) - 1 else "")))
 
     vb.set_tokens(tokens, True)
+    vb.input_history.history = []    
     vb.select_phrases([x.phrase for x in query_tokens], CORRECTION_THRESHOLD, for_correction=True, verbose=buffer.startswith("###"))
 
     if result != "":
@@ -112,6 +114,7 @@ def test_selfrepair(assertion, buffer: str, query: str, result: str = "") -> (bo
             query_tokens[index].phrase = "." + query_tokens[index].phrase
 
     vb.set_tokens(tokens, True)
+    vb.input_history.history = []    
     match = vb.find_self_repair([x.phrase if x.phrase != "" else x.text for x in query_tokens], verbose = buffer.startswith("###"))
     buffer_tokens = [] if match is None else vb.tokens[match.buffer_indices[0][0]:(match.buffer_indices[-1][-1] + 1)]
     if result != "":
@@ -738,3 +741,4 @@ suite = create_test_suite("Selecting whole phrases inside of a selection")
 #suite.add_test(percentage_test_correction)
 #suite.add_test(percentage_test_selfrepair)
 #suite.add_test(percentage_tests)
+#suite.run()

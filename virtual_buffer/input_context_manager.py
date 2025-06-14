@@ -369,7 +369,7 @@ class InputContextManager:
         
         self.index_content(total_value, first_caret, second_caret)
 
-    def zero_width_space_insertion_index(self, starting_text: str = "", intent_insertion: bool = False) -> (int, int):
+    def zero_width_space_insertion_index(self, starting_text: str = "") -> (int, int):
         zwsp = "​"
         actions.insert(zwsp)
         actions.sleep("50ms")
@@ -383,8 +383,9 @@ class InputContextManager:
         new_caret_position = self.indexer.determine_caret_position(zwsp, total_value)
 
         # If we end up with less characters than before, and the caret position is found
-        # We need to heal the previous text first IF we do not intend to make a correction / insertion first
-        if not intent_insertion and len(starting_text) >= len(total_value) and new_caret_position[0] != -1 and new_caret_position[1] != -1:
+        # We need to heal the previous text first
+        # TODO - This does not correctly work if we intend to do insertion since the user expects the text to be removed
+        if len(starting_text) >= len(total_value) and new_caret_position[0] != -1 and new_caret_position[1] != -1:
             mending_text_length = len(starting_text) - len(total_value)
             mending_text_start_index = total_value.index(zwsp)
             mending_text = "" if mending_text_start_index > len(starting_text) else starting_text[mending_text_start_index:mending_text_start_index + mending_text_length + 1]
@@ -428,14 +429,14 @@ class InputContextManager:
         with clip.revert():
             current_clipboard = clip.text()
             actions.sleep("200ms")
-            
+
             with clip.capture() as current_selection:
                 try:
                     actions.edit.copy()
                 except NotImplementedError:
                     pass
             actions.sleep("200ms")
-        
+
             try:
                 selected_text = current_selection.text()
                 is_selected = current_selection.text() == current_clipboard

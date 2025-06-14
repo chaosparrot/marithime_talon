@@ -164,7 +164,6 @@ class WindowsAccessibilityApi(AccessibilityApi):
             end_position = self.indexer.determine_caret_position(range_before_selection_text + selection_range_text, document_range_text, end)
 
             is_reversed = False
-            print("DETERMININIG START AND END POSITION", start_position, end_position )
             if (start_position[0] > -1 and start_position[1] > -1) or (end_position[0] > -1 and end_position[1] > -1):
 
                 # The selection is reversed if the caret is at the start of the selection

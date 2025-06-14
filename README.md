@@ -84,7 +84,7 @@ TODOs:
 X Testcases for simple caret tracking
 X Testcases for all simple merges
 X Testcases for inserting simple middle merges
-- Testcases for deleting middle merges
+X Testcases for deleting middle merges
 - Proper merging of tokens based on formatting logic
 - Complex merging using formatter estimation from previous tokens
 

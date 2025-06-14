@@ -371,6 +371,35 @@ class VirtualBufferIndexer:
                         else:
                             characters_to_remove = 0
                 
+                # Simple middle removal comparing carets, only remove tokens based on all the tokens in the middle
+                elif current_text_caret_index > -1 and previous_text.endswith(current_text[current_text_caret_index:]):
+                    starting_text = current_text[:current_text_caret_index]
+                    token_length_at_end = len(starting_text)
+                    if current_text[:current_text_caret_index].startswith(previous_text[:-characters_to_remove - token_length_at_end]):
+                        total_tokens = previous_tokens
+                        index_to_remove = -1
+                        while token_length_at_end > 0:
+                            if len(total_tokens[-1].text) <= token_length_at_end:
+                                text_to_remove = len(total_tokens[-1].text)
+                                token_length_at_end -= text_to_remove
+                                index_to_remove -= 1
+                            elif len(total_tokens[-1].text) > token_length_at_end:
+                                token_length_at_end = 0
+                                # TODO MERGE TOKENS
+
+                        while characters_to_remove > 0:
+                            if abs(index_to_remove) < len(total_tokens):
+                                if len(total_tokens[index_to_remove].text) <= characters_to_remove:
+                                    text_to_remove = len(total_tokens[index_to_remove].text)
+                                    del total_tokens[index_to_remove]
+                                    characters_to_remove -= text_to_remove
+                                elif len(total_tokens[index_to_remove].text) > characters_to_remove:
+                                    total_tokens[index_to_remove].text = total_tokens[index_to_remove].text[characters_to_remove:]
+                                    total_tokens[index_to_remove].phrase = text_to_phrase(total_tokens[index_to_remove].text)
+                                    characters_to_remove = 0
+                                    # TODO MERGE TOKENS
+                            else:
+                                characters_to_remove = 0
 
         if len(total_tokens) > 0:
             return reindex_tokens(total_tokens)

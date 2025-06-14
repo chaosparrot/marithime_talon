@@ -1,4 +1,5 @@
 from ...virtual_buffer.indexer import VirtualBufferIndexer
+from ...virtual_buffer.caret_tracker import _CARET_MARKER
 from ..test import create_test_suite
 
 def test_exact_same_content(assertion):
@@ -60,9 +61,22 @@ def test_simple_removal_at_start(assertion):
     assertion("    Should not result in a clearing of the format of the starting tokens", tokens[-1].format == "testingformat")
     assertion("    Should not have the text 'This is' in the newly added tokens", "This is" not in "".join([token.text for token in tokens]))
 
+def test_simple_appending_in_the_middle(assertion):
+    input_indexer = VirtualBufferIndexer()
+    starting_tokens = input_indexer.index_text("This is a test.")
+    starting_tokens[0].format = "testingformat"
+    starting_tokens[-1].format = "testingformat"
+    starting_tokens_length = len(starting_tokens)
+    tokens = input_indexer.index_partial_tokens("This is a test.", starting_tokens, "This is a wonderful " + _CARET_MARKER + "test.")
+    assertion("Comparing the sentence 'This is a test.' with 'This is a wonderful test.'")
+    assertion("    Should result in more tokens than those that we started with", len(tokens) > starting_tokens_length)
+    assertion("    Should not result in a clearing of the format of the starting tokens", tokens[0].format == "testingformat" and tokens[-1].format == "testingformat")
+    assertion("    Should have the text 'wonderful' in the newly added tokens", "wonderful " in "".join([token.text for token in tokens]))
+
 suite = create_test_suite("Partial indexation with simple cases of appending, removing and keeping the same")
 suite.add_test(test_exact_same_content)
 suite.add_test(test_simple_appending)
 suite.add_test(test_simple_prepending)
 suite.add_test(test_simple_removal_at_end)
 suite.add_test(test_simple_removal_at_start)
+suite.add_test(test_simple_appending_in_the_middle)

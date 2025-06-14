@@ -83,7 +83,8 @@ Right now, indexing a text field causes it to lose all meaning with regards to f
 TODOs:
 X Testcases for simple caret tracking
 X Testcases for all simple merges
-- Testcases for all simple middle merges
+X Testcases for inserting simple middle merges
+- Testcases for deleting middle merges
 - Proper merging of tokens based on formatting logic
 - Complex merging using formatter estimation from previous tokens
 

@@ -281,6 +281,7 @@ class VirtualBufferIndexer:
 
     def index_partial_tokens(self, previous_text: str, previous_tokens: List[VirtualBufferToken] = None, current_text: str = "") -> List[VirtualBufferToken]:
         previous_text = previous_text.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
+        current_text_caret_index = current_text.index(_CARET_MARKER) if _CARET_MARKER in current_text else -1
         current_text = current_text.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
 
         total_tokens = []
@@ -294,18 +295,43 @@ class VirtualBufferIndexer:
         if len(previous_tokens) > 0:
             if len(current_text) > len(previous_text):
                 # Simple appending, only create new tokens based on all the text after the previous tokens
-                # TODO - MERGING
+                # TODO MERGE TOKENS
                 if current_text.startswith(previous_text):
                     appended_tokens = self.index_text(current_text[len(previous_text):])
                     total_tokens.extend(previous_tokens)
                     total_tokens.extend(appended_tokens)
                 
                 # Simple prepending, only create new tokens based on all the text before the previous tokens
-                # TODO - MERGING
+                # TODO MERGE TOKENS
                 elif current_text.endswith(previous_text):
                     prepended_tokens = self.index_text(current_text[:-len(previous_text) - 1])
                     total_tokens.extend(prepended_tokens)
                     total_tokens.extend(previous_tokens)
+
+                # Simple middle insertion comparing carets, only create new tokens based on all the tokens in the middle
+                elif current_text_caret_index > -1 and previous_text.endswith(current_text[current_text_caret_index:]):
+                    characters_to_remove = len(current_text[current_text_caret_index:])
+                    starting_text = current_text[:current_text_caret_index]
+                    if current_text[:current_text_caret_index].startswith(previous_text[:-characters_to_remove]):
+                        created_text = starting_text[len(previous_text[:-characters_to_remove]):]
+                        inserted_tokens = self.index_text(created_text)
+                        total_tokens.extend(previous_tokens)
+                        
+                        # Find the token index where we should insert
+                        inserted_index = -1
+                        while characters_to_remove > 0:
+                            if len(total_tokens[-1].text) <= characters_to_remove:
+                                text_to_remove = len(total_tokens[-1].text)
+                                characters_to_remove -= text_to_remove
+                                inserted_index -= 1
+                            elif len(total_tokens[-1].text) > characters_to_remove:
+                                total_tokens[-1].text = total_tokens[-1].text[:len(total_tokens[-1].text) - characters_to_remove]
+                                total_tokens[-1].phrase = text_to_phrase(total_tokens[-1].text)
+                                characters_to_remove = 0
+                                # TODO MERGE TOKENS
+                        
+                        total_tokens[inserted_index:inserted_index] = inserted_tokens
+
             
             # If the text has gotten smaller, try to do simple indexations before doing complex ones
             else:
@@ -324,6 +350,7 @@ class VirtualBufferIndexer:
                                 total_tokens[-1].text = total_tokens[-1].text[:len(total_tokens[-1].text) - characters_to_remove]
                                 total_tokens[-1].phrase = text_to_phrase(total_tokens[-1].text)
                                 characters_to_remove = 0
+                                # TODO MERGE TOKENS
                         else:
                             characters_to_remove = 0
 
@@ -340,8 +367,10 @@ class VirtualBufferIndexer:
                                 total_tokens[0].text = total_tokens[0].text[characters_to_remove:]
                                 total_tokens[0].phrase = text_to_phrase(total_tokens[0].text)
                                 characters_to_remove = 0
+                                # TODO MERGE TOKENS
                         else:
                             characters_to_remove = 0
+                
 
         if len(total_tokens) > 0:
             return reindex_tokens(total_tokens)
@@ -349,5 +378,7 @@ class VirtualBufferIndexer:
             return self.index_full_partial_mending(previous_text, previous_tokens, current_text)
 
     def index_full_partial_mending(self, previous_text: str, previous_tokens: List[VirtualBufferToken] = None, current_text: str = ""):
-        # TODO - COMPLEX MENDING WITHIN TEXT 
+
+
+        # TODO - COMPLEX MENDING WITHIN TEXT
         return self.index_text(current_text)

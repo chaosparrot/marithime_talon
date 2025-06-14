@@ -278,3 +278,6 @@ class VirtualBufferIndexer:
             from_end_of_line = -1
 
         return (line_index, from_end_of_line)
+
+    def index_partial_tokens(self, previous_text: str, previous_tokens: List[VirtualBufferToken] = None, current_text: str = "") -> List[VirtualBufferToken]:
+        return self.index_text(current_text)

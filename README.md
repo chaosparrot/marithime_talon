@@ -78,7 +78,7 @@ Right now the word `quill` is used, instead onf the word `over`, to terminate a 
 [ ] - Making automatic fixing work  
 This feature has been implemented but it hasn't been tested very well. There's probably a lot of research left to be done.
 
-[ ] - Incremental text field updates  
+[~] - Incremental text field updates  
 Right now, indexing a text field causes it to lose all meaning with regards to formatters used. This causes problems with trying to re-use a formatter that was used.
 
 [x] - Zero width space indexation selection fix  
@@ -144,7 +144,7 @@ I haven't tested this on usages where you have a virtual machine with a differen
 
 #### Code creation
 
-[ ] - Automatic formatter detection / selection  
+[~] - Automatic formatter detection / selection  
 This feature has been implemented but still has plenty of room for improvement
 
 [ ] - Formatter commands  

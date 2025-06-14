@@ -512,6 +512,7 @@ class InputContextManager:
         context = self.get_current_context()
         caret_confidence = 0
         content_confidence = 2 if total_value != "" else 0
+        current_text_buffer = context.buffer.caret_tracker.text_buffer
 
         # First, determine text buffer
         if first_caret_position[0] >= -1 and first_caret_position[1] >= -1:
@@ -551,9 +552,23 @@ class InputContextManager:
         else:
             context.buffer.caret_tracker.set_buffer(total_value)
 
-        tokens = self.indexer.index_text(context.buffer.caret_tracker.text_buffer)
-        context.buffer.set_tokens(tokens)
+        # If the only thing that has changed is the caret position
+        # We do not need to update the tokens
+        updated_buffer = context.buffer.caret_tracker.text_buffer
+        if current_text_buffer.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '') != updated_buffer.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, ''):
+            
+            # Do a complete replacement of the tokens in case we are starting from scratch
+            if current_text_buffer == None or current_text_buffer == "":
+                tokens = self.indexer.index_text(updated_buffer)
+
+            # Do an incremental update of the tokens instead to keep the formatters
+            else:
+                tokens = self.indexer.index_partial_tokens(current_text_buffer, context.buffer.tokens, updated_buffer)
+
+            context.buffer.set_tokens(tokens)
         self.update_visual_state(caret_confidence=caret_confidence, content_confidence=content_confidence, scanning=False)
+        if self.context_tracking:
+            self.update_context_debug_state()
 
     def update_visual_state(self, level: str = None, caret_confidence: int = -1, content_confidence: int = -1, scanning: bool = None):
         is_updated = False

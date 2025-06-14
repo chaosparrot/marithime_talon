@@ -280,4 +280,74 @@ class VirtualBufferIndexer:
         return (line_index, from_end_of_line)
 
     def index_partial_tokens(self, previous_text: str, previous_tokens: List[VirtualBufferToken] = None, current_text: str = "") -> List[VirtualBufferToken]:
+        previous_text = previous_text.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
+        current_text = current_text.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
+
+        total_tokens = []
+
+        # If the only thing that has changed is the caret position
+        # We do not need to update the tokens
+        if previous_text == current_text:
+            return previous_tokens
+
+        # If the text has gotten bigger, try to do some simple indexations before doing complex ones
+        if len(previous_tokens) > 0:
+            if len(current_text) > len(previous_text):
+                # Simple appending, only create new tokens based on all the text after the previous tokens
+                # TODO - MERGING
+                if current_text.startswith(previous_text):
+                    appended_tokens = self.index_text(current_text[len(previous_text):])
+                    total_tokens.extend(previous_tokens)
+                    total_tokens.extend(appended_tokens)
+                
+                # Simple prepending, only create new tokens based on all the text before the previous tokens
+                # TODO - MERGING
+                elif current_text.endswith(previous_text):
+                    prepended_tokens = self.index_text(current_text[:-len(previous_text) - 1])
+                    total_tokens.extend(prepended_tokens)
+                    total_tokens.extend(previous_tokens)
+            
+            # If the text has gotten smaller, try to do simple indexations before doing complex ones
+            else:
+                # Simple removal at the end, only remove tokens based on the amount of characters removed from the previous text
+                difference = len(previous_text) - len(current_text)
+                characters_to_remove = difference
+                if previous_text.startswith(current_text):
+                    total_tokens = previous_tokens
+                    while characters_to_remove > 0:
+                        if len(total_tokens) > 0:
+                            if len(total_tokens[-1].text) <= characters_to_remove:
+                                text_to_remove = len(total_tokens[-1].text)
+                                del total_tokens[-1]
+                                characters_to_remove -= text_to_remove
+                            elif len(total_tokens[-1].text) > characters_to_remove:
+                                total_tokens[-1].text = total_tokens[-1].text[:len(total_tokens[-1].text) - characters_to_remove]
+                                total_tokens[-1].phrase = text_to_phrase(total_tokens[-1].text)
+                                characters_to_remove = 0
+                        else:
+                            characters_to_remove = 0
+
+                # Simple removal at the start, only remove tokens based on the amount of characters removed from the previous text
+                elif previous_text.endswith(current_text):
+                    total_tokens = previous_tokens
+                    while characters_to_remove > 0:
+                        if len(total_tokens) > 0:
+                            if len(total_tokens[0].text) <= characters_to_remove:
+                                text_to_remove = len(total_tokens[0].text)
+                                del total_tokens[0]
+                                characters_to_remove -= text_to_remove
+                            elif len(total_tokens[0].text) > characters_to_remove:
+                                total_tokens[0].text = total_tokens[0].text[characters_to_remove:]
+                                total_tokens[0].phrase = text_to_phrase(total_tokens[0].text)
+                                characters_to_remove = 0
+                        else:
+                            characters_to_remove = 0
+
+        if len(total_tokens) > 0:
+            return reindex_tokens(total_tokens)
+        else:
+            return self.index_full_partial_mending(previous_text, previous_tokens, current_text)
+
+    def index_full_partial_mending(self, previous_text: str, previous_tokens: List[VirtualBufferToken] = None, current_text: str = ""):
+        # TODO - COMPLEX MENDING WITHIN TEXT 
         return self.index_text(current_text)

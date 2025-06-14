@@ -80,6 +80,12 @@ This feature has been implemented but it hasn't been tested very well. There's p
 
 [~] - Incremental text field updates  
 Right now, indexing a text field causes it to lose all meaning with regards to formatters used. This causes problems with trying to re-use a formatter that was used.
+TODOs:
+X Testcases for simple caret tracking
+X Testcases for all simple merges
+- Testcases for all simple middle merges
+- Proper merging of tokens based on formatting logic
+- Complex merging using formatter estimation from previous tokens
 
 [x] - Zero width space indexation selection fix  
 When a zero width space indexation is used, it is possible that a current selection is removed. We can fix that selection afterwards so we don't have issues where content is removed unnecessarily

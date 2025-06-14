@@ -81,7 +81,7 @@ This feature has been implemented but it hasn't been tested very well. There's p
 [ ] - Incremental text field updates  
 Right now, indexing a text field causes it to lose all meaning with regards to formatters used. This causes problems with trying to re-use a formatter that was used.
 
-[~] - Zero width space indexation selection fix  
+[x] - Zero width space indexation selection fix  
 When a zero width space indexation is used, it is possible that a current selection is removed. We can fix that selection afterwards so we don't have issues where content is removed unnecessarily
 
 [x] - Repeater noises - Looping through selections and corrections  

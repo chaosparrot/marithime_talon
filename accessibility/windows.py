@@ -163,6 +163,7 @@ class WindowsAccessibilityApi(AccessibilityApi):
             end = len(range_before_selection_text + selection_range_text)
             end_position = self.indexer.determine_caret_position(range_before_selection_text + selection_range_text, document_range_text, end)
 
+            is_reversed = False
             if (start_position[0] > -1 and start_position[1] > -1) or (end_position[0] > -1 and end_position[1] > -1):
 
                 # The selection is reversed if the caret is at the start of the selection
@@ -172,13 +173,13 @@ class WindowsAccessibilityApi(AccessibilityApi):
                 except OSError as e:
                     # NotImplemented error
                     if str(e) == "0x80004001":
-                        return []                    
+                        return []
                     pass
 
                 start_caret = AccessibilityCaret(start, start_position[0], start_position[1])
                 end_caret = AccessibilityCaret(end, end_position[0], end_position[1])
 
-                return [end_caret, start_caret] if is_reversed else [start_caret, end_caret]
+                return [end_caret, start_caret] if not is_reversed else [start_caret, end_caret]
             else:
                 return []
         # IAccessible proves to be harder to implement

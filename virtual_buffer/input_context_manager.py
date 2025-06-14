@@ -384,21 +384,21 @@ class InputContextManager:
 
         # If we end up with less characters than before, and the caret position is found
         # We need to heal the previous text first IF we do not intend to make a correction / insertion first
-        if not intent_insertion and len(starting_text) >= total_value and new_caret_position[0] != -1 and new_caret_position[1] != -1:
-            mending_text_length = len(starting_text) - len(total_value) - 1
+        if not intent_insertion and len(starting_text) >= len(total_value) and new_caret_position[0] != -1 and new_caret_position[1] != -1:
+            mending_text_length = len(starting_text) - len(total_value)
             mending_text_start_index = total_value.index(zwsp)
-            mending_text = "" if mending_text_start_index > len(starting_text) else starting_text[mending_text_start_index:mending_text_start_index + mending_text_length]
+            mending_text = "" if mending_text_start_index > len(starting_text) else starting_text[mending_text_start_index:mending_text_start_index + mending_text_length + 1]
 
             # Mending the text that was removed through the selection
             actions.insert(mending_text)
 
             # Search for new index using the mended text if we have removed a line end
             # Otherwise the line and character index remain the same
-            if len(mending_text.splitlines()) - 1 > 1:
-                new_caret_position[0] += len(mending_text.splitlines()) - 1
+            if (len(mending_text.splitlines())) > 1:
+                new_caret_position = (new_caret_position[0] + len(mending_text.splitlines()) - 1, new_caret_position[1])
 
         return new_caret_position
-    
+
     def find_caret_position(self, total_value: str, visibility_level = 0, accessible_text = None) -> (str, (int, int), (int, int)):
         if settings.get("user.marithime_indexing_strategy") == "disabled":
             return ("", (-1, -1), (-1, -1))
@@ -435,7 +435,7 @@ class InputContextManager:
                 except NotImplementedError:
                     pass
             actions.sleep("200ms")
-
+        
             try:
                 selected_text = current_selection.text()
                 is_selected = current_selection.text() == current_clipboard

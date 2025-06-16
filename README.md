@@ -85,8 +85,8 @@ X Testcases for simple caret tracking
 X Testcases for all simple merges
 X Testcases for inserting simple middle merges
 X Testcases for deleting middle merges
-- Proper merging of tokens based on formatting logic
-- Complex merging using formatter estimation from previous tokens
+X Proper merging of tokens based on formatting logic for inserting
+~ Proper merging of tokens based on formatting logic for removing
 
 [x] - Zero width space indexation selection fix  
 When a zero width space indexation is used, it is possible that a current selection is removed. We can fix that selection afterwards so we don't have issues where content is removed unnecessarily
@@ -151,7 +151,7 @@ I haven't tested this on usages where you have a virtual machine with a differen
 
 #### Code creation
 
-[~] - Automatic formatter detection / selection  
+[ ] - Automatic formatter detection / selection  
 This feature has been implemented but still has plenty of room for improvement
 
 [ ] - Formatter commands  

@@ -59,6 +59,47 @@ class VirtualBuffer:
             self.caret_tracker.clear()
             self.caret_tracker.append_before_caret("".join([token.text for token in self.tokens]))
 
+    def set_and_merge_tokens(self, tokens: List[VirtualBufferToken] = None, indices_to_insert: List[int] = None):
+        if indices_to_insert is None or len(indices_to_insert) == 0:
+            self.set_tokens(tokens)
+        else:
+            self.tokens = []
+
+            # Reset the caret tracker - it should be repaired afterwards if the value is exactly the same
+            previous_caret_tracker_value = self.caret_tracker.text_buffer
+            previous_caret_tracker_value_without_markers = self.caret_tracker.get_markerless_textbuffer()
+            reset_to_previous_caret_tracker_buffer = "".join([token.text for token in tokens]) == previous_caret_tracker_value_without_markers
+            self.caret_tracker.clear()
+
+            # Set the starting tokens
+            if indices_to_insert[0] > 0:
+                self.tokens = tokens[0:indices_to_insert[0]]
+                self.caret_tracker.set_buffer("".join([token.text for token in self.tokens]))
+                self.reformat_tokens()
+
+            for index_of_index, index_to_insert in enumerate(indices_to_insert):
+                self.insert_token(tokens[index_to_insert])
+                self.reformat_tokens()
+
+                # Insert the remaining tokens
+                if index_of_index + 1 >= len(indices_to_insert) and index_to_insert < len(tokens) - 1:
+                    self.tokens.extend(tokens[index_to_insert + 1:])
+                    self.caret_tracker.set_buffer("".join([token.text for token in self.tokens]))
+
+                # Insert the tokens in between the current and next token
+                elif index_of_index + 1 < len(indices_to_insert) - 1:
+                    next_index_to_insert = indices_to_insert[index_of_index + 1]
+                    if next_index_to_insert - 1 > index_to_insert:
+                        self.tokens.extend(tokens[index_to_insert + 1:next_index_to_insert])
+                        self.caret_tracker.set_buffer("".join([token.text for token in self.tokens]))
+                        self.reformat_tokens()                        
+
+            self.reformat_tokens()
+
+            if reset_to_previous_caret_tracker_buffer:
+                self.caret_tracker.set_buffer(previous_caret_tracker_value)
+
+
     def determine_leftmost_token_index(self):
         return self.determine_token_index(self.caret_tracker.get_leftmost_caret_index())
     

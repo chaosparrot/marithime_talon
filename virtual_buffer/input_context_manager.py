@@ -554,15 +554,21 @@ class InputContextManager:
 
         updated_buffer = context.buffer.caret_tracker.text_buffer
 
+        tokens_to_insert = []
+
         # Do a complete replacement of the tokens in case we are starting from scratch
         if current_text_buffer == None or current_text_buffer == "":
             tokens = self.indexer.index_text(updated_buffer)
 
         # Do an incremental update of the tokens instead to keep the formatters
         else:
-            tokens = self.indexer.index_partial_tokens(current_text_buffer, context.buffer.tokens, updated_buffer)
+            tokens, tokens_to_insert = self.indexer.index_partial_tokens(current_text_buffer, context.buffer.tokens, updated_buffer)
 
-        context.buffer.set_tokens(tokens)
+        # Set the tokens and insert the tokens that potentially cause a merge
+        # So that we don't need to deal with refactoring the finicky merge code
+        context.buffer.set_and_merge_tokens(tokens, tokens_to_insert)
+        context.buffer.caret_tracker.set_buffer(total_value)
+
         self.update_visual_state(caret_confidence=caret_confidence, content_confidence=content_confidence, scanning=False)
         if self.context_tracking:
             self.update_context_debug_state()

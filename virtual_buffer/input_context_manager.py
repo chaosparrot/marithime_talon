@@ -115,7 +115,7 @@ class InputContextManager:
             return
         
         update_caret = self.visual_state['caret_confidence'] != 2
-        update_content = self.visual_state['caret_confidence'] == 1 and self.visual_state['content_confidence'] < 1
+        update_content = self.visual_state['caret_confidence'] <= 1 and self.visual_state['content_confidence'] != 1
 
         self.poll_accessible_changes(update_caret=update_caret, update_content=update_content)
 

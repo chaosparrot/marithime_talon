@@ -78,16 +78,8 @@ Right now the word `quill` is used, instead onf the word `over`, to terminate a 
 [ ] - Making automatic fixing work  
 This feature has been implemented but it hasn't been tested very well. There's probably a lot of research left to be done.
 
-[~] - Incremental text field updates  
+[x] - Incremental text field updates  
 Right now, indexing a text field causes it to lose all meaning with regards to formatters used. This causes problems with trying to re-use a formatter that was used.
-TODOs:
-X Testcases for simple caret tracking
-X Testcases for all simple merges
-X Testcases for inserting simple middle merges
-X Testcases for deleting middle merges
-X Proper merging of tokens based on formatting logic for inserting
-X Proper merging of tokens based on formatting logic for removing
-- Turning indexing back on when no context is available
 
 [x] - Zero width space indexation selection fix  
 When a zero width space indexation is used, it is possible that a current selection is removed. We can fix that selection afterwards so we don't have issues where content is removed unnecessarily
@@ -130,6 +122,9 @@ Technically the repetition flow is an implicit state machine that doesn't quite 
 [ ] - Improve outside events and extend events with selection  
 While making the state machine, I found out that while a lot of fix events ARE covered by the flows, doing manual selections with 'press shift left ten times' is not, neither is extending the select, because it doesn't follow the select flow. While I think this workflow won't be done often, for completeness sake it should be added to ensure the InputFixer can properly track what changes were made for automatic fixes later.
 
+[ ] - Improve outside confidence checking when a user is moving the caret or the keyboard themselves somehow.  
+I am unsure if this is even possible without outside packages, since the mouse cursor is moved through clicks outside of talon, and the same goes for the keyboard. Mixed flow dictation would be kind of difficult since we do not want to poll too much, and we don't want to clear the confidence too quickly either.
+
 #### Programs
 
 [ ] - Improved MacOS support  
@@ -160,6 +155,8 @@ Because the formatters haven't been implemented as well, the commands to select 
 
 [ ] - Formatter prediction  
 Essentially, allowing a specific formatter to be used if it detects that we are about to create a variable, parameter or function name. Every language has their own rules about snake case, camel case and pascal case that we could automatically use.
+
+[ ] - Edge case for indexing - If tokens were appended at the start, the merged token with text at the start does not get the correct formatting
 
 [ ] - Operator formatter  
 There are a lot of things we can do to make creating operators simpler. For example, if we say `plus` we most likely want ` + ` to appear, but if we follow it up with `equals`, we want it to change to ` += ` instead.

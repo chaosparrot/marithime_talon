@@ -77,6 +77,9 @@ class CaretTracker:
     def clear(self):
         self.set_buffer("")
 
+    def get_markerless_textbuffer(self):
+        return self.text_buffer.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
+
     def disable_caret_tracking(self):
         self.caret_tracking_enabled = False
 

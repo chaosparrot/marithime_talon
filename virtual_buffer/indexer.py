@@ -1,7 +1,7 @@
 from .typing import VirtualBufferToken
 from ..formatters.text_formatter import TextFormatter
 import re
-from typing import List
+from typing import List, Tuple
 from ..formatters.formatters import DICTATION_FORMATTERS
 from .caret_tracker import _CARET_MARKER, _COARSE_MARKER
 
@@ -278,3 +278,201 @@ class VirtualBufferIndexer:
             from_end_of_line = -1
 
         return (line_index, from_end_of_line)
+
+    def index_partial_tokens(self, previous_text: str, previous_tokens: List[VirtualBufferToken] = None, current_text: str = "") -> (List[VirtualBufferToken], List[int]):
+        previous_text = previous_text.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
+        current_text_caret_index = current_text.index(_CARET_MARKER) if _CARET_MARKER in current_text else -1
+        current_text = current_text.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
+
+        total_tokens = []
+        merge_token_pairs = []
+
+        # If the only thing that has changed is the caret position
+        # We do not need to update the tokens
+        if previous_text == current_text:
+            return (previous_tokens, [])
+
+        # If the text has gotten bigger, try to do some simple indexations before doing complex ones
+        if len(previous_tokens) > 0:
+            if len(current_text) > len(previous_text):
+                # Simple appending, only create new tokens based on all the text after the previous tokens
+                if current_text.startswith(previous_text):
+                    appended_tokens = self.index_text(current_text[len(previous_text):])
+                    total_tokens.extend(previous_tokens)
+                    merge_token_pairs.append([len(previous_tokens) - 1, len(previous_tokens)])
+                    total_tokens.extend(appended_tokens)
+                
+                # Simple prepending, only create new tokens based on all the text before the previous tokens
+                elif current_text.endswith(previous_text):
+                    prepended_tokens = self.index_text(current_text[:-len(previous_text)])
+                    total_tokens.extend(prepended_tokens)
+                    merge_token_pairs.append([len(prepended_tokens) - 1, len(prepended_tokens)])
+                    total_tokens.extend(previous_tokens)
+
+                # Simple middle insertion comparing carets, only create new tokens based on all the tokens in the middle
+                elif current_text_caret_index > -1 and previous_text.endswith(current_text[current_text_caret_index:]):
+                    characters_to_remove = len(current_text[current_text_caret_index:])
+                    starting_text = current_text[:current_text_caret_index]
+
+                    if current_text[:current_text_caret_index].startswith(previous_text[:-characters_to_remove]):
+                        created_text = starting_text[len(previous_text[:-characters_to_remove]):]
+                        inserted_tokens = self.index_text(created_text)
+                        total_tokens.extend(previous_tokens)
+                        
+                        # Find the token index where we should insert
+                        has_token_split = False
+                        inserted_index = -1
+                        starting_index = inserted_index
+                        while characters_to_remove > 0:
+                            if len(total_tokens[inserted_index].text) <= characters_to_remove:
+                                text_to_remove = len(total_tokens[inserted_index].text)
+                                characters_to_remove -= text_to_remove
+
+                                # We only want to move the index back if
+                                # 1. We still have characters to remove and we need to insert in the middle or the start of a previous token
+                                # 2. If we only inserted one token in the middle
+                                if characters_to_remove > 0 or starting_index == inserted_index:
+                                    inserted_index -= 1
+                            else:
+
+                                # Split token so that it can be merged later
+                                next_token_text = total_tokens[inserted_index].text[len(total_tokens[inserted_index].text) - characters_to_remove:]
+
+                                total_tokens[inserted_index].text = total_tokens[inserted_index].text[:len(total_tokens[inserted_index].text) - characters_to_remove]
+                                total_tokens[inserted_index].phrase = text_to_phrase(total_tokens[inserted_index].text)
+
+                                # Append new split tokens
+                                if len(next_token_text) > 0:
+                                    new_tokens = text_to_virtual_buffer_tokens(next_token_text)
+                                    for token_index, new_token in enumerate(new_tokens):
+                                        new_tokens[token_index].format = total_tokens[-1].format
+                                    inserted_tokens.extend(new_tokens)
+                                    has_token_split = True
+
+                                characters_to_remove = 0
+
+                        index_in_total_tokens = len(total_tokens) + inserted_index + 1
+                        merge_token_pairs.append([index_in_total_tokens - 1, index_in_total_tokens])
+                        if has_token_split:
+                            merge_token_pairs.append([index_in_total_tokens + len(inserted_tokens) - 2, index_in_total_tokens + len(inserted_tokens) - 1])
+                        if inserted_index == -1:
+                            total_tokens.extend(inserted_tokens)
+                        else:
+                            if has_token_split:
+                                inserted_index += 1
+                            total_tokens[inserted_index:inserted_index] = inserted_tokens
+            
+            # If the text has gotten smaller, try to do simple indexations before doing complex ones
+            else:
+                # Simple removal at the end, only remove tokens based on the amount of characters removed from the previous text
+                difference = len(previous_text) - len(current_text)
+                characters_to_remove = difference
+                if previous_text.startswith(current_text):
+                    total_tokens = previous_tokens
+                    while characters_to_remove > 0:
+                        if len(total_tokens) > 0:
+                            if len(total_tokens[-1].text) <= characters_to_remove:
+                                text_to_remove = len(total_tokens[-1].text)
+                                del total_tokens[-1]
+                                characters_to_remove -= text_to_remove
+                            elif len(total_tokens[-1].text) > characters_to_remove:
+                                total_tokens[-1].text = total_tokens[-1].text[:len(total_tokens[-1].text) - characters_to_remove]
+                                total_tokens[-1].phrase = text_to_phrase(total_tokens[-1].text)
+                                characters_to_remove = 0
+                        else:
+                            characters_to_remove = 0
+                    merge_token_pairs.append([len(total_tokens) - 2, len(total_tokens) - 1])
+
+                # Simple removal at the start, only remove tokens based on the amount of characters removed from the previous text
+                elif previous_text.endswith(current_text):
+                    total_tokens = previous_tokens
+                    while characters_to_remove > 0:
+                        if len(total_tokens) > 0:
+                            if len(total_tokens[0].text) <= characters_to_remove:
+                                text_to_remove = len(total_tokens[0].text)
+                                del total_tokens[0]
+                                characters_to_remove -= text_to_remove
+                            elif len(total_tokens[0].text) > characters_to_remove:
+                                total_tokens[0].text = total_tokens[0].text[characters_to_remove:]
+                                total_tokens[0].phrase = text_to_phrase(total_tokens[0].text)
+                                characters_to_remove = 0
+                        else:
+                            characters_to_remove = 0
+                    merge_token_pairs.append([0, 1])
+                
+                # Simple middle removal comparing carets, only remove tokens based on all the tokens in the middle
+                elif current_text_caret_index > -1 and previous_text.endswith(current_text[current_text_caret_index:]):
+                    total_tokens = previous_tokens
+
+                    starting_text = current_text[:current_text_caret_index]
+                    token_length_at_end = len(current_text) - len(starting_text)
+                    if current_text[:current_text_caret_index].startswith(previous_text[:-(characters_to_remove + token_length_at_end)]):
+                        total_tokens = previous_tokens
+                        index_to_remove = -1
+                        while token_length_at_end > 0:
+                            if len(total_tokens[-1].text) <= token_length_at_end:
+                                text_to_remove = len(total_tokens[-1].text)
+                                token_length_at_end -= text_to_remove
+                                index_to_remove -= 1
+                            elif len(total_tokens[-1].text) > token_length_at_end:
+                                break
+
+                        merge_token_pairs.append([len(total_tokens) + index_to_remove, len(total_tokens) + index_to_remove - 1])
+
+                        while characters_to_remove > 0:
+                            if abs(index_to_remove) < len(total_tokens):
+
+                                # When still in the middle of a token
+                                if token_length_at_end > 0:
+                                    # Remove the entire start from the token length at the end
+                                    if len(total_tokens[index_to_remove].text) <= characters_to_remove + token_length_at_end:
+                                        # Remove all the characters from cursor point
+                                        current_token_length = len(total_tokens[index_to_remove].text)
+                                        total_tokens[index_to_remove].text = total_tokens[index_to_remove].text[-token_length_at_end:]
+                                        total_tokens[index_to_remove].phrase = text_to_phrase(total_tokens[index_to_remove].text)
+                                        updated_token_length = len(total_tokens[index_to_remove].text)
+                                        characters_to_remove -= current_token_length - updated_token_length
+
+                                        # Make sure the next cycle does not start from the middle of a token again
+                                        token_length_at_end = 0
+                                        index_to_remove -= 1
+
+                                    # Remove only a few characters in the same token
+                                    else:
+                                        token_to_change = total_tokens[index_to_remove]
+                                        total_tokens[index_to_remove].text = token_to_change.text[:-(token_length_at_end + characters_to_remove)] + token_to_change.text[-token_length_at_end:]
+                                        total_tokens[index_to_remove].phrase = text_to_phrase(total_tokens[index_to_remove].text)
+                                        characters_to_remove = 0
+                                else:
+                                    if len(total_tokens[index_to_remove].text) <= characters_to_remove:
+                                        text_to_remove = len(total_tokens[index_to_remove].text)
+                                        del total_tokens[index_to_remove]
+                                        characters_to_remove -= text_to_remove
+                                    else:
+                                        total_tokens[index_to_remove].text = total_tokens[index_to_remove].text[:-characters_to_remove]
+                                        total_tokens[index_to_remove].phrase = text_to_phrase(total_tokens[index_to_remove].text)
+                                        characters_to_remove = 0
+                            else:
+                                characters_to_remove = 0
+
+                        merge_token_pairs.append([len(total_tokens) + index_to_remove, len(total_tokens) + index_to_remove + 1])
+
+        if len(total_tokens) > 0:
+
+            # Sort merged token pairs by highest index first
+            # So we don't have to deal with shifting indices later
+            indices_to_insert = []
+            for pair in merge_token_pairs:
+                if pair[0] <= len(total_tokens) - 1:
+                    indices_to_insert.append(pair[0])
+                if pair[-1] <= len(total_tokens) - 1:
+                    indices_to_insert.append(pair[-1])
+
+            indices_to_insert = list(set(sorted(indices_to_insert)))
+            return (reindex_tokens(total_tokens), indices_to_insert)
+        else:
+            return (self.index_full_partial_mending(previous_text, previous_tokens, current_text), [])
+
+    def index_full_partial_mending(self, previous_text: str, previous_tokens: List[VirtualBufferToken] = None, current_text: str = ""):
+        # TODO - COMPLEX MENDING WITHIN TEXT OR JUST AUTOMATIC FORMATTER DETECTION?
+        return self.index_text(current_text)

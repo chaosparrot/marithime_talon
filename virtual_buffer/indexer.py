@@ -304,7 +304,7 @@ class VirtualBufferIndexer:
                 
                 # Simple prepending, only create new tokens based on all the text before the previous tokens
                 elif current_text.endswith(previous_text):
-                    prepended_tokens = self.index_text(current_text[:-len(previous_text) - 1])
+                    prepended_tokens = self.index_text(current_text[:-len(previous_text)])
                     total_tokens.extend(prepended_tokens)
                     merge_token_pairs.append([len(prepended_tokens) - 1, len(prepended_tokens)])
                     total_tokens.extend(previous_tokens)
@@ -322,12 +322,18 @@ class VirtualBufferIndexer:
                         # Find the token index where we should insert
                         has_token_split = False
                         inserted_index = -1
+                        starting_index = inserted_index
                         while characters_to_remove > 0:
                             if len(total_tokens[inserted_index].text) <= characters_to_remove:
                                 text_to_remove = len(total_tokens[inserted_index].text)
                                 characters_to_remove -= text_to_remove
-                                inserted_index -= 1
-                            elif len(total_tokens[inserted_index].text) > characters_to_remove:
+
+                                # We only want to move the index back if
+                                # 1. We still have characters to remove and we need to insert in the middle or the start of a previous token
+                                # 2. If we only inserted one token in the middle
+                                if characters_to_remove > 0 or starting_index == inserted_index:
+                                    inserted_index -= 1
+                            else:
 
                                 # Split token so that it can be merged later
                                 next_token_text = total_tokens[inserted_index].text[len(total_tokens[inserted_index].text) - characters_to_remove:]

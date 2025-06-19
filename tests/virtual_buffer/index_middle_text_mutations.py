@@ -85,7 +85,6 @@ def test_inserting_single_start_of_token(assertion):
     assertion("    Should result in the same amount of tokens than those that we started with", len(tokens) == len(starting_tokens))
     assertion("    Should not result in a clearing of the format of the starting tokens", tokens[0].format == "testingformat")
     assertion("    Should have the text 'This wis' at the start of the newly added tokens", "".join([token.text for token in tokens]).startswith("This wis"))
-    print(  "".join([token.text for token in tokens]) )
 
 def test_inserting_multiple_start_of_token(assertion):
     input_indexer = VirtualBufferIndexer()
@@ -101,7 +100,6 @@ def test_inserting_multiple_start_of_token(assertion):
     assertion("    Should result in more tokens than those that we started with", len(tokens) > len(starting_tokens))
     assertion("    Should not result in a clearing of the format of the ending tokens", tokens[-1].format == "testingformat")
     assertion("    Should have the text 'This was genis' at the start of the newly added tokens", "".join([token.text for token in tokens]).startswith("This was genis"))
-    print(  "".join([token.text for token in tokens]) )
 
 def test_prepending_single_start_of_token(assertion):
     input_indexer = VirtualBufferIndexer()
@@ -115,9 +113,8 @@ def test_prepending_single_start_of_token(assertion):
 
     assertion("Comparing the sentence 'This is a test.' with 'TThis is a test.'")
     assertion("    Should result in the same amount of tokens than those that we started with", len(tokens) == len(starting_tokens))
-    assertion("    Should not result in a clearing of the format of the starting tokens", tokens[0].format == "testingformat")
+    assertion("    Should not result in a clearing of the format of the ending tokens", tokens[-1].format == "testingformat")
     assertion("    Should have the text 'TThis' at the start of the newly added tokens", "".join([token.text for token in tokens]).startswith("TThis"))
-    print(  "".join([token.text for token in tokens]) )
 
 def test_prepending_multiple_start_of_token(assertion):
     input_indexer = VirtualBufferIndexer()
@@ -133,7 +130,6 @@ def test_prepending_multiple_start_of_token(assertion):
     assertion("    Should result in more tokens than those that we started with", len(tokens) > len(starting_tokens))
     assertion("    Should not result in a clearing of the format of the ending tokens", tokens[-1].format == "testingformat")
     assertion("    Should have the text 'There was a time whereThis' at the start of the newly added tokens", "".join([token.text for token in tokens]).startswith("There was a time whereThis"))
-    print(  "".join([token.text for token in tokens]) )
 
 def test_inserting_single_middle_of_token(assertion):
     input_indexer = VirtualBufferIndexer()
@@ -272,16 +268,15 @@ def test_removing_multiple_end_of_token(assertion):
     assertion("    Should have the text 'This' at the start of the newly added tokens", "".join([token.text for token in tokens]).startswith("This "))
     assertion("    Should have the text 'a tes' at the end of the newly added tokens", "".join([token.text for token in tokens]).endswith("i"))
 
-
 suite = create_test_suite("Partial indexation with cases of appending and removing in the middle of tokens")
 suite.add_test(test_appending_single_middle_of_token)
 suite.add_test(test_appending_multiple_middle_of_token)
 suite.add_test(test_prepending_single_middle_of_token)
 suite.add_test(test_prepending_multiple_middle_of_token)
-#suite.add_test(test_prepending_single_start_of_token)
-#suite.add_test(test_prepending_multiple_start_of_token)
-#suite.add_test(test_inserting_single_start_of_token)
-#suite.add_test(test_inserting_multiple_start_of_token)
+suite.add_test(test_prepending_single_start_of_token)
+suite.add_test(test_prepending_multiple_start_of_token)
+suite.add_test(test_inserting_single_start_of_token)
+suite.add_test(test_inserting_multiple_start_of_token)
 suite.add_test(test_inserting_single_middle_of_token)
 suite.add_test(test_inserting_multiple_middle_of_token)
 suite.add_test(test_removing_single_middle_of_token)
@@ -290,4 +285,3 @@ suite.add_test(test_removing_single_start_of_token)
 suite.add_test(test_removing_multiple_start_of_token)
 suite.add_test(test_removing_single_end_of_token)
 suite.add_test(test_removing_multiple_end_of_token)
-suite.run() 

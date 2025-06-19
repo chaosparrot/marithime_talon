@@ -86,7 +86,7 @@ X Testcases for all simple merges
 X Testcases for inserting simple middle merges
 X Testcases for deleting middle merges
 X Proper merging of tokens based on formatting logic for inserting
-~ Proper merging of tokens based on formatting logic for removing
+X Proper merging of tokens based on formatting logic for removing
 - Turning indexing back on when no context is available
 
 [x] - Zero width space indexation selection fix  

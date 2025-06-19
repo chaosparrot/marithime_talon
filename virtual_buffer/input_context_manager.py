@@ -567,7 +567,6 @@ class InputContextManager:
         # Set the tokens and insert the tokens that potentially cause a merge
         # So that we don't need to deal with refactoring the finicky merge code
         context.buffer.set_and_merge_tokens(tokens, tokens_to_insert)
-        context.buffer.caret_tracker.set_buffer(total_value)
 
         self.update_visual_state(caret_confidence=caret_confidence, content_confidence=content_confidence, scanning=False)
         if self.context_tracking:

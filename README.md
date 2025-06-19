@@ -87,6 +87,7 @@ X Testcases for inserting simple middle merges
 X Testcases for deleting middle merges
 X Proper merging of tokens based on formatting logic for inserting
 ~ Proper merging of tokens based on formatting logic for removing
+- Turning indexing back on when no context is available
 
 [x] - Zero width space indexation selection fix  
 When a zero width space indexation is used, it is possible that a current selection is removed. We can fix that selection afterwards so we don't have issues where content is removed unnecessarily

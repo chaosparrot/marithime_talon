@@ -396,9 +396,11 @@ class VirtualBufferIndexer:
                 
                 # Simple middle removal comparing carets, only remove tokens based on all the tokens in the middle
                 elif current_text_caret_index > -1 and previous_text.endswith(current_text[current_text_caret_index:]):
+                    total_tokens = previous_tokens
+
                     starting_text = current_text[:current_text_caret_index]
-                    token_length_at_end = len(starting_text)
-                    if current_text[:current_text_caret_index].startswith(previous_text[:-characters_to_remove - token_length_at_end]):
+                    token_length_at_end = len(current_text) - len(starting_text)
+                    if current_text[:current_text_caret_index].startswith(previous_text[:-(characters_to_remove + token_length_at_end)]):
                         total_tokens = previous_tokens
                         index_to_remove = -1
                         while token_length_at_end > 0:
@@ -407,21 +409,46 @@ class VirtualBufferIndexer:
                                 token_length_at_end -= text_to_remove
                                 index_to_remove -= 1
                             elif len(total_tokens[-1].text) > token_length_at_end:
-                                token_length_at_end = 0
+                                break
 
                         merge_token_pairs.append([len(total_tokens) + index_to_remove, len(total_tokens) + index_to_remove - 1])
+
                         while characters_to_remove > 0:
                             if abs(index_to_remove) < len(total_tokens):
-                                if len(total_tokens[index_to_remove].text) <= characters_to_remove:
-                                    text_to_remove = len(total_tokens[index_to_remove].text)
-                                    del total_tokens[index_to_remove]
-                                    characters_to_remove -= text_to_remove
-                                elif len(total_tokens[index_to_remove].text) > characters_to_remove:
-                                    total_tokens[index_to_remove].text = total_tokens[index_to_remove].text[characters_to_remove:]
-                                    total_tokens[index_to_remove].phrase = text_to_phrase(total_tokens[index_to_remove].text)
-                                    characters_to_remove = 0
+
+                                # When still in the middle of a token
+                                if token_length_at_end > 0:
+                                    # Remove the entire start from the token length at the end
+                                    if len(total_tokens[index_to_remove].text) <= characters_to_remove + token_length_at_end:
+                                        # Remove all the characters from cursor point
+                                        current_token_length = len(total_tokens[index_to_remove].text)
+                                        total_tokens[index_to_remove].text = total_tokens[index_to_remove].text[-token_length_at_end:]
+                                        total_tokens[index_to_remove].phrase = text_to_phrase(total_tokens[index_to_remove].text)
+                                        updated_token_length = len(total_tokens[index_to_remove].text)
+                                        characters_to_remove -= current_token_length - updated_token_length
+
+                                        # Make sure the next cycle does not start from the middle of a token again
+                                        token_length_at_end = 0
+                                        index_to_remove -= 1
+
+                                    # Remove only a few characters in the same token
+                                    else:
+                                        token_to_change = total_tokens[index_to_remove]
+                                        total_tokens[index_to_remove].text = token_to_change.text[:-(token_length_at_end + characters_to_remove)] + token_to_change.text[-token_length_at_end:]
+                                        total_tokens[index_to_remove].phrase = text_to_phrase(total_tokens[index_to_remove].text)
+                                        characters_to_remove = 0
+                                else:
+                                    if len(total_tokens[index_to_remove].text) <= characters_to_remove:
+                                        text_to_remove = len(total_tokens[index_to_remove].text)
+                                        del total_tokens[index_to_remove]
+                                        characters_to_remove -= text_to_remove
+                                    else:
+                                        total_tokens[index_to_remove].text = total_tokens[index_to_remove].text[:-characters_to_remove]
+                                        total_tokens[index_to_remove].phrase = text_to_phrase(total_tokens[index_to_remove].text)
+                                        characters_to_remove = 0
                             else:
                                 characters_to_remove = 0
+
                         merge_token_pairs.append([len(total_tokens) + index_to_remove, len(total_tokens) + index_to_remove + 1])
 
         if len(total_tokens) > 0:
@@ -430,8 +457,10 @@ class VirtualBufferIndexer:
             # So we don't have to deal with shifting indices later
             indices_to_insert = []
             for pair in merge_token_pairs:
-                indices_to_insert.append(pair[0])
-                indices_to_insert.append(pair[-1])
+                if pair[0] <= len(total_tokens) - 1:
+                    indices_to_insert.append(pair[0])
+                if pair[-1] <= len(total_tokens) - 1:
+                    indices_to_insert.append(pair[-1])
 
             indices_to_insert = list(set(sorted(indices_to_insert)))
             return (reindex_tokens(total_tokens), indices_to_insert)
@@ -440,5 +469,4 @@ class VirtualBufferIndexer:
 
     def index_full_partial_mending(self, previous_text: str, previous_tokens: List[VirtualBufferToken] = None, current_text: str = ""):
         # TODO - COMPLEX MENDING WITHIN TEXT OR JUST AUTOMATIC FORMATTER DETECTION?
-        print("WEEEE :(")
         return self.index_text(current_text)

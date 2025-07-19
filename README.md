@@ -67,13 +67,15 @@ If you want to highlight a specific set of tests, go inside of the specific test
 [] - Create a usage and installation video  
 Videos seem to speak to people more than written text does, so accompany this with a video as well
 
-[] - Extension possibilities for other packages  
+[~] - Extension possibilities for other packages  
 There's a ton of ways other packages can make use of our captures, settings and detections, but we will need to document them so they are easier to reuse as well.
 
 #### Dictation
 
 [~] - Terminator words  
 Right now the word `quill` is used, instead onf the word `over`, to terminate a command. We probably want to extend this a bit, though we need to take into account that they need to not only be used in commands, but filtered out in other ways.
+
+( `user.phrase_ender` from community )
 
 [ ] - Making automatic fixing work  
 This feature has been implemented but it hasn't been tested very well. There's probably a lot of research left to be done.
@@ -150,10 +152,10 @@ I haven't tested this on usages where you have a virtual machine with a differen
 [ ] - Automatic formatter detection / selection  
 This feature has been implemented but still has plenty of room for improvement
 
-[ ] - Formatter commands  
+[~] - Formatter commands  
 Because the formatters haven't been implemented as well, the commands to select them haven't been created.
 
-[ ] - Formatter prediction  
+[~] - Formatter prediction  
 Essentially, allowing a specific formatter to be used if it detects that we are about to create a variable, parameter or function name. Every language has their own rules about snake case, camel case and pascal case that we could automatically use.
 
 [ ] - Edge case for indexing - If tokens were appended at the start, the merged token with text at the start does not get the correct formatting

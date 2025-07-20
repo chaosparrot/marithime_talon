@@ -72,10 +72,8 @@ There's a ton of ways other packages can make use of our captures, settings and 
 
 #### Dictation
 
-[~] - Terminator words  
+[x] - Terminator words  
 Right now the word `quill` is used, instead onf the word `over`, to terminate a command. We probably want to extend this a bit, though we need to take into account that they need to not only be used in commands, but filtered out in other ways.
-
-( `user.phrase_ender` from community )
 
 [ ] - Making automatic fixing work  
 This feature has been implemented but it hasn't been tested very well. There's probably a lot of research left to be done.
@@ -138,6 +136,9 @@ This means we should be able to support vim, nano and other keybindings. This ru
 [x] - Single line detection  
 Some fields, like name fields, do not have the possibility to add multiple lines. In that case, we probably want to either clear the buffer or simply not allow the enter to change the field. We should probably do a refresh if we are in an accessible field, and a clear in a terminal. 
 
+[ ] - Hotkey formatters  
+Formatters that are used in word editing tools and markdown like headings, bolding, italics.
+
 [ ] - Accessiblity input tags  
 We can detect a field type, like email, phone number etc from the accessibility APIs. That means we could expose that information for other packages to use as well, so you can say `Homer` to input `homer@odyssey.com` for example.
 
@@ -154,6 +155,7 @@ This feature has been implemented but still has plenty of room for improvement
 
 [~] - Formatter commands  
 Because the formatters haven't been implemented as well, the commands to select them haven't been created.
+Reformat after using set_formatter with a selection
 
 [ ] - Surround formatter resetting  
 When we are quoting a text, we want to continuously advance the quotation marks instead of having to fix them over and over again.

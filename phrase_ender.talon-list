@@ -1,0 +1,7 @@
+list: user.phrase_ender
+tag: user.marithime_available
+# Names kept in sync with talonhub/community/core/text/phrase_ender.talon-list
+-
+over: ""
+quill: ""
+quilt: ""

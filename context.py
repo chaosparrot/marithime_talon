@@ -2,7 +2,7 @@ from talon import Context, Module
 
 mod = Module()
 ctx = Context()
-mod.list("marithime_terminator_word", desc="A list of all the end-of-command terminator words used within dictation and other commands")
+mod.list("phrase_ender", desc="A list of all the end-of-command terminator words used within dictation and other commands")
 mod.tag("marithime_available", desc="Check that the Marithime package is available for a user")
 mod.tag("marithime_dictation", desc="Overrides the dictation insert with the marithime one")
 mod.tag("marithime_input_field_text", desc="Set when a single line text input field is focused")
@@ -34,8 +34,3 @@ mod.setting("marithime_indexing_strategy", type=str, default="", desc="Determine
 mod.setting("marithime_remove_stutters_in_same_phrase", type=int, default=0, desc="Enables or disables the removal of words that repeat after one another")
 
 ctx.tags = ["user.marithime_available"]
-ctx.lists["user.marithime_terminator_word"] = [
-#    "over",
-    "quill",
-    "quilt"
-]

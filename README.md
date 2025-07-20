@@ -149,13 +149,16 @@ I haven't tested this on usages where you have a virtual machine with a differen
 
 #### Code creation
 
-[ ] - Automatic formatter detection / selection  
+[~] - Automatic formatter detection / selection  
 This feature has been implemented but still has plenty of room for improvement
 
 [~] - Formatter commands  
 Because the formatters haven't been implemented as well, the commands to select them haven't been created.
 
-[~] - Formatter prediction  
+[ ] - Surround formatter resetting  
+When we are quoting a text, we want to continuously advance the quotation marks instead of having to fix them over and over again.
+
+[ ] - Formatter prediction  
 Essentially, allowing a specific formatter to be used if it detects that we are about to create a variable, parameter or function name. Every language has their own rules about snake case, camel case and pascal case that we could automatically use.
 
 [ ] - Edge case for indexing - If tokens were appended at the start, the merged token with text at the start does not get the correct formatting

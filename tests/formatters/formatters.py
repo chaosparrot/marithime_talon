@@ -1,4 +1,5 @@
 from ...formatters.separator_formatter import SeparatorFormatter
+from ...formatters.surround_separator_formatter import SurroundSeparatorFormatter
 from ...formatters.capitalization_formatter import CapitalizationFormatter, CAPITALIZATION_STRATEGY_ALL_CAPS, CAPITALIZATION_STRATEGY_LOWERCASE, CAPITALIZATION_STRATEGY_TITLECASE
 from ..test import create_test_suite
 
@@ -11,6 +12,16 @@ def test_dot_separator(assertion):
     assertion( "    should not add the separator if only one word is given", dot_separator.words_to_format(["This"], "After") == [".", "This"])
     assertion( "    should not add the separators between digits", dot_separator.words_to_format(["86"], "9") == ["86"])
     assertion( "    should not add the separators between special characters", dot_separator.words_to_format([" this", "thing"], ".") == [" this.", "thing"])
+
+def test_surround_dot_separator(assertion):
+    dot_separator = SurroundSeparatorFormatter("dots", ".", ".", ".")
+    assertion( "Surround separator formatters" )
+    assertion( "    should add the separator to single words", dot_separator.words_to_format(["This"]) == [".This."])
+    assertion( "    should add the separator after the first word", dot_separator.words_to_format(["This", "Thing"]) == [".This.", "Thing."])
+    assertion( "    should add the separator separately if the previous word lacks it", dot_separator.words_to_format(["This", "Thing"], "After") == [".", "This.", "Thing."])
+    assertion( "    should add the separator if only one word is given", dot_separator.words_to_format(["This"], "After") == [".", "This."])
+    assertion( "    should not add the separators between digits", dot_separator.words_to_format(["86"], "9") == ["86"])
+    assertion( "    should not add the separators between special characters", dot_separator.words_to_format([" this", "thing"], ".") == [" this.", "thing."])
 
 def test_large_separator_formatter(assertion):
     large_separator = SeparatorFormatter("large", "-=-")
@@ -90,6 +101,7 @@ def test_capitalization_formatter(assertion):
 
 suite = create_test_suite("Text formatters")
 suite.add_test(test_dot_separator)
+suite.add_test(test_surround_dot_separator)
 suite.add_test(test_large_separator_formatter)
 suite.add_test(test_lowercase_formatter)
 suite.add_test(test_uppercase_formatter)

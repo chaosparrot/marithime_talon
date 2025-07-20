@@ -1,14 +1,14 @@
 from typing import List
-from .separator_formatter import SeparatorFormatter
+from .surround_separator_formatter import SurroundSeparatorFormatter
 import re
 
 CAPITALIZATION_STRATEGY_ALL_CAPS = 'ALLCAPS'
 CAPITALIZATION_STRATEGY_LOWERCASE = 'LOWERCASE'
 CAPITALIZATION_STRATEGY_TITLECASE = 'TITLE'
 
-class CapitalizationFormatter(SeparatorFormatter):
-    def __init__(self, name: str, separator = " ", first: str = CAPITALIZATION_STRATEGY_LOWERCASE, after: str = CAPITALIZATION_STRATEGY_LOWERCASE):
-        super().__init__(name, separator)
+class CapitalizationFormatter(SurroundSeparatorFormatter):
+    def __init__(self, name: str, separator = " ", first: str = CAPITALIZATION_STRATEGY_LOWERCASE, after: str = CAPITALIZATION_STRATEGY_LOWERCASE, start_separator = "", end_separator = ""):
+        super().__init__(name, separator, start_separator, end_separator)
         self.first_word = first
         self.after_first = after
 

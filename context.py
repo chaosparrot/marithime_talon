@@ -6,6 +6,7 @@ mod.list("marithime_terminator_word", desc="A list of all the end-of-command ter
 mod.tag("marithime_available", desc="Check that the Marithime package is available for a user")
 mod.tag("marithime_dictation", desc="Overrides the dictation insert with the marithime one")
 mod.tag("marithime_input_field_text", desc="Set when a single line text input field is focused")
+mod.list("marithime_formatter", desc="A list of all the available formatters to use")
 
 mod.setting("marithime_auto_fixing_enabled", type=int, default=0, desc="Whether to allow auto-fixing ( auto correct ) based on earlier corrections")
 

@@ -63,6 +63,6 @@ class SeparatorFormatter(TextFormatter):
                 total_words.extend(new_words)
 
         return total_words
-    
+
     def split_format(self, text: str) -> List[str]:
         return self.split(text, True)

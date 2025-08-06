@@ -69,14 +69,23 @@ Videos seem to speak to people more than written text does, so accompany this wi
 
 [~] - Extension possibilities for other packages  
 There's a ton of ways other packages can make use of our captures, settings and detections, but we will need to document them so they are easier to reuse as well.
+- Known words in document
+- Get last formatter used
+- Get known language in document
+- Get selection
+- Add fixes
+- Reformat selection
+- Set selection
+- Set document
+- Set cursor position
 
 #### Dictation
 
-[x] - Terminator words  
-Right now the word `quill` is used, instead onf the word `over`, to terminate a command. We probably want to extend this a bit, though we need to take into account that they need to not only be used in commands, but filtered out in other ways.
-
 [ ] - Making automatic fixing work  
 This feature has been implemented but it hasn't been tested very well. There's probably a lot of research left to be done.
+
+[x] - Terminator words  
+Right now the word `quill` is used, instead onf the word `over`, to terminate a command. We probably want to extend this a bit, though we need to take into account that they need to not only be used in commands, but filtered out in other ways.
 
 [x] - Incremental text field updates  
 Right now, indexing a text field causes it to lose all meaning with regards to formatters used. This causes problems with trying to re-use a formatter that was used.
@@ -152,6 +161,8 @@ I haven't tested this on usages where you have a virtual machine with a differen
 
 [~] - Automatic formatter detection / selection  
 This feature has been implemented but still has plenty of room for improvement
+
+[ ] - Automatic simple language detection
 
 [~] - Formatter commands  
 Because the formatters haven't been implemented as well, the commands to select them haven't been created.

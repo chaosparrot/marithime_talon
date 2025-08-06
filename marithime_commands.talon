@@ -18,6 +18,6 @@ mode: dictation
 # Direct correction
 ^[marithime] correction <user.marithime_word>+:
     user.marithime_correction(marithime_word_list)
-^[marithime] correction <user.marithime_word>+ {user.marithime_terminator_word} <user.marithime_raw_prose>$:
+^[marithime] correction <user.marithime_word>+ {user.phrase_ender} <user.marithime_raw_prose>$:
     user.marithime_correction(marithime_word_list)
     user.marithime_insert(user.marithime_raw_prose)

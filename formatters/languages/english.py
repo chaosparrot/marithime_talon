@@ -8,12 +8,13 @@ from ...converters.english_days import DayConverter
 from ...converters.english_months import MonthConverter
 from ...converters.english_punctuation import PunctuationConverter
 from ...converters.text_converter import TextConverter
+
+
 import os
 cwd = os.path.dirname(os.path.realpath(__file__))
 words_file = os.path.join(cwd, "detection", "english.csv")
-
 most_common_english_words = []
-with open(homophones_file) as f:
+with open(words_file) as f:
     most_common_english_words = f.read().splitlines()
 
 class EnglishLanguage(Language):

@@ -8,9 +8,17 @@ from ...converters.english_days import DayConverter
 from ...converters.english_months import MonthConverter
 from ...converters.english_punctuation import PunctuationConverter
 from ...converters.text_converter import TextConverter
+import os
+cwd = os.path.dirname(os.path.realpath(__file__))
+words_file = os.path.join(cwd, "detection", "english.csv")
+
+most_common_english_words = []
+with open(homophones_file) as f:
+    most_common_english_words = f.read().splitlines()
 
 class EnglishLanguage(Language):
     sentence_formatter = SentenceFormatter("sentence")
+    most_common_words = ""
 
     converters: List[TextConverter] = [
         PunctuationConverter(),
@@ -61,5 +69,13 @@ class EnglishLanguage(Language):
 
     def split_format(self, text: str) -> List[str]:
         return self.split(text, True)
+
+    def detect_likeliness(self, text: str) -> float:
+        sentence_separated_words = self.sentence_formatter.split(text.lower(), False)
+        found = 0
+        for word in sentence_separated_words:
+            found += 1 if word in global most_common_english_words else 0
+
+        return 0 if len(sentence_separated_words) == 0 else found / len(sentence_separated_words)
 
 englishLanguage = EnglishLanguage()

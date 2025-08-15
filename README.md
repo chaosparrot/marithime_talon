@@ -162,7 +162,7 @@ I haven't tested this on usages where you have a virtual machine with a differen
 [~] - Automatic formatter detection / selection  
 This feature has been implemented but still has plenty of room for improvement
 
-[ ] - Automatic simple language detection
+[~] - Automatic simple language detection
 
 [~] - Formatter commands  
 Because the formatters haven't been implemented as well, the commands to select them haven't been created.

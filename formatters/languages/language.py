@@ -13,3 +13,6 @@ class Language:
     
     def split_format(self, text: str) -> List[str]:
         return self.format_to_words(text)
+
+    def detect_likeliness(self, text: str) -> float:
+        return 0.0

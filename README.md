@@ -159,14 +159,21 @@ I haven't tested this on usages where you have a virtual machine with a differen
 
 #### Code creation
 
-[~] - Automatic formatter detection / selection  
+[x] - Automatic formatter detection / selection  
 This feature has been implemented but still has plenty of room for improvement
 
-[~] - Automatic simple language detection
+[x] - Automatic simple language detection  
+
+[ ] - Reuse formatter when selecting text with a specific formatter
+
+[ ] - Improvd programming formatter detection with special characters  
+
+[ ] - Automatic mixed language detection  
 
 [~] - Formatter commands  
 Because the formatters haven't been implemented as well, the commands to select them haven't been created.
-Reformat after using set_formatter with a selection
+
+[ ] - Reformat after using set_formatter with a selection  
 
 [ ] - Surround formatter resetting  
 When we are quoting a text, we want to continuously advance the quotation marks instead of having to fix them over and over again.

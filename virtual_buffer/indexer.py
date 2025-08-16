@@ -1,5 +1,6 @@
 from .typing import VirtualBufferToken
 from ..formatters.text_formatter import TextFormatter
+from ..formatters.detector import FormatterDetector
 import re
 from typing import List, Tuple
 from ..formatters.formatters import DICTATION_FORMATTERS
@@ -68,30 +69,45 @@ class VirtualBufferIndexer:
 
     default_formatter: TextFormatter = None
     formatters = []
+    detector: FormatterDetector = None
 
     def __init__(self, formatters: List[TextFormatter] = []):
         self.default_formatter = DICTATION_FORMATTERS['EN']
         self.formatters = formatters
+        self.detector = FormatterDetector()
 
     def set_default_formatter(self, formatter: TextFormatter = None):
-        pass
-        #if formatter:
-        #    self.default_formatter = formatter
+        if formatter:
+            self.default_formatter = formatter
 
     # Split raw (multi-line) text to virtual buffer tokens
     def index_text(self, text: str) -> List[VirtualBufferToken]:
         text = text.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
 
-        # TODO - Do index matching based on if we are dealing with a regular or a programming language
-        # We are now just using the default formatter instead
+        language = self.detector.detect_language_formatter(text)
+        self.set_default_formatter(language)
         words = self.default_formatter.split_format(text)
         
         tokens = []
-        for word in words:
+        for word_index, word in enumerate(words):
+            new_tokens = []
+
             new_tokens = text_to_virtual_buffer_tokens(word, None, self.default_formatter.name)
+
             for token in new_tokens:
+
+                # Detect a programming formatter from the text alone
+                token_formatter = self.detector.detect_formatter(token.text, tokens[-1].text if len(tokens) > 1 else None, None)
+                replace_tokens = []
+                if token_formatter is not None:
+                    split_words = token_formatter.split_format(token.text)
+                    for split_word in split_words:
+                        replace_tokens.extend(text_to_virtual_buffer_tokens(split_word, None, token_formatter.name))
+                else:
+                    replace_tokens.append(token)
+
                 if len(tokens) == 0:
-                    tokens.append(token)
+                    tokens.extend(replace_tokens)
                 else:
                     token_text = normalize_text(token.text)
                     previous_token_text = normalize_text(tokens[-1].text)
@@ -105,8 +121,20 @@ class VirtualBufferIndexer:
                     if (is_only_line_ending and not is_line_ending_word) or is_punctuation_only or can_merge_letters:
                         tokens[-1].text += token.text
                         tokens[-1].phrase = text_to_phrase(tokens[-1].text)
+
+                        # Detect a programming formatter from the text alone
+                        # If we are merging based on punctuation
+                        merge_formatter = self.detector.detect_formatter(tokens[-1].text, tokens[-2].text if len(tokens) > 1 else None, None)
+                        if merge_formatter is not None:
+                            replace_tokens = []
+                            split_words = merge_formatter.split_format(tokens[-1].text)
+                            for split_word in split_words:
+                                replace_tokens.extend(text_to_virtual_buffer_tokens(split_word, None, merge_formatter.name))
+                            
+                            del tokens[-1]
+                            tokens.extend(replace_tokens)
                     else:
-                        tokens.append(token)
+                        tokens.extend(replace_tokens)            
                 
         return reindex_tokens(tokens)
 

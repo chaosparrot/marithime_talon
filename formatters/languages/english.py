@@ -72,10 +72,11 @@ class EnglishLanguage(Language):
         return self.split(text, True)
 
     def detect_likeliness(self, text: str) -> float:
+        global most_common_english_words
         sentence_separated_words = self.sentence_formatter.split(text.lower(), False)
         found = 0
         for word in sentence_separated_words:
-            found += 1 if word in global most_common_english_words else 0
+            found += 1 if word in most_common_english_words else 0
 
         return 0 if len(sentence_separated_words) == 0 else found / len(sentence_separated_words)
 

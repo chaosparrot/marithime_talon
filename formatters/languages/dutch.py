@@ -57,10 +57,17 @@ class DutchLanguage(Language):
         return self.split(text, True)
 
     def detect_likeliness(self, text: str) -> float:
+        global most_common_dutch_words
         sentence_separated_words = self.sentence_formatter.split(text.lower(), False)
         found = 0
         for word in sentence_separated_words:
-            found += 1 if word in global most_common_dutch_words else 0
+            found_word = 1 if word in most_common_dutch_words else 0
+
+            # Check likelihood of Dutch if it contains certain letter combinations
+            if not found_word:
+                if "ij" in word or "ooi" in word or "aai" in word or "schr" in word or "oei" in word:
+                    found_word = 1
+            found += found_word
 
         return 0 if len(sentence_separated_words) == 0 else found / len(sentence_separated_words)
 

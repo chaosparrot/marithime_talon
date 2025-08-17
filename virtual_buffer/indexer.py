@@ -74,7 +74,7 @@ class VirtualBufferIndexer:
     def __init__(self, formatters: List[TextFormatter] = []):
         self.default_formatter = DICTATION_FORMATTERS['EN']
         self.formatters = formatters
-        self.detector = FormatterDetector()
+        self.detector = FormatterDetector(['EN'])
 
     def set_default_formatter(self, formatter: TextFormatter = None):
         if formatter:

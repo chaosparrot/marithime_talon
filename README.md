@@ -164,14 +164,20 @@ This feature has been implemented but still has plenty of room for improvement
 
 [x] - Automatic simple language detection  
 
-[ ] - Reuse formatter when selecting text with a specific formatter
+[x] - Reuse formatter when selecting text with a specific formatter  
 
-[ ] - Improvd programming formatter detection with special characters  
+[ ] - Improved programming formatter detection with special characters  
+Separators [](){}$@!?.,:"'`;&%#_-\/|<>=+*^~
 
 [ ] - Automatic mixed language detection  
 
+[x] - Disable specific language detection
+
 [~] - Formatter commands  
 Because the formatters haven't been implemented as well, the commands to select them haven't been created.
+
+[ ] - Automatically enable dictation formatter when switching to dictation mode  
+For some reason I didn't build the dictation mode toggle in and thus it doesn't switch to the correct formatter.
 
 [ ] - Reformat after using set_formatter with a selection  
 

@@ -34,7 +34,6 @@ class VirtualBufferManager:
     fixer: InputFixer
     tracking = True
     tracking_lock: str = ""
-    use_last_set_formatter = False
 
     def __init__(self, settings: VirtualBufferSettings = None):
         global virtual_buffer_settings

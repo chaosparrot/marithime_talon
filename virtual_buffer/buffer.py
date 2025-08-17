@@ -854,7 +854,6 @@ class VirtualBuffer:
     def select_token(self, token: VirtualBufferToken, extend_selection: bool = False) -> List[str]:
         self.virtual_selection = []
         if token:
-            self.use_last_set_formatter = False
             keys = []
 
             # Continue the selection we have going right now

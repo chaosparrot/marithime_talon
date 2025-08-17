@@ -2,6 +2,7 @@ from ...virtual_buffer.indexer import VirtualBufferIndexer
 from ..test import create_test_suite
 
 input_indexer = VirtualBufferIndexer()
+input_indexer.detector.languages = ['EN', 'NL']
 
 def test_index_single_english_sentence(assertion):
     sentence_tokens = input_indexer.index_text("This is a test.")
@@ -41,6 +42,13 @@ def test_index_snakecase_and_camelcase_with_dot_test(assertion):
     assertion("    should considered the first two tokens to be camelcase", len([token.format for token in sentence_tokens[:-2] if token.format == "camelcase"]) == 2)
     assertion("    should considered the last two tokens to be snakecase", len([token.format for token in sentence_tokens[-2:] if token.format == "snakecase"]) == 2)
 
+def test_index_single_dutch_sentence_but_dutch_disabled(assertion):
+    input_indexer.detector.languages = ['EN']
+    sentence_tokens = input_indexer.index_text("Dit is een test.")
+    assertion( "Indexing the sentence 'Dit is een test.'...")
+    assertion("    should consist of 4 virtual buffer tokens", len(sentence_tokens) == 4)
+    assertion("    should all be considered the default english dictation tokens", len([token.format for token in sentence_tokens if token.format == "english"]) == 4)
+
 suite = create_test_suite("Automatic formatter detection")
 suite.add_test(test_index_snakecase_text)
 suite.add_test(test_index_camelcase_text)
@@ -48,3 +56,4 @@ suite.add_test(test_index_snakecase_and_camelcase_test)
 suite.add_test(test_index_snakecase_and_camelcase_with_dot_test)
 suite.add_test(test_index_single_english_sentence)
 suite.add_test(test_index_single_dutch_sentence)
+suite.add_test(test_index_single_dutch_sentence_but_dutch_disabled)

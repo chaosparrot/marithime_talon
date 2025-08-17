@@ -141,6 +141,10 @@ class InputContextManager:
 
             # Reuse the accessible context retrieved earlier
             if accessible_content:
+                # Assume empty content has caret at 0, 0
+                first_caret = (0, 0)
+                second_caret = (0, 0)
+
                 if accessible_content.active_caret:
                     first_caret = (accessible_content.active_caret.line_index, accessible_content.active_caret.characters_from_end)
                     second_caret = first_caret
@@ -158,9 +162,9 @@ class InputContextManager:
     def set_formatter(self, formatter_name: str):
         if formatter_name in FORMATTERS_LIST:
             self.active_formatters = [FORMATTERS_LIST[formatter_name]]
-            self.indexer.set_default_formatter(FORMATTERS_LIST[formatter_name])
             self.formatter_names = [formatter_name]
             self.should_use_last_formatter(True)
+            print( "FORMATTER!", formatter_name )
 
     def get_formatter(self, context_formatter: str = "") -> TextFormatter:
         default_formatter = self.active_formatters[0] if self.use_last_set_formatter and len(self.active_formatters) > 0 else None
@@ -168,8 +172,7 @@ class InputContextManager:
         if context_formatter:
             chosen_formatter = FORMATTERS_LIST[context_formatter] if context_formatter in FORMATTERS_LIST else default_formatter
         
-        # TODO IMPROVE FORMATTER SELECTION!!!
-        return self.indexer.default_formatter
+        return chosen_formatter
 
     def apply_key(self, key: str, remember_key_presses: bool = False):
         current_context = self.get_current_context()

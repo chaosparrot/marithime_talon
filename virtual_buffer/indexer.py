@@ -7,10 +7,10 @@ from ..formatters.formatters import DICTATION_FORMATTERS
 from .caret_tracker import _CARET_MARKER, _COARSE_MARKER
 
 def text_to_phrase(text: str) -> str:
-    return " ".join(re.sub(r"[^\w\s]", ' ', text.replace("'", "").replace("’", "")).lower().split()).strip()
+    return " ".join(re.sub(r"[^\w\s]|[_]", ' ', text.replace("'", "").replace("’", "")).lower().split()).strip()
 
 def normalize_text(text: str) -> str:
-    return re.sub(r"[^\w\s]", ' ', text).replace("\n", " ")
+    return re.sub(r"[^\w\s]|[_]", ' ', text).replace("\n", " ")
 
 # Transform raw text to virtual buffer tokens
 def text_to_virtual_buffer_tokens(text: str, phrase: str = None, format: str = None) -> List[VirtualBufferToken]:

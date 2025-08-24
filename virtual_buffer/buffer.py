@@ -446,8 +446,61 @@ class VirtualBuffer:
 
         self.input_history.append_insert_to_last_event(new_tokens)
 
+    def get_selected_tokens(self) -> List[VirtualBufferToken]:
+        selected_tokens = []
+        left_selection_index = self.caret_tracker.get_leftmost_caret_index(True)
+        right_selection_index = self.caret_tracker.get_rightmost_caret_index(True)
+
+        # Check the 'virtual' terminal selection as well
+        if len(self.virtual_selection) > 0:
+            left_selection_index = [self.virtual_selection[0].line_index, self.virtual_selection[0].index_from_line_end]
+            right_selection_index = [self.virtual_selection[-1].line_index, self.virtual_selection[-1].index_from_line_end]
+
+        selection_indices = [left_selection_index, right_selection_index]
+        if selection_indices[0][0] != selection_indices[1][0] or \
+            selection_indices[0][1] != selection_indices[1][1]:
+
+            # Add selected tokens
+            start_index = self.determine_token_index(selection_indices[0])
+            end_index = self.determine_token_index(selection_indices[1])
+            selected_tokens = self.tokens[start_index[0]:end_index[0] + 1]
+            if selection_indices[0][1] != (selected_tokens[0].index_from_line_end - len(selected_tokens[0].text)):
+                remaining_text_length = selection_indices[0][1] - selected_tokens[0].index_from_line_end
+                difference = len(selected_tokens[0].text) - remaining_text_length
+
+                # Partial token for the start
+                if selected_tokens[0].text[:-difference] != "":
+                    selected_tokens[0] = VirtualBufferToken(
+                        selected_tokens[0].text[:-difference],
+                        selected_tokens[0].phrase,
+                        selected_tokens[0].format,
+                        selected_tokens[0].line_index,
+                        selected_tokens[0].index_from_line_end,
+                    )
+                    selected_tokens[0].phrase = text_to_phrase(selected_tokens[0].text)
+                else:
+                    selected_tokens.pop(0)
+
+            if selection_indices[1][1] != selected_tokens[-1].index_from_line_end:
+                remaining_text_length = selected_tokens[-1].index_from_line_end - selection_indices[1][1]
+                difference = len(selected_tokens[-1].text) - remaining_text_length
+
+                if selected_tokens[-1].text[difference:] != "":
+                    # Partial token for the end
+                    selected_tokens[-1] = VirtualBufferToken(
+                        selected_tokens[-1].text[difference:],
+                        selected_tokens[-1].phrase,
+                        selected_tokens[-1].format,
+                        selected_tokens[-1].line_index,
+                        selected_tokens[-1].index_from_line_end,
+                    )
+                    selected_tokens[-1].phrase = text_to_phrase(selected_tokens[-1].text)
+                else:
+                    selected_tokens.pop()
+        return selected_tokens
+
     def remove_selection(self) -> bool:
-        deleted_tokens = []
+        deleted_tokens = self.get_selected_tokens()
         selection_indices = self.caret_tracker.remove_selection()
         if selection_indices[0][0] != selection_indices[1][0] or \
             selection_indices[0][1] != selection_indices[1][1]:
@@ -455,31 +508,6 @@ class VirtualBuffer:
             # Add deleted tokens
             start_index = self.determine_token_index(selection_indices[0])
             end_index = self.determine_token_index(selection_indices[1])
-            deleted_tokens = self.tokens[start_index[0]:end_index[0] + 1]
-            if selection_indices[0][1] != (deleted_tokens[0].index_from_line_end - len(deleted_tokens[0].text)):
-                remaining_text_length = selection_indices[0][1] - deleted_tokens[0].index_from_line_end
-                difference = len(deleted_tokens[0].text) - remaining_text_length
-
-                # Partial token for the start
-                deleted_tokens[0] = VirtualBufferToken(
-                    deleted_tokens[0].text[:-difference],
-                    deleted_tokens[0].phrase,
-                    deleted_tokens[0].format,
-                    deleted_tokens[0].line_index,
-                    deleted_tokens[0].index_from_line_end,
-                )
-            if selection_indices[1][1] != deleted_tokens[-1].index_from_line_end:
-                remaining_text_length = deleted_tokens[-1].index_from_line_end - selection_indices[1][1]
-                difference = len(deleted_tokens[-1].text) - remaining_text_length
-
-                # Partial token for the end
-                deleted_tokens[-1] = VirtualBufferToken(
-                    deleted_tokens[-1].text[difference:],
-                    deleted_tokens[-1].phrase,
-                    deleted_tokens[-1].format,
-                    deleted_tokens[-1].line_index,
-                    deleted_tokens[-1].index_from_line_end,
-                )
 
             merge_token = None
             should_detect_merge = False

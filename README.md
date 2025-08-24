@@ -166,23 +166,21 @@ This feature has been implemented but still has plenty of room for improvement
 
 [x] - Reuse formatter when selecting text with a specific formatter  
 
-[ ] - Improved programming formatter detection with special characters  
-Separators [](){}$@!?.,:"'`;&%#_-\/|<>=+*^~
-
-[ ] - Automatic mixed language detection  
-
 [x] - Disable specific language detection
 
-[~] - Formatter commands  
+[x] - Formatter commands  
 Because the formatters haven't been implemented as well, the commands to select them haven't been created.
 
 [x] - Automatically enable dictation formatter when switching to dictation mode  
 For some reason I didn't build the dictation mode toggle in and thus it doesn't switch to the correct formatter.
 
-[ ] - Reformat after using set_formatter with a selection  
+[x] - Reformat after using set_formatter with a selection  
 
-[ ] - Surround formatter resetting  
-When we are quoting a text, we want to continuously advance the quotation marks instead of having to fix them over and over again.
+[ ] - Proper formatter token separation  
+The current way separation is implemented while merging using the `insert_token` flow is hard coded to work with mostly dictation mode in mind. It should be implemented in a way that, when separators for a specific token are used, that they aren't merged together. Separators like ' ' and [](){}$@!?.,:"'`;&%#_-\/|<>=+*^~ 
+
+[ ] - Formatter merging  
+When switching a formatter without a space or special character in between, it might find the previous text to be part of the previous token formatting. This is fine, but when it is merged, it choses the previous token formatter instead.
 
 [ ] - Formatter prediction  
 Essentially, allowing a specific formatter to be used if it detects that we are about to create a variable, parameter or function name. Every language has their own rules about snake case, camel case and pascal case that we could automatically use.

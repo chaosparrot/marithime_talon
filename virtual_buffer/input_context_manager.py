@@ -158,13 +158,12 @@ class InputContextManager:
             # Only if the caret position is not the same as the known position do we need to reindex
             if results[1] != context.buffer.caret_tracker.get_caret_index():
                 self.index_content(results[0], results[1], results[2])
-    
+
     def set_formatter(self, formatter_name: str):
         if formatter_name in FORMATTERS_LIST:
             self.active_formatters = [FORMATTERS_LIST[formatter_name]]
             self.formatter_names = [formatter_name]
             self.should_use_last_formatter(True)
-            print( "FORMATTER!", formatter_name )
 
     def get_formatter(self, context_formatter: str = "") -> TextFormatter:
         default_formatter = self.active_formatters[0] if self.use_last_set_formatter and len(self.active_formatters) > 0 else None
@@ -200,18 +199,26 @@ class InputContextManager:
             formatters = self.formatter_names
 
         # Automatic insert splitting if no explicit phrase is given
+        # Based on the formatters used
         if phrase == "":
-            inserts = insert.split(" ")
-            for index, text in enumerate(inserts):
-                if index < len(inserts) - 1:
-                    text += " "
-                
+            inserts = [insert]
+            for formatter_name in formatters:
+
+                formatter = self.get_formatter(formatter_name)
+                new_inserts = []
+                for new_insert in inserts:
+                    new_inserts.extend(formatter.split_format(new_insert))
+                inserts = new_inserts
+
+            for text in inserts:
                 tokens.extend(text_to_virtual_buffer_tokens(text, None, "|".join(formatters)))
         else:
             tokens = text_to_virtual_buffer_tokens(insert, phrase, "|".join(formatters))
  
         vbm.input_history.add_event(InputEventType.INSERT, [token.text for token in tokens])
+        #print( "TOKENS TO INSERT!", tokens )
         vbm.insert_tokens(tokens)
+        #print( "TOKENS AFTERWARDS!", vbm.tokens )
 
         if self.current_context:
             caret_index = vbm.caret_tracker.get_caret_index()
@@ -315,7 +322,7 @@ class InputContextManager:
 
     def should_use_last_formatter(self, use_last_formatter: bool):
         self.use_last_set_formatter = use_last_formatter
-    
+
     def index_accessible_content(self):
         if settings.get("user.marithime_indexing_strategy") == "disabled":
             return None
@@ -631,3 +638,6 @@ class InputContextManager:
 
     def update_context_debug_state(self):
         actions.user.marithime_show_context()
+
+    def get_selected_tokens(self):
+        return self.get_current_context().buffer.get_selected_tokens()

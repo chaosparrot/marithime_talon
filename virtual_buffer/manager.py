@@ -54,6 +54,12 @@ class VirtualBufferManager:
     def set_formatter(self, name: str):
         self.context.set_formatter(name)
 
+        # Reformat selected text if it exists
+        if self.is_selecting() or self.is_virtual_selecting():
+            selected_tokens = self.context.get_selected_tokens()
+            phrases = [token.phrase for token in selected_tokens]
+            actions.user.marithime_insert(" ".join(phrases))
+
     def set_repeating_type(self, type: str):
         self.context.get_current_context().buffer.input_history.mark_next_as_skip(type == "skip")
 
@@ -167,7 +173,7 @@ class VirtualBufferManager:
 
     def transform_insert(self, insert: str, enable_self_repair: bool = False, add_input_history_event: bool = True) -> (str, List[str]):
         self.update_mode_formatter()
-        
+
         # Make sure we have the right caret position for insertion
         self.disable_tracking()
         self.context.ensure_viable_context()
@@ -374,7 +380,7 @@ class VirtualBufferManager:
                                     self.context.apply_key(key)
                             correction_insertion = True
 
-        # Determine formatter
+        # Gather context for the formatters
         previous_text = ""
         next_text = ""
         token_index = vbm.determine_leftmost_token_index()
@@ -382,6 +388,8 @@ class VirtualBufferManager:
             previous_text = vbm.get_previous_text()
             next_text = vbm.get_next_text()
 
+        # Determine the formatter
+        if token_index[0] > -1 and not self.context.use_last_set_formatter:
             context_formatters = vbm.get_current_formatters()
             context_formatter = context_formatters[0] if len(context_formatters) > 0 else None
             formatter = self.context.get_formatter(context_formatter)

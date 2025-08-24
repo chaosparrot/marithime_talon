@@ -176,7 +176,7 @@ Separators [](){}$@!?.,:"'`;&%#_-\/|<>=+*^~
 [~] - Formatter commands  
 Because the formatters haven't been implemented as well, the commands to select them haven't been created.
 
-[ ] - Automatically enable dictation formatter when switching to dictation mode  
+[x] - Automatically enable dictation formatter when switching to dictation mode  
 For some reason I didn't build the dictation mode toggle in and thus it doesn't switch to the correct formatter.
 
 [ ] - Reformat after using set_formatter with a selection  

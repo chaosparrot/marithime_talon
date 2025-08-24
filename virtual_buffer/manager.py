@@ -1,4 +1,4 @@
-from talon import Module, Context, actions, settings, ui, speech_system, app, clip
+from talon import Module, Context, actions, settings, ui, speech_system, app, clip, scope
 from .input_context_manager import InputContextManager
 from .input_fixer import InputFixer
 from .typing import CORRECTION_THRESHOLD, SELECTION_THRESHOLD
@@ -34,6 +34,7 @@ class VirtualBufferManager:
     fixer: InputFixer
     tracking = True
     tracking_lock: str = ""
+    main_mode = "command"
 
     def __init__(self, settings: VirtualBufferSettings = None):
         global virtual_buffer_settings
@@ -42,6 +43,7 @@ class VirtualBufferManager:
         self.settings = settings if settings is not None else virtual_buffer_settings
         # self.fixer.verbose = True
         # TODO - Improve logging for fixes when the fixer is improved
+        self.update_mode_formatter()
 
     def clear_context(self):
         for context in self.context.contexts:
@@ -164,6 +166,8 @@ class VirtualBufferManager:
         return vbm.go_phrase(phrase, "end" if character_index == -1 else "start", keep_selection, next_occurrence )
 
     def transform_insert(self, insert: str, enable_self_repair: bool = False, add_input_history_event: bool = True) -> (str, List[str]):
+        self.update_mode_formatter()
+        
         # Make sure we have the right caret position for insertion
         self.disable_tracking()
         self.context.ensure_viable_context()
@@ -461,7 +465,7 @@ class VirtualBufferManager:
         if token_index[0] > -1 and token_index[1] > -1:
             token = vbm.tokens[token_index[0]]
             # TODO APPLY FLOW TAGS DEPENDING ON WORDS
-            # TODO APPLY FORMATTERS DEPENDING ON POSITION ? 
+            self.set_formatter(token.format)
         ctx.tags = tags
 
     def index_textarea(self):
@@ -483,6 +487,22 @@ class VirtualBufferManager:
 
     def window_closed(self, event):
         self.context.close_context(event)
+
+    def update_mode_formatter(self):
+        last_main_mode = self.main_mode
+        modes = scope.get("mode")
+        if "sleep" not in modes:
+            if "dictation" in modes:
+                self.main_mode = "dictation"
+            else:
+                self.main_mode = "command"
+        
+        # Reset the formatter to be a dictation formatter
+        if last_main_mode != self.main_mode and self.main_mode == "dictation":
+            language = settings.get("speech.language", "en")
+            if language is None:
+                language = "en"
+            self.set_formatter("DICTATION_" + language.upper())
 
 def update_language(language: str):
     global mutator

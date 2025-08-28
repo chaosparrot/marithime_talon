@@ -176,10 +176,10 @@ For some reason I didn't build the dictation mode toggle in and thus it doesn't 
 
 [x] - Reformat after using set_formatter with a selection  
 
-[ ] - Proper formatter token separation  
+[~] - Proper formatter token separation  
 The current way separation is implemented while merging using the `insert_token` flow is hard coded to work with mostly dictation mode in mind. It should be implemented in a way that, when separators for a specific token are used, that they aren't merged together. Separators like ' ' and [](){}$@!?.,:"'`;&%#_-\/|<>=+*^~ 
 
-[ ] - Formatter merging  
+[~] - Formatter merging  
 When switching a formatter without a space or special character in between, it might find the previous text to be part of the previous token formatting. This is fine, but when it is merged, it choses the previous token formatter instead.
 
 [ ] - Formatter prediction  

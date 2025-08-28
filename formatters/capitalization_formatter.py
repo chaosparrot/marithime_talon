@@ -102,6 +102,37 @@ class CapitalizationFormatter(SurroundSeparatorFormatter):
             unformatted_words.extend(split_out_words)
 
         return unformatted_words
+    
+    # Detect if we can merge this text together into a single token
+    def can_merge_text(self, first_text: str, last_text: str) -> bool:
+
+        # We can only merge if we do not detect a transition between capitalization
+        # If that is enabled
+        last_first_text_character = first_text[-1] if len(first_text) > 0 else ""
+        first_last_text_character = last_text[0] if len(last_text) > 0 else ""
+        if last_first_text_character.isalpha() and first_last_text_character.isalpha():
+
+            # Switch from lower case to title or capitalization case
+            if self.first_word == CAPITALIZATION_STRATEGY_LOWERCASE and \
+                self.after_first != CAPITALIZATION_STRATEGY_LOWERCASE and \
+                last_first_text_character.islower() and first_last_text_character.isupper():
+                return False
+            
+            # Regular title case switching also shouldn't be combined
+            if self.first_word == CAPITALIZATION_STRATEGY_TITLECASE:
+                if last_first_text_character.islower() and first_last_text_character.isupper():
+                    return False
+                elif last_first_text_character.islower() and first_last_text_character.islower():
+                    return True
+
+            # Capitalized words need to be combined as well
+            if self.first_word == CAPITALIZATION_STRATEGY_ALL_CAPS:
+                if last_first_text_character.isupper() and first_last_text_character.islower():
+                    return False
+                elif last_first_text_character.isupper() and first_last_text_character.isupper():
+                    return True
+
+        return super().can_merge_text(first_text, last_text)
 
     def split_format(self, text: str) -> List[str]:
         return self.split(text, True)

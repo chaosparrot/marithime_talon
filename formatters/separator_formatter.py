@@ -64,5 +64,16 @@ class SeparatorFormatter(TextFormatter):
 
         return total_words
 
+    # Detect if we can merge this text together into a single token
+    def can_merge_text(self, first_text: str, last_text: str) -> bool:
+        if first_text == self.separator:
+            return False
+        elif first_text.endswith(self.separator) and not last_text.startswith(self.separator):
+            return False
+        elif last_text == self.separator and not first_text.endswith(self.separator):
+            return True
+
+        return super().can_merge_text(first_text, last_text)
+
     def split_format(self, text: str) -> List[str]:
         return self.split(text, True)

@@ -1,5 +1,6 @@
 from .typing import VirtualBufferToken
 from ..formatters.text_formatter import TextFormatter
+from ..formatters.formatters import FORMATTERS_LIST
 from ..formatters.detector import FormatterDetector
 import re
 from typing import List, Tuple
@@ -11,6 +12,30 @@ def text_to_phrase(text: str) -> str:
 
 def normalize_text(text: str) -> str:
     return re.sub(r"[^\w\s]|[_]", ' ', text).replace("\n", " ")
+
+def can_merge_tokens(token: VirtualBufferToken, token_to_merge_with: VirtualBufferToken, character_index = 0) -> bool:
+    token_formatters = token.format.split("|")
+    formatters = []
+    for formatter_name in token_formatters:
+        if formatter_name in FORMATTERS_LIST:
+            formatters.append(FORMATTERS_LIST[formatter_name])
+
+    first_token_text = token.text if character_index == 0 else token_to_merge_with.text
+    next_token_text = token_to_merge_with.text if character_index == 0 else token.text
+
+    # Fall back to a simple text formatter
+    if len(formatters) == 0:
+        formatters.append(TextFormatter())
+    
+    can_merge_tokens = True
+    for formatter in formatters:
+        # TODO FIX CAN MERGE FORMATTERS TOGETHER?
+
+        can_merge_tokens = formatter.can_merge_text(first_token_text, next_token_text)
+        if can_merge_tokens == False:
+            break
+
+    return can_merge_tokens
 
 # Transform raw text to virtual buffer tokens
 def text_to_virtual_buffer_tokens(text: str, phrase: str = None, format: str = None) -> List[VirtualBufferToken]:

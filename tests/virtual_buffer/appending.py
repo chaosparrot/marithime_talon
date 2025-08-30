@@ -35,7 +35,7 @@ def detect_insert_strategies(assertion):
     fourth_append = empty_vb.detect_merge_strategy(2, 2, VirtualBufferToken("test.", "test", ""))
     assertion( "        Should append 'test.' because it cannot be merged with the previous token", fourth_append == (-1, 0, -1))
     empty_vb.insert_tokens(text_to_virtual_buffer_tokens("test.", "test"))
-    final_append = empty_vb.detect_merge_strategy(2, 2, VirtualBufferToken("\n", "", ""))
+    final_append = empty_vb.detect_merge_strategy(3, 5, VirtualBufferToken("\n", "", ""))
     assertion( "        Should merge a new line because new lines cannot exist on their own", final_append == (-1, 1, -1))
 
 def appending_to_buffer(assertion):
@@ -67,7 +67,6 @@ def appending_to_buffer(assertion):
     assertion( "        Expect caret character index to be 0", caret_index[1] == 0)
     token_index = vb.determine_token_index()
     assertion( "        Expect token index to be 2", token_index[0] == 2 )
-    assertion( token_index )
     assertion( "        Expect token character index to be equal to the last tokens length (29)", token_index[1] == 29 )
     assertion( "    After adding a line break")
     vb.insert_tokens(text_to_virtual_buffer_tokens("\n"))

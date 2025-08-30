@@ -82,3 +82,4 @@ Insert a third sentence."""
 
 suite = create_test_suite("Inserting in between tokens")
 suite.add_test(test_merging_and_splitting)
+suite.run() 

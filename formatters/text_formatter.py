@@ -25,10 +25,11 @@ class TextFormatter:
     # Detect if we can merge this text together into a single token
     def can_merge_text(self, first_text: str, last_text: str) -> bool:
         normalized_first_text = normalize_text(first_text)
-        normalized_last_text = normalize_text(last_text(last_text))
+        normalized_last_text = normalize_text(last_text)
 
-        # TODO PROPER CHECKING BASED ON NEW LINES ETC
-        return True
+        return normalized_last_text == "" or \
+            ( not normalized_first_text.endswith(" ") and not normalized_last_text.startswith(" ") ) or \
+            first_text == "\n" or last_text == "\n"
     
     # Determine whether or not we need to type correction keys ( backspaces etc. ) when inserting this text
     def determine_correction_keys(self, words: List[str], previous: str = "", next: str = "") -> List[str]:

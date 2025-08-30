@@ -25,11 +25,11 @@ def can_merge_tokens(token: VirtualBufferToken, token_to_merge_with: VirtualBuff
 
     # Fall back to a simple text formatter
     if len(formatters) == 0:
-        formatters.append(TextFormatter())
+        formatters.append(TextFormatter(name="fallback"))
     
     # Only merge tokens when their formatting is the same
     # May need to be improved in the future
-    can_merge_tokens = token.format == token_to_merge_with
+    can_merge_tokens = token.format == token_to_merge_with.format
 
     for formatter in formatters:
         can_merge_tokens = formatter.can_merge_text(first_token_text, next_token_text)

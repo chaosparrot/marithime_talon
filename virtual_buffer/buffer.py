@@ -244,35 +244,25 @@ class VirtualBuffer:
             next_token = None if token_index + 1 > len(self.tokens) - 1 else self.tokens[token_index + 1]
             current_token = None if token_index < 0 else self.tokens[token_index]
 
-            previous_token_text = "" if token_index - 1 < 0 else normalize_text(self.tokens[token_index - 1].text)
-            current_token_text = "" if token_index < 0 else normalize_text(self.tokens[token_index].text)
-            next_token_text = "" if token_index + 1 > len(self.tokens) - 1 else normalize_text(self.tokens[token_index + 1].text)
-
         if len(self.tokens) == 0:
             current_strategy = MERGE_STRATEGY_APPEND_AFTER
 
         # When we are at the start of an token, we can possibly join the previous token with the current input
         elif token_character_index == 0:
-
-            # TODO: CHECK MERGE BASED ON CURRENT TOKENS
-            # if can_merge_tokens(token, current_token, token_character_index):
-            if current_token_text == "" or ( not token_text.endswith(" ") and not current_token_text.startswith(" ") ):
+            if can_merge_tokens(token, current_token, token_character_index):
                 current_strategy = MERGE_STRATEGY_JOIN
             
-            # if can_merge_tokens(previous_token, token, token_character_index):
-            if token_index > 0 and not token_text.startswith(" ") and not previous_token_text.endswith(" "):
+            if token_index > 0 and can_merge_tokens(previous_token, token, token_character_index):
                 previous_strategy = MERGE_STRATEGY_JOIN
             elif current_strategy != MERGE_STRATEGY_JOIN:
                 previous_strategy = MERGE_STRATEGY_APPEND_AFTER
         
         # When we are at the end of an token, we can possibly join the next token with the current input
         elif token_character_index >= len(self.tokens[token_index].text):
-            # if can_merge_tokens(token, current_token, token_character_index):
-            if (not token_text.startswith(" ") or token_text.replace(" ", "") == "") and not current_token_text.endswith(" "):
+            if can_merge_tokens(token, current_token, token_character_index):
                 current_strategy = MERGE_STRATEGY_JOIN
 
-            # if can_merge_tokens(next_token, token, token_character_index):
-            if token_index < len(self.tokens) - 1 and not token_text.endswith(" ") and not next_token_text.startswith(" "):
+            if token_index < len(self.tokens) - 1 and can_merge_tokens(next_token, token, token_character_index):
                 next_strategy = MERGE_STRATEGY_JOIN
             elif token.text.endswith("\n"):
                 current_strategy = MERGE_STRATEGY_JOIN
@@ -281,16 +271,12 @@ class VirtualBuffer:
 
         # Determine how to divide and join the current token
         else:
-            current_text = self.tokens[token_index].text
-            previous_character = " " if token_character_index - 1 < 0 else current_text[token_character_index - 1]
-            next_character = " " if token_character_index < 0 and token_character_index != len(current_text) else current_text[token_character_index]
+            current_token = self.tokens[token_index]
         
             left_current_token = VirtualBufferToken(current_token.text[:token_character_index], None, current_token.format, current_token.line_index, current_token.index_from_line_end)
             right_current_token = VirtualBufferToken(current_token.text[token_character_index:], None, current_token.format, current_token.line_index, current_token.index_from_line_end)
-            # can_join_left = can_merge_tokens(token, left_current_token, token_character_index) or token.text == "\n"
-            # can_join_right = can_merge_tokens(token, right_current_token, 0) or token.text == "\n"
-            can_join_left = ( not token_text.startswith(" ") and normalize_text(previous_character) != " " ) or token.text == "\n"
-            can_join_right = not token_text.endswith(" ") and normalize_text(next_character) != " "
+            can_join_left = can_merge_tokens(token, left_current_token, token_character_index) or token.text == "\n"
+            can_join_right = can_merge_tokens(token, right_current_token, 0) or token.text == "\n"
 
             if can_join_left and can_join_right:
                 current_strategy = MERGE_STRATEGY_JOIN

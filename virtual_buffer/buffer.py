@@ -560,14 +560,16 @@ class VirtualBuffer:
                         if text != "":
                             tokens.append(VirtualBufferToken(text, text_to_phrase(text), "", token.line_index))
 
-                            # TODO IMPROVE CAN MERGE TOKENS CHECK?
                             should_detect_merge = start_index[1] == 0 or end_index[1] >= len(text.replace("\n", ""))
                     # Split token, remember the first token from the selection
                     elif token_index == start_index[0]:
                         text = text[:start_index[1]]
 
-                        # TODO IMPROVE CAN MERGE TOKENS CHECK?
-                        should_detect_merge = not re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").endswith(" ")
+                        # Decide if we can merge in the future
+                        potential_merge_token = VirtualBufferToken(text, "", token.format)
+                        potential_end_token = VirtualBufferToken(end_text, "", merge_token.format)
+
+                        should_detect_merge = can_merge_tokens(potential_merge_token, potential_end_token)
                         if start_index[1] == len(token.text.replace('\n', '')) and not should_detect_merge:
                             tokens.append(token)
                         elif start_index[1] > 0:

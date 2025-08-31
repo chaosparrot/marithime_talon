@@ -176,7 +176,7 @@ For some reason I didn't build the dictation mode toggle in and thus it doesn't 
 
 [x] - Reformat after using set_formatter with a selection  
 
-[~] - Proper formatter token separation  
+[x] - Proper formatter token separation  
 The current way separation is implemented while merging using the `insert_token` flow is hard coded to work with mostly dictation mode in mind. It should be implemented in a way that, when separators for a specific token are used, that they aren't merged together. Separators like ' ' and [](){}$@!?.,:"'`;&%#_-\/|<>=+*^~ 
 
 [x] - Formatter merging  

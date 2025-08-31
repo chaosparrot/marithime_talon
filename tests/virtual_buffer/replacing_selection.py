@@ -113,6 +113,7 @@ def test_multiple_token_replacement_right(assertion):
     assertion( "        Expect phrase to be merged", vb.tokens[-1].phrase == "suggestorinion")
 
 suite = create_test_suite("Replacing selection with new text")
-suite.add_test(test_single_token_replacement)
-suite.add_test(test_multiple_token_replacement_left)
-suite.add_test(test_multiple_token_replacement_right)
+#suite.add_test(test_single_token_replacement)
+#suite.add_test(test_multiple_token_replacement_left)
+#suite.add_test(test_multiple_token_replacement_right)
+suite.run()

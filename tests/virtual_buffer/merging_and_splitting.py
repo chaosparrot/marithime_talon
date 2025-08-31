@@ -5,7 +5,7 @@ from ..test import create_test_suite
 from ...virtual_buffer.settings import VirtualBufferSettings
 
 def get_virtual_buffer() -> VirtualBuffer:
-    settings = VirtualBufferSettings(live_checking=False)
+    settings = VirtualBufferSettings(live_checking=False) 
     return VirtualBuffer(settings)
 
 def test_merging_and_splitting(assertion):
@@ -18,7 +18,8 @@ Insert a second """ + _CARET_MARKER + """sentence.
 Insert a third sentence."""
         
     assertion( "    Inserting unmergable text into a filled virtual buffer...")
-    vb.insert_tokens(text_to_virtual_buffer_tokens("important ", "important")) 
+    token_index = vb.determine_token_index()
+    vb.insert_tokens(text_to_virtual_buffer_tokens("important ", "important"))
     assertion( "        Expect buffer length to increase by two (5)", len(vb.tokens) == 5)
     caret_index = vb.caret_tracker.get_caret_index()
     assertion( "        Expect caret line index to be 1", caret_index[0] == 1)
@@ -82,4 +83,3 @@ Insert a third sentence."""
 
 suite = create_test_suite("Inserting in between tokens")
 suite.add_test(test_merging_and_splitting)
-suite.run() 

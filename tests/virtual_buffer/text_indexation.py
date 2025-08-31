@@ -4,7 +4,7 @@ from ..test import create_test_suite
 input_indexer = VirtualBufferIndexer()
 
 def test_index_single_sentence(assertion):
-    sentence_tokens = input_indexer.index_text("This is a test.")
+    sentence_tokens = input_indexer.index_text("This is a test.", verbose = True)
     assertion( "Indexing the sentence 'This is a test.'...")
     assertion("    should consist of 4 virtual buffer tokens", len(sentence_tokens) == 4)
     assertion("    should only be on one line", len([token for token in sentence_tokens if token.line_index == 0]) == len(sentence_tokens))
@@ -24,7 +24,7 @@ And this is a second sentence!""")
     assertion("    should consist of 11 virtual buffer tokens", len(sentence_tokens) == 11)
     assertion("    should have 4 tokens on the first line", len([token for token in sentence_tokens if token.line_index == 0]) == 5)
     assertion("    should have 7 tokens on the second line", len([token for token in sentence_tokens if token.line_index == 1]) == 6)
-    assertion("    the first word of the second line should be capitalized", [token for token in sentence_tokens if token.line_index == 1][0].text == "And ")    
+    assertion("    the first word of the second line should be capitalized", [token for token in sentence_tokens if token.line_index == 1][0].text == "And ")
 
 def test_index_sentence_with_unorthodox_spacing(assertion):
     sentence_tokens = input_indexer.index_text("this  is  the  first  sentence  . ")

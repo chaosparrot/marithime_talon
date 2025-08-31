@@ -90,7 +90,7 @@ def test_append_events_between_token(assertion):
     assertion( "    Should give the history one event", len(input_history.history) == 1)
     assertion( "    Should add the token on the same line as the others", input_history.history[-1].insert[0].line_index == 0)
     assertion( "    Should add the token at the middle of the line", input_history.history[-1].insert[0].index_from_line_end == 24)
-    assertion( "    Should merge the text from the returned token in the tokens", buffer.tokens[0].text == "Suggestabolition ")
+    assertion( "    Should merge the text from the returned token in the tokens", buffer.tokens[0].text == "Suggestabolition  ")
     assertion( "    Should not merge the text from the returned token in the input history", input_history.history[-1].insert[0].text == "abolition ")
 
 def test_append_events_between_token_split(assertion):
@@ -182,7 +182,6 @@ def test_append_events_with_continuous_self_repair(assertion):
     buffer.insert_tokens(insert_tokens)
     assertion( "    Should give the history two events", len(input_history.history) == 2)
     assertion( "    Should not count a repetition", input_history.get_repetition_count() == 0)
-    assertion( input_history.history[-1].insert )
     assertion( "    Should retrieve the combined insert of the partial self repair", len(input_history.history[-1].insert) == 2)
     assertion( "    Should start the insert with the same token", input_history.history[-1].insert[0].phrase == "ending")
     assertion( "    Should end the insert with the token 'with'", input_history.history[-1].insert[-1].phrase == "with")

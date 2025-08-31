@@ -27,9 +27,40 @@ class TextFormatter:
         normalized_first_text = normalize_text(first_text)
         normalized_last_text = normalize_text(last_text)
 
-        return normalized_last_text == "" or \
-            ( not normalized_first_text.endswith(" ") and not normalized_last_text.startswith(" ") ) or \
-            first_text == "\n" or last_text == "\n"
+        # Don't merge through a line break
+        if first_text.endswith("\n") and first_text != "\n":
+            return False
+        elif last_text == "\n":
+            return True
+        else:
+
+            if normalized_first_text.endswith(" "):
+                # Case 1 - 'test' -> ' ' SHOULD merge
+                if normalized_last_text.replace(" ", "") == "":
+                    return True
+                # Case 2 - 'test ' -> 'test' should NOT merge
+                else:
+                    return False
+            elif normalized_last_text.startswith(" "):
+
+                # Case 3 - ' ' -> 'test' SHOULD merge
+                if normalized_first_text.replace(" ", "") == "":
+                    return True
+                
+                # Case 4 - 'change' -> '_' SHOULD merge
+                elif normalized_last_text.replace(" ", "") == "":
+                    return True
+
+                # Case 5 - 'test' -> ' test' should NOT merge
+                # Case 6 - 'test ' -> ' test' should NOT merge
+                else:
+                    return False                
+                    
+            # Case 7 - 'test' -> 'test' SHOULD merge            
+            else:
+                return True
+
+            return False
     
     # Determine whether or not we need to type correction keys ( backspaces etc. ) when inserting this text
     def determine_correction_keys(self, words: List[str], previous: str = "", next: str = "") -> List[str]:

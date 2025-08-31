@@ -270,13 +270,13 @@ class VirtualBuffer:
                 current_strategy = MERGE_STRATEGY_APPEND_AFTER
 
         # Determine how to divide and join the current token
-        else:
+        elif token_index > -1:
             current_token = self.tokens[token_index]
-        
+
             left_current_token = VirtualBufferToken(current_token.text[:token_character_index], None, current_token.format, current_token.line_index, current_token.index_from_line_end)
             right_current_token = VirtualBufferToken(current_token.text[token_character_index:], None, current_token.format, current_token.line_index, current_token.index_from_line_end)
-            can_join_left = can_merge_tokens(token, left_current_token, token_character_index) or token.text == "\n"
-            can_join_right = can_merge_tokens(token, right_current_token, 0) or token.text == "\n"
+            can_join_left = can_merge_tokens(left_current_token, token, 0)
+            can_join_right = can_merge_tokens(token, right_current_token, 0)
 
             if can_join_left and can_join_right:
                 current_strategy = MERGE_STRATEGY_JOIN

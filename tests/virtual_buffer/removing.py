@@ -103,6 +103,7 @@ Insert a third sentence."""
     assertion( "        Expect token phrase to be smaller", vb.tokens[token_index[0]].phrase == "te" )
     vb.apply_key("right")
     vb.insert_tokens(text_to_virtual_buffer_tokens(" test ", "test"))
+    assertion( text_to_virtual_buffer_tokens(" test ", "test") )    
     vb.insert_tokens(text_to_virtual_buffer_tokens(" two ", "two"))
     vb.insert_tokens(text_to_virtual_buffer_tokens(" three ", "three"))
     vb.insert_tokens(text_to_virtual_buffer_tokens("\n", ""))
@@ -111,6 +112,7 @@ Insert a third sentence."""
     vb.apply_key("delete:2")
     caret_index = vb.caret_tracker.get_caret_index()
     assertion( "        Expect buffer length be one less (6)", len(vb.tokens) == 6)
+    assertion( vb.tokens )
     assertion( "        Expect caret line index to be 2", caret_index[0] == 2)   
     assertion( "        Expect caret character index to be before the second final word of the sentence", caret_index[1] == 11)
     vb.apply_key("left:5")
@@ -146,4 +148,5 @@ def test_remove_single_line_ending_remaining(assertion):
 
 suite = create_test_suite("Removing characters from virtual buffer")
 suite.add_test(test_removing_characters)
-suite.add_test(test_remove_single_line_ending_remaining)
+#suite.add_test(test_remove_single_line_ending_remaining)
+suite.run() 

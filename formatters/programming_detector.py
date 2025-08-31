@@ -14,16 +14,16 @@ class ProgrammingFormatterDetector:
 
         # All upper case formatters
         if text.isupper():
-            if self.can_split_on_separator(text, "_"):
+            if self.can_split_on_separator(text, "_") or self.can_split_on_separator(previous_token + text, "_"):
                 return FORMATTERS_LIST["CONSTANT"]
             else:
                 return FORMATTERS_LIST["ALL_CAPS"]
 
         # All lower case formatters
         elif text.islower():
-            if self.can_split_on_separator(text, "_"):
+            if self.can_split_on_separator(text, "_") or self.can_split_on_separator(previous_token + text, "_"):
                 return FORMATTERS_LIST["SNAKE_CASE"]
-            elif self.can_split_on_separator(text, "-"):
+            elif self.can_split_on_separator(text, "-") or self.can_split_on_separator(previous_token + text, "-"):
                 return FORMATTERS_LIST["KEBAB_CASE"]
         # Mixed casing
         else:
@@ -40,4 +40,7 @@ class ProgrammingFormatterDetector:
         return None
     
     def can_split_on_separator(self, text: str, separator: str) -> bool:
-        return separator in text and '' not in text.split(separator)
+        if text.endswith(separator):
+            return True
+        else:
+            return separator in text and '' not in text.split(separator)

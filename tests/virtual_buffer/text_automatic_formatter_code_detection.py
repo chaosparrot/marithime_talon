@@ -32,7 +32,7 @@ def test_index_javascript_code(assertion):
     assertion( "Indexing the line 'window.localStorage.getItem(\"talon-practice-challengemode\") == \"true\";'...")
     assertion("    should consist of 9 virtual buffer tokens", len(sentence_tokens) == 9)
 
-suite = create_test_suite("Automatic formatter detection for code")
+suite = create_test_suite("Automatic code formatter detection")
 #suite.add_test(test_index_python_code)
 #suite.add_test(test_index_java_code)
 #suite.add_test(test_index_php_code)

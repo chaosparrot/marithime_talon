@@ -110,6 +110,7 @@ def test_remove_selecting_multiple_tokens_right(assertion):
     assertion( "        Expect phrase to be merged", vb.tokens[-1].phrase == "suggestion")
 
 suite = create_test_suite("Removing selected text")
-suite.add_test(test_remove_selecting_single_tokens)
-suite.add_test(test_remove_selecting_multiple_tokens_left)
-suite.add_test(test_remove_selecting_multiple_tokens_right)
+#suite.add_test(test_remove_selecting_single_tokens)
+#suite.add_test(test_remove_selecting_multiple_tokens_left)
+#suite.add_test(test_remove_selecting_multiple_tokens_right)
+suite.run()

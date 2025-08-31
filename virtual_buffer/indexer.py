@@ -17,8 +17,9 @@ def can_merge_tokens(token: VirtualBufferToken, token_to_merge_with: VirtualBuff
     token_formatters = token.format.split("|")
     formatters = []
     for formatter_name in token_formatters:
-        if formatter_name in FORMATTERS_LIST:
-            formatters.append(FORMATTERS_LIST[formatter_name])
+        for key in FORMATTERS_LIST:
+            if FORMATTERS_LIST[key].name == formatter_name:
+                formatters.append(FORMATTERS_LIST[key])
 
     first_token_text = token.text if character_index == 0 else token_to_merge_with.text
     next_token_text = token_to_merge_with.text if character_index == 0 else token.text
@@ -30,7 +31,6 @@ def can_merge_tokens(token: VirtualBufferToken, token_to_merge_with: VirtualBuff
     # Only merge tokens when their formatting is the same
     # May need to be improved in the future
     can_merge_tokens = token.format == token_to_merge_with.format
-
     for formatter in formatters:
         can_merge_tokens = formatter.can_merge_text(first_token_text, next_token_text)
         if can_merge_tokens == False:
@@ -107,7 +107,7 @@ class VirtualBufferIndexer:
             self.default_formatter = formatter
 
     # Split raw (multi-line) text to virtual buffer tokens
-    def index_text(self, text: str) -> List[VirtualBufferToken]:
+    def index_text(self, text: str, verbose = False) -> List[VirtualBufferToken]:
         text = text.replace(_CARET_MARKER, '').replace(_COARSE_MARKER, '')
 
         language = self.detector.detect_language_formatter(text)
@@ -115,15 +115,22 @@ class VirtualBufferIndexer:
         words = self.default_formatter.split_format(text)
         
         tokens = []
+        previous_tokens = []
         for word_index, word in enumerate(words):
             new_tokens = []
 
             new_tokens = text_to_virtual_buffer_tokens(word, None, self.default_formatter.name)
-
-            for token in new_tokens:
+            for token_index, token in enumerate(new_tokens):
 
                 # Detect a programming formatter from the text alone
-                token_formatter = self.detector.detect_formatter(token.text, tokens[-1].text if len(tokens) > 1 else None, None)
+                # Reconstructing the previous token as well for improved accuracy
+                previous_text = ""
+                if len(tokens) > 1 and token_index > 0:
+                    previous_text = tokens[token_index - 1].text
+                elif len(previous_tokens) > 0:
+                    previous_text = previous_tokens[-1].text
+                token_formatter = self.detector.detect_formatter(token.text, previous_text, None)
+
                 replace_tokens = []
                 if token_formatter is not None:
                     split_words = token_formatter.split_format(token.text)
@@ -135,22 +142,13 @@ class VirtualBufferIndexer:
                 if len(tokens) == 0:
                     tokens.extend(replace_tokens)
                 else:
-                    token_text = normalize_text(token.text)
-                    previous_token_text = normalize_text(tokens[-1].text)
-
-                    # All the different cases in which we need to do merging
-                    is_only_line_ending = token.text == "\n"
-                    is_line_ending_word = token.text.endswith("\n") and len(token_text.replace(" ", "")) > 0
-                    is_punctuation_only = token_text.replace(" ", "") == ""
-                    can_merge_letters = not token_text.startswith(" ") and not previous_token_text.endswith(" ")
-                    
-                    if (is_only_line_ending and not is_line_ending_word) or is_punctuation_only or can_merge_letters:
+                    if can_merge_tokens(token, tokens[-1], len(tokens[-1].text)):
                         tokens[-1].text += token.text
                         tokens[-1].phrase = text_to_phrase(tokens[-1].text)
 
                         # Detect a programming formatter from the text alone
                         # If we are merging based on punctuation
-                        merge_formatter = self.detector.detect_formatter(tokens[-1].text, tokens[-2].text if len(tokens) > 1 else None, None)
+                        merge_formatter = self.detector.detect_formatter(tokens[-1].text, "", None)
                         if merge_formatter is not None:
                             replace_tokens = []
                             split_words = merge_formatter.split_format(tokens[-1].text)
@@ -160,7 +158,8 @@ class VirtualBufferIndexer:
                             del tokens[-1]
                             tokens.extend(replace_tokens)
                     else:
-                        tokens.extend(replace_tokens)            
+                        tokens.extend(replace_tokens)
+                previous_tokens = replace_tokens
                 
         return reindex_tokens(tokens)
 

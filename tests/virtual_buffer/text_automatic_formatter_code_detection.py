@@ -7,7 +7,7 @@ input_indexer.detector.languages = ['EN', 'NL']
 def test_index_python_code(assertion):
     sentence_tokens = input_indexer.index_text("    def change_place(test: str) -> False:")
     assertion( "Indexing the line '    def change_place(test: str) -> False:'...")
-    assertion("    should consist of 6 virtual buffer tokens", len(sentence_tokens) == 6)
+    assertion("    should consist of 7 virtual buffer tokens", len(sentence_tokens) == 7)
     assertion("    should considered the second two tokens to be snakecase", len([token.format for token in sentence_tokens[1:3] if token.format == "snakecase"]) == 2)
 
 def test_index_java_code(assertion):
@@ -37,4 +37,3 @@ suite = create_test_suite("Automatic code formatter detection")
 #suite.add_test(test_index_java_code)
 #suite.add_test(test_index_php_code)
 #suite.add_test(test_index_javascript_code)
-#suite.run()

@@ -567,7 +567,8 @@ class VirtualBuffer:
 
                         # Decide if we can merge in the future
                         potential_merge_token = VirtualBufferToken(text, "", token.format)
-                        potential_end_token = VirtualBufferToken(end_text, "", merge_token.format)
+                        end_text = self.tokens[end_index[0]].text[end_index[1]:]
+                        potential_end_token = VirtualBufferToken(end_text, "", self.tokens[end_index[0]].format)
 
                         should_detect_merge = can_merge_tokens(potential_merge_token, potential_end_token)
                         if start_index[1] == len(token.text.replace('\n', '')) and not should_detect_merge:
@@ -1061,4 +1062,3 @@ class VirtualBuffer:
             self.virtual_selection = []
 
         return keys
-        

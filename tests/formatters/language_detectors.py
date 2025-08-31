@@ -15,6 +15,7 @@ def test_dutch_detector(assertion):
     assertion( "    should mark 'Kan ik hier nog iets mee' as likely dutch", detector.detect_likeliness("Kan ik hier nog iets mee?") > 0.0)
     assertion( "    should mark 'Het museum is vaak vol' as likely dutch", detector.detect_likeliness("Het museum is vaak vol") > 0.0)
     assertion( "    should mark 'Maar dat hoeft niet zo te zijn' as likely dutch", detector.detect_likeliness("Maar dat hoeft niet zo te zijn") > 0.0)    
+    assertion( "    should mark 'change' as undetermined", detector.detect_likeliness("change") <= 0.0)
 
 def test_english_detector(assertion):
     detector = englishLanguage

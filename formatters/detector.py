@@ -30,7 +30,7 @@ class FormatterDetector:
         if self.languages is None or len(self.languages) > 1:
             english_likeliness = englishLanguage.detect_likeliness(text)
             dutch_likeliness = dutchLanguage.detect_likeliness(text)
-            if english_likeliness >= 0 and english_likeliness > dutch_likeliness:
+            if english_likeliness >= 0 and english_likeliness >= dutch_likeliness:
                 language = FORMATTERS_LIST['DICTATION_EN']
             else:
                 language = FORMATTERS_LIST['DICTATION_NL']

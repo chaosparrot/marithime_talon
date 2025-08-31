@@ -13,7 +13,7 @@ def text_to_phrase(text: str) -> str:
 def normalize_text(text: str) -> str:
     return re.sub(r"[^\w\s]|[_]", ' ', text).replace("\n", " ")
 
-def can_merge_tokens(token: VirtualBufferToken, token_to_merge_with: VirtualBufferToken, character_index = 0) -> bool:
+def can_merge_tokens(token: VirtualBufferToken, token_to_merge_with: VirtualBufferToken) -> bool:
     token_formatters = token.format.split("|")
     formatters = []
     for formatter_name in token_formatters:
@@ -21,8 +21,8 @@ def can_merge_tokens(token: VirtualBufferToken, token_to_merge_with: VirtualBuff
             if FORMATTERS_LIST[key].name == formatter_name:
                 formatters.append(FORMATTERS_LIST[key])
 
-    first_token_text = token.text if character_index == 0 else token_to_merge_with.text
-    next_token_text = token_to_merge_with.text if character_index == 0 else token.text
+    first_token_text = token.text
+    next_token_text = token_to_merge_with.text
 
     # Fall back to a simple text formatter
     if len(formatters) == 0:
@@ -142,7 +142,7 @@ class VirtualBufferIndexer:
                 if len(tokens) == 0:
                     tokens.extend(replace_tokens)
                 else:
-                    if can_merge_tokens(token, tokens[-1], len(tokens[-1].text)):
+                    if can_merge_tokens(tokens[-1], token):
                         tokens[-1].text += token.text
                         tokens[-1].phrase = text_to_phrase(tokens[-1].text)
 

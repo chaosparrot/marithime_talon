@@ -11,14 +11,14 @@ def get_virtual_buffer() -> VirtualBuffer:
 def test_removing_characters(assertion):
     vb = get_virtual_buffer()
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a new sentence. \n", "insert a new sentence"))
+    assertion( vb.tokens )
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a second sentence. \n", "insert a second sentence"))
+    assertion( vb.tokens )
     vb.insert_tokens(text_to_virtual_buffer_tokens("Insert a third sentence.", "insert a third sentence"))
+    assertion( vb.tokens )    
     vb.caret_tracker.text_buffer = """Insert a new sentence. 
 Insert a second """ + _CARET_MARKER + """sentence. 
 Insert a third sentence."""
-
-    assertion( "Removing characters from input buffer")
-    assertion( "    Removing a single character...")
     vb.apply_backspace(1)
     assertion( "        Expect buffer length to stay the same (3)", len(vb.tokens) == 3)
     caret_index = vb.caret_tracker.get_caret_index()
@@ -148,5 +148,4 @@ def test_remove_single_line_ending_remaining(assertion):
 
 suite = create_test_suite("Removing characters from virtual buffer")
 suite.add_test(test_removing_characters)
-#suite.add_test(test_remove_single_line_ending_remaining)
-suite.run() 
+suite.add_test(test_remove_single_line_ending_remaining)

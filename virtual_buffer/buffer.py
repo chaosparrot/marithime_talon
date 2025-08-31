@@ -106,9 +106,13 @@ class VirtualBuffer:
     def determine_rightmost_token_index(self):
         return self.determine_token_index(self.caret_tracker.get_rightmost_caret_index())
 
-    def determine_token_index(self, caret_index: (int, int) = None) -> (int, int):
+    def determine_token_index(self, caret_index: (int, int) = None, verbose = False) -> (int, int):
         if caret_index is None:
             caret_index = self.caret_tracker.get_caret_index()
+
+        if verbose == True:
+            print( "    TOKEN INDEX FROM CARET", caret_index )
+            print( "    ", self.tokens )
 
         line_index, character_index = caret_index
         if line_index > -1 and character_index > -1: 
@@ -116,11 +120,23 @@ class VirtualBuffer:
                 if token.line_index == line_index and \
                     token.index_from_line_end <= character_index and token.index_from_line_end + len(token.text) >= character_index:
                     token_character_index = (len(token.text.replace("\n", "")) + token.index_from_line_end) - character_index
+                    if verbose:
+                        print("    FOUND TOKEN AND NEW LINE!", token_index, token_character_index)
+
                     return token_index, token_character_index
             
+            if verbose:
+                print("    COULD NOT DETERMINE TOKEN FROM NEW LINE", self.tokens[-1].text)
+
             # Detect new lines properly
             if len(self.tokens) > 0 and "\n" in self.tokens[-1].text:
+                if verbose:
+                    print("    NEW LINE DETECTED! DETERMINING FROM", len(self.tokens) - 1, len(self.tokens[-1].text))
                 return len(self.tokens) - 1, len(self.tokens[-1].text)
+        else:
+            if verbose:
+                print( "    DEAD BRANCH!" )
+
         return -1, -1
     
     def determine_context(self) -> VirtualBufferTokenContext:
@@ -249,20 +265,26 @@ class VirtualBuffer:
 
         # When we are at the start of an token, we can possibly join the previous token with the current input
         elif token_character_index == 0:
-            if can_merge_tokens(token, current_token, token_character_index):
-                current_strategy = MERGE_STRATEGY_JOIN
+
+            # Edgecase for newlines - Join with an empty string instead so keep the empty string in front
+            if len(current_token.text) == 0:
+                if can_merge_tokens(current_token, token):
+                    current_strategy = MERGE_STRATEGY_JOIN
+            else:
+                if can_merge_tokens(token, current_token):
+                    current_strategy = MERGE_STRATEGY_JOIN                
             
-            if token_index > 0 and can_merge_tokens(previous_token, token, token_character_index):
+            if token_index > 0 and can_merge_tokens(previous_token, token):
                 previous_strategy = MERGE_STRATEGY_JOIN
             elif current_strategy != MERGE_STRATEGY_JOIN:
                 previous_strategy = MERGE_STRATEGY_APPEND_AFTER
         
         # When we are at the end of an token, we can possibly join the next token with the current input
         elif token_character_index >= len(self.tokens[token_index].text):
-            if can_merge_tokens(token, current_token, token_character_index):
+            if can_merge_tokens(current_token, token):
                 current_strategy = MERGE_STRATEGY_JOIN
 
-            if token_index < len(self.tokens) - 1 and can_merge_tokens(next_token, token, token_character_index):
+            if token_index < len(self.tokens) - 1 and can_merge_tokens(token, next_token):
                 next_strategy = MERGE_STRATEGY_JOIN
             elif token.text.endswith("\n"):
                 current_strategy = MERGE_STRATEGY_JOIN
@@ -275,8 +297,8 @@ class VirtualBuffer:
 
             left_current_token = VirtualBufferToken(current_token.text[:token_character_index], None, current_token.format, current_token.line_index, current_token.index_from_line_end)
             right_current_token = VirtualBufferToken(current_token.text[token_character_index:], None, current_token.format, current_token.line_index, current_token.index_from_line_end)
-            can_join_left = can_merge_tokens(left_current_token, token, 0)
-            can_join_right = can_merge_tokens(token, right_current_token, 0)
+            can_join_left = can_merge_tokens(left_current_token, token)
+            can_join_right = can_merge_tokens(token, right_current_token)
 
             if can_join_left and can_join_right:
                 current_strategy = MERGE_STRATEGY_JOIN
@@ -518,9 +540,7 @@ class VirtualBuffer:
                 if token_index < start_index[0] or token_index > end_index[0]:
 
                     # Attempt merge if the tokens can be combined
-                    if should_detect_merge and not re.sub(r"[^\w\s]", ' ', token.text).replace("\n", " ").startswith(" ") and \
-                            not re.sub(r"[^\w\s]", ' ', tokens[-1].text).replace("\n", " ").endswith(" "):
-
+                    if should_detect_merge and can_merge_tokens(tokens[-1], token):
                         merge_token = tokens[-1]
                         text = merge_token.text + token.text
                         tokens[-1].text = text
@@ -539,10 +559,14 @@ class VirtualBuffer:
                         text = text[:start_index[1]] + text[end_index[1]:]
                         if text != "":
                             tokens.append(VirtualBufferToken(text, text_to_phrase(text), "", token.line_index))
+
+                            # TODO IMPROVE CAN MERGE TOKENS CHECK?
                             should_detect_merge = start_index[1] == 0 or end_index[1] >= len(text.replace("\n", ""))
                     # Split token, remember the first token from the selection
                     elif token_index == start_index[0]:
                         text = text[:start_index[1]]
+
+                        # TODO IMPROVE CAN MERGE TOKENS CHECK?
                         should_detect_merge = not re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").endswith(" ")
                         if start_index[1] == len(token.text.replace('\n', '')) and not should_detect_merge:
                             tokens.append(token)
@@ -552,7 +576,7 @@ class VirtualBuffer:
                     elif token_index == end_index[0]:
                         text = text[end_index[1]:]
 
-                        if merge_token is not None and should_detect_merge and not re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").startswith(" "):
+                        if merge_token is not None and should_detect_merge and can_merge_tokens(merge_token, VirtualBufferToken(text, "", merge_token.format)):
                             text = merge_token.text + text
                         elif merge_token is not None:
                             tokens.append(merge_token)
@@ -646,7 +670,7 @@ class VirtualBuffer:
                     previous_text = "" if token_index < 0 else self.tokens[token_index].text
                     text = self.tokens[next_token_index].text
 
-                    if should_detect_merge and (text == "\n" or not re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").startswith(" ") ) and not re.sub(r"[^\w\s]", ' ', previous_text).replace("\n", " ").endswith(" "):
+                    if should_detect_merge and can_merge_tokens(self.tokens[token_index], self.tokens[next_token_index]):
                         text = previous_text + text
                         self.tokens[token_index].text = text
                         self.tokens[token_index].phrase = text_to_phrase(text)
@@ -727,7 +751,7 @@ class VirtualBuffer:
                     previous_text = "" if previous_token_index < 0 else self.tokens[previous_token_index].text
                     text = self.tokens[previous_token_index + 1].text
 
-                    if should_detect_merge and (text == "\n" or not re.sub(r"[^\w\s]", ' ', text).replace("\n", " ").startswith(" ") ) and not re.sub(r"[^\w\s]", ' ', previous_text).replace("\n", " ").endswith(" "):
+                    if should_detect_merge and can_merge_tokens(self.tokens[previous_token_index], self.tokens[previous_token_index + 1]):
                         text = previous_text + text
                         self.tokens[previous_token_index].text = text
                         self.tokens[previous_token_index].phrase = text_to_phrase(text)

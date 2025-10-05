@@ -639,3 +639,6 @@ class InputContextManager:
 
     def get_selected_tokens(self):
         return self.get_current_context().buffer.get_selected_tokens()
+
+    def get_selection_text(self):
+        return self.get_current_context().buffer.caret_tracker.get_selection_text()

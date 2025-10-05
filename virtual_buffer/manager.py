@@ -482,6 +482,12 @@ class VirtualBufferManager:
         self.index()
         self.enable_tracking()
 
+    def index_document(self, document: str):
+        self.disable_tracking()
+        self.context.index_text(document)
+        self.index()
+        self.enable_tracking()
+
     def focus_changed(self, event):
         context_switched = self.context.switch_context(event)
         if context_switched:
@@ -778,3 +784,41 @@ class Actions:
                 lines += "\n" + text_lines[found_index + 1]
 
         return lines
+
+    # Actions for easy extension of the marithime package
+    def marithime_index_document(value: str):
+        """Index a whole document so the current context is filled"""
+        mutator = get_mutator()
+        mutator.index_document(value)
+
+    def marithime_get_formatter() -> str:
+        """Get the currently active formatter name which can be referenced in the formatters list"""
+        mutator = get_mutator()
+        return mutator.indexer.get_formatter().name
+
+    def marithime_estimate_language(text: str) -> str:
+        """Estimate the language based on the given text"""
+        mutator = get_mutator()
+        language_formatter = mutator.indexer.detector.detect_language_formatter(text)
+        return language_formatter.name
+
+    def marithime_estimate_formatter(text: str) -> str:
+        """Estimate the used (programming) formatter based on the given text"""
+        mutator = get_mutator()
+        formatter = mutator.indexer.detector.detect_formatter(text)
+        return formatter.name
+
+    def marithime_get_selection_text() -> str:
+        """Get the currently selected text as it was indexed last"""
+        mutator = get_mutator()
+        return mutator.indexer.get_selection_text()
+
+    def marithime_set_caret_position(line_index: int, character_index: int) -> str:
+        """Set the current position of the text caret within the known document"""
+        mutator = get_mutator()
+        # TODO IMPLEMENT
+
+    def marithime_set_caret_selection_position(left_line_index: int, left_character_index: int, right_line_index: int, right_character_index: int) -> str:
+        """Set the current position of the text caret within the known document"""
+        mutator = get_mutator()
+        # TODO IMPLEMENT

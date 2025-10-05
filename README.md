@@ -69,15 +69,14 @@ Videos seem to speak to people more than written text does, so accompany this wi
 
 [~] - Extension possibilities for other packages  
 There's a ton of ways other packages can make use of our captures, settings and detections, but we will need to document them so they are easier to reuse as well.
-- Known words in document
-- Get last formatter used
-- Get known language in document
-- Get selection
-- Add fixes
-- Reformat selection
-- Set selection
-- Set document
-- Set cursor position
+X Known words in document
+X Get last formatter used
+X Get known language in document
+X Get selection
+X Reformat selection
+~ Set selection
+X Set document
+~ Set cursor position
 
 #### Dictation
 
@@ -181,6 +180,9 @@ The current way separation is implemented while merging using the `insert_token`
 
 [x] - Formatter merging  
 When switching a formatter without a space or special character in between, it might find the previous text to be part of the previous token formatting. This is fine, but when it is merged, it choses the previous token formatter instead.
+
+[ ] - Select only based on formatted text, not on punctuation.  
+During coding, you might want to only select the name of a class or a method inside of a chain, however right now the dot is added to the following tokens `change_place.using_cursor` -> `place.`, so if you select or correct `change place` it will select `change_place.` and update that accordingly where you will most likely not want to edit that last period away.  
 
 [ ] - Formatter prediction  
 Essentially, allowing a specific formatter to be used if it detects that we are about to create a variable, parameter or function name. Every language has their own rules about snake case, camel case and pascal case that we could automatically use.

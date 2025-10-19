@@ -28,6 +28,26 @@ def test_index_camelcase_text(assertion):
     assertion("    should consist of 2 virtual buffer tokens", len(sentence_tokens) == 2)
     assertion("    should all be considered camelcase tokens", len([token.format for token in sentence_tokens if token.format == "camelcase"]) == 2)
 
+def test_index_constant_case_text(assertion):
+    sentence_tokens = input_indexer.index_text("THIS_MACRO")
+    assertion( "Indexing the words 'THIS_MACRO'...")
+    assertion("    should consist of 2 virtual buffer tokens", len(sentence_tokens) == 2)
+    assertion("    should all be considered constant tokens", len([token.format for token in sentence_tokens if token.format == "constant"]) == 2)    
+
+def test_index_cases_ending_with_space_text(assertion):
+    sentence_tokens = input_indexer.index_text("this_macro ")
+    assertion( "Indexing the words 'this_macro '...")
+    assertion("    should consist of 2 virtual buffer tokens", len(sentence_tokens) == 2)
+    assertion("    should all be considered snakecase tokens", len([token.format for token in sentence_tokens if token.format == "snakecase"]) == 2)
+    sentence_tokens = input_indexer.index_text("thisMacro ")
+    assertion( "Indexing the words 'thisMacro '...")
+    assertion("    should consist of 2 virtual buffer tokens", len(sentence_tokens) == 2)
+    assertion("    should all be considered camelcase tokens", len([token.format for token in sentence_tokens if token.format == "camelcase"]) == 2)
+    sentence_tokens = input_indexer.index_text("THIS_MACRO ")
+    assertion( "Indexing the words 'THIS_MACRO '...")
+    assertion("    should consist of 2 virtual buffer tokens", len(sentence_tokens) == 2)
+    assertion("    should all be considered constant tokens", len([token.format for token in sentence_tokens if token.format == "constant"]) == 2)
+
 def test_index_snakecase_and_camelcase_test(assertion):
     sentence_tokens = input_indexer.index_text("changePlace change_place")
     assertion( "Indexing the words 'changePlace change_place'...")
@@ -54,6 +74,9 @@ suite.add_test(test_index_snakecase_text)
 suite.add_test(test_index_camelcase_text)
 suite.add_test(test_index_snakecase_and_camelcase_test)
 suite.add_test(test_index_snakecase_and_camelcase_with_dot_test)
+suite.add_test(test_index_constant_case_text)
+suite.add_test(test_index_cases_ending_with_space_text)
 suite.add_test(test_index_single_english_sentence)
 suite.add_test(test_index_single_dutch_sentence)
 suite.add_test(test_index_single_dutch_sentence_but_dutch_disabled)
+suite.run() 

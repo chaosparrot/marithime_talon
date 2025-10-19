@@ -105,7 +105,6 @@ class CapitalizationFormatter(SurroundSeparatorFormatter):
     
     # Detect if we can merge this text together into a single token
     def can_merge_text(self, first_text: str, last_text: str) -> bool:
-
         # We can only merge if we do not detect a transition between capitalization
         # If that is enabled
         last_first_text_character = first_text[-1] if len(first_text) > 0 else ""

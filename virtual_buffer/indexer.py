@@ -148,7 +148,8 @@ class VirtualBufferIndexer:
 
                         # Detect a programming formatter from the text alone
                         # If we are merging based on punctuation
-                        merge_formatter = self.detector.detect_formatter(tokens[-1].text, "", None)
+                        previous_token_text = tokens[-2].text if len(tokens) > 1 else ""
+                        merge_formatter = self.detector.detect_formatter(tokens[-1].text, previous_token_text, None)
                         if merge_formatter is not None:
                             replace_tokens = []
                             split_words = merge_formatter.split_format(tokens[-1].text)
@@ -156,7 +157,14 @@ class VirtualBufferIndexer:
                                 replace_tokens.extend(text_to_virtual_buffer_tokens(split_word, None, merge_formatter.name))
                             
                             del tokens[-1]
-                            tokens.extend(replace_tokens)
+                            # Do one final merging of text pass
+                            # So we won't get three tokens a text like 'THIS_MACRO '
+                            for replace_token_index, replace_token in enumerate(replace_tokens):
+                                if replace_token_index > 0 and can_merge_tokens(replace_tokens[replace_token_index - 1], replace_token):
+                                    tokens[-1].text += replace_token.text
+                                    tokens[-1].phrase = text_to_phrase(tokens[-1].text)
+                                else:
+                                    tokens.append(replace_token)
                     else:
                         tokens.extend(replace_tokens)
                 previous_tokens = replace_tokens

@@ -67,16 +67,16 @@ If you want to highlight a specific set of tests, go inside of the specific test
 [] - Create a usage and installation video  
 Videos seem to speak to people more than written text does, so accompany this with a video as well
 
-[~] - Extension possibilities for other packages  
+[x] - Extension possibilities for other packages  
 There's a ton of ways other packages can make use of our captures, settings and detections, but we will need to document them so they are easier to reuse as well.
 X Known words in document
 X Get last formatter used
 X Get known language in document
 X Get selection
 X Reformat selection
-~ Set selection
+X Set selection
 X Set document
-~ Set cursor position
+X Set cursor position
 
 #### Dictation
 

@@ -38,8 +38,6 @@ You might want to pair this with [set the currently indexed content](#2-set-the-
 
 NOTE that only a single selection is possible at the same time, so multi-cursor usage is not supported.
 
-TODO FIX IMPLEMENTATION
-
 ### 4. Set the selection cursor
 
 If you have a deeper integration within the software for detecting the current text caret, you might want to use `actions.user.marithime_set_caret_selection_position(1, 2, 3, 4)`, where the first argument is the line, and the second argument is the character on that line of the left caret, and the last two arguments are the same but for the right caret. In this case, it would place the selection starting from the third character on the second line of the known indexed content, until the fifth character on the fourth line.
@@ -47,8 +45,6 @@ If you have a deeper integration within the software for detecting the current t
 You might want to pair this with [set the currently indexed content](#2-set-the-currently-indexed-content) first if you have more context to ensure everything is kept in sync.
 
 NOTE that only a single selection is possible at the same time, so multi-cursor usage is not supported.
-
-TODO FIX IMPLEMENTATION
 
 ### 5. Estimate the spoken language
 
@@ -72,4 +68,4 @@ By using `actions.user.marithime_get_formatter()` you can get the name of the fo
 
 ### 9. Set the formatter ( and reformat the current selection )
 
-Using `actoins.user.marithime_set_formatter(marithime_formatter)`, where the marithime_formatter is a name of a formatter within formatters/formatters.py, you can set the current formatter and, if a selection is active, automatically reformat the currently selected text to be in that formatter.
+Using `actions.user.marithime_set_formatter(marithime_formatter)`, where the marithime_formatter is a name of a formatter within formatters/formatters.py, you can set the current formatter and, if a selection is active, automatically reformat the currently selected text to be in that formatter.

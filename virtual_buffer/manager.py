@@ -814,11 +814,12 @@ class Actions:
         return mutator.indexer.get_selection_text()
 
     def marithime_set_caret_position(line_index: int, character_index: int) -> str:
-        """Set the current position of the text caret within the known document"""
+        """Set the known position of the text caret within the text without moving the cursor"""
         mutator = get_mutator()
-        # TODO IMPLEMENT
+        self.context.get_current_context().buffer.caret_tracker.set_caret_position(line_index, character_index)
 
     def marithime_set_caret_selection_position(left_line_index: int, left_character_index: int, right_line_index: int, right_character_index: int) -> str:
-        """Set the current position of the text caret within the known document"""
+        """Set the known position of the text caret within the text without moving the cursor"""
         mutator = get_mutator()
-        # TODO IMPLEMENT
+        self.context.get_current_context().buffer.caret_tracker
+            .set_caret_position(line_index, character_index, right_line_index, right_character_index)

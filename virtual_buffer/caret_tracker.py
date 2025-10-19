@@ -768,3 +768,39 @@ class CaretTracker:
             keys = []
 
         return keys
+
+    # Directly set the caret position based on the line and character count from the start of the line
+    def set_caret_position(self, line_index: int, character_index_from_start: int, right_line_index: int = -1, right_character_index_from_start: int = -1):
+        before_caret_text = ""
+        after_caret_text = ""
+        current_line_index = 0
+        textbuffer = self.get_markerless_textbuffer()
+        lines = textbuffer.splitlines()
+
+        while current_line_index < len(lines):
+            current_line = lines[current_line_index]
+            if current_line_index == line_index:
+                before_caret_text += current_line[:character_index_from_start]
+                after_caret_text += current_line[character_index_from_start:]
+                if current_line_index < len(lines) - 1:
+                    after_caret_text += "\n"
+
+            elif current_line_index < line_index:
+                before_caret_text += current_line
+                if current_line_index < len(lines) - 1:
+                    before_caret_text += "\n"
+
+            elif current_line_index > line_index:
+                after_caret_text += current_line
+                if current_line_index < len(lines) - 1:
+                    after_caret_text += "\n"
+            current_line_index += 1
+
+        # Set the selection cursor as well
+        if right_line_index >= 0 and right_character_index_from_start >= 0:
+            if len(lines) > right_line_index:
+                current_line = lines[right_line_index]
+                from_line_end = len(current_line) - right_character_index_from_start
+                self.selection_caret_marker = (right_line_index, from_line_end)
+
+        self.set_buffer(before_caret_text, after_caret_text)

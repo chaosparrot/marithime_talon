@@ -7,7 +7,7 @@ FORMATTERS_LIST = {
     'SNAKE_CASE': CapitalizationFormatter("snakecase", "_", CAPITALIZATION_STRATEGY_LOWERCASE, CAPITALIZATION_STRATEGY_LOWERCASE),
     'PASCAL_CASE': CapitalizationFormatter("pascalcase", "", CAPITALIZATION_STRATEGY_TITLECASE, CAPITALIZATION_STRATEGY_TITLECASE),
     'CAMEL_CASE': CapitalizationFormatter("camelcase", "", CAPITALIZATION_STRATEGY_LOWERCASE, CAPITALIZATION_STRATEGY_TITLECASE),
-    'KEBAB_CASE': SeparatorFormatter("kebabcase", "-"),
+    'KEBAB_CASE': CapitalizationFormatter("kebabcase", "-", CAPITALIZATION_STRATEGY_LOWERCASE, CAPITALIZATION_STRATEGY_LOWERCASE),
     'CONSTANT': CapitalizationFormatter("constant", "_", CAPITALIZATION_STRATEGY_ALL_CAPS, CAPITALIZATION_STRATEGY_ALL_CAPS),
     'NOOP': SeparatorFormatter("", " "),
     'NO_SPACES': CapitalizationFormatter("nospaces", " ", "", ""),
